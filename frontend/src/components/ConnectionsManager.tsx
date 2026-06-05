@@ -7,7 +7,8 @@ import { useConnectionsStore } from "@/store/connectionsStore";
 import { useToastStore } from "@/store/toastStore";
 import { useWalletStore } from "@/store/walletStore";
 import { connectObs, addOverlaySource, type ObsClient } from "@/lib/obs";
-import { chainInfo, shortAddr, hasInjectedWallet } from "@/lib/web3";
+import { chainInfo, shortAddr } from "@/lib/web3";
+import { WalletButtons } from "./WalletButtons";
 
 // Held at module scope so the connection survives the modal closing/reopening.
 let obsClient: ObsClient | null = null;
@@ -38,10 +39,8 @@ export function ConnectionsManager({ open, onClose }: { open: boolean; onClose: 
 
   const walletAddress = useWalletStore((s) => s.address);
   const walletChainId = useWalletStore((s) => s.chainId);
-  const walletConnecting = useWalletStore((s) => s.connecting);
-  const walletError = useWalletStore((s) => s.error);
+  const walletName = useWalletStore((s) => s.wallet);
   const tipEnabled = useWalletStore((s) => s.tipEnabled);
-  const connectWalletNow = useWalletStore((s) => s.connect);
   const disconnectWallet = useWalletStore((s) => s.disconnect);
   const setTipEnabled = useWalletStore((s) => s.setTipEnabled);
 
@@ -311,27 +310,14 @@ export function ConnectionsManager({ open, onClose }: { open: boolean; onClose: 
                 tip is approved in your wallet.
               </p>
 
-              {!hasInjectedWallet() ? (
-                <div className="rounded-lg border border-amber-400/20 bg-amber-400/5 px-3 py-2 text-[11px] text-amber-200/90">
-                  No EVM wallet detected. Install MetaMask, Rabby or Coinbase Wallet, then reload.
-                </div>
-              ) : !walletAddress ? (
-                <>
-                  <button
-                    onClick={connectWalletNow}
-                    disabled={walletConnecting}
-                    className="flex w-full items-center justify-center gap-2 rounded-lg bg-accent/20 py-2 text-sm font-bold text-accent shadow-neon transition hover:bg-accent/30 disabled:opacity-50"
-                  >
-                    {walletConnecting ? <Loader2 size={15} className="animate-spin" /> : <Wallet size={15} />}
-                    {walletConnecting ? "Check your wallet…" : "Connect EVM Wallet"}
-                  </button>
-                  {walletError && <div className="mt-2 text-[11px] text-red-400">{walletError}</div>}
-                </>
+              {!walletAddress ? (
+                <WalletButtons />
               ) : (
                 <>
                   <div className="flex items-center justify-between">
-                    <span className="flex items-center gap-1.5 text-sm font-semibold text-emerald-400">
+                    <span className="flex flex-wrap items-center gap-1.5 text-sm font-semibold text-emerald-400">
                       <Check size={14} /> {shortAddr(walletAddress)}
+                      {walletName && <span className="rounded-full bg-white/8 px-2 py-0.5 text-[10px] font-bold text-ink">{walletName}</span>}
                       {walletChainId && <span className="rounded-full bg-white/8 px-2 py-0.5 text-[10px] font-bold text-ink">{chainInfo(walletChainId).name}</span>}
                     </span>
                     <button onClick={disconnectWallet} className="rounded-lg border border-white/10 px-2.5 py-1 text-xs font-semibold text-muted hover:text-red-300">Disconnect</button>

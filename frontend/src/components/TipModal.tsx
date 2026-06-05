@@ -2,8 +2,9 @@ import { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { Wallet, X, Send, Check, ExternalLink, Loader2, AlertTriangle } from "lucide-react";
 import { useWalletStore } from "@/store/walletStore";
-import { sendToken, tokenFor, stablesOn, chainInfo, shortAddr, hasInjectedWallet, switchToEthereum, type Stable } from "@/lib/web3";
+import { sendToken, tokenFor, stablesOn, chainInfo, shortAddr, switchToEthereum, type Stable } from "@/lib/web3";
 import { useToastStore } from "@/store/toastStore";
+import { WalletButtons } from "./WalletButtons";
 
 const PRESETS = ["5", "10", "25", "50"];
 
@@ -20,8 +21,7 @@ export function TipModal({
 }) {
   const address = useWalletStore((s) => s.address);
   const chainId = useWalletStore((s) => s.chainId);
-  const connecting = useWalletStore((s) => s.connecting);
-  const connect = useWalletStore((s) => s.connect);
+  const wallet = useWalletStore((s) => s.wallet);
   const push = useToastStore((s) => s.push);
 
   const [amount, setAmount] = useState("10");
@@ -114,24 +114,15 @@ export function TipModal({
             )}
             <button onClick={onClose} className="mt-1 rounded-lg bg-accent/20 px-4 py-1.5 text-sm font-bold text-accent hover:bg-accent/30">Done</button>
           </div>
-        ) : !hasInjectedWallet() ? (
-          <div className="flex flex-col items-center gap-2 py-3 text-center text-sm text-muted">
-            <AlertTriangle size={20} className="text-amber-400" />
-            No EVM wallet detected. Install MetaMask, Rabby or Coinbase Wallet to send tips.
-          </div>
         ) : !address ? (
-          <button
-            onClick={connect}
-            disabled={connecting}
-            className="flex w-full items-center justify-center gap-2 rounded-xl border border-accent/50 bg-accent/20 py-2.5 text-sm font-bold text-accent shadow-neon transition hover:bg-accent/30 disabled:opacity-50"
-          >
-            {connecting ? <Loader2 size={15} className="animate-spin" /> : <Wallet size={15} />}
-            Connect your wallet to tip
-          </button>
+          <div>
+            <p className="mb-2 text-center text-[11px] text-muted">Connect MetaMask or Phantom to send a tip</p>
+            <WalletButtons />
+          </div>
         ) : (
           <>
             <div className="mb-2 flex items-center justify-between text-[11px] text-muted">
-              <span>From {shortAddr(address)}</span>
+              <span>From {shortAddr(address)}{wallet ? ` · ${wallet}` : ""}</span>
               {chain && <span className="rounded-full bg-white/8 px-2 py-0.5 font-semibold text-ink">{chain.name}</span>}
             </div>
 

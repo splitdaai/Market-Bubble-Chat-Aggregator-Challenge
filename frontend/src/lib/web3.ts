@@ -1,7 +1,9 @@
 /**
- * Minimal non-custodial EVM helpers built on the injected EIP-1193 provider
- * (MetaMask / Rabby / Coinbase Wallet). No private keys ever touch the app —
- * every transfer is signed and broadcast by the user's own wallet popup.
+ * Minimal non-custodial EVM helpers. Wallets are discovered via EIP-6963
+ * (multi-injected-provider discovery) so the operator can explicitly pick
+ * MetaMask or Phantom even when several extensions are installed and fighting
+ * over `window.ethereum`. No private keys ever touch the app — every transfer
+ * is signed and broadcast by the user's own wallet popup.
  */
 
 export interface Eip1193Provider {
@@ -9,12 +11,70 @@ export interface Eip1193Provider {
   on?(event: string, handler: (...args: unknown[]) => void): void;
   removeListener?(event: string, handler: (...args: unknown[]) => void): void;
   isMetaMask?: boolean;
+  isPhantom?: boolean;
+}
+
+interface Eip6963Detail {
+  info: { uuid: string; name: string; icon: string; rdns: string };
+  provider: Eip1193Provider;
 }
 
 declare global {
   interface Window {
     ethereum?: Eip1193Provider;
+    phantom?: { ethereum?: Eip1193Provider };
   }
+}
+
+/** A wallet the browser exposes (MetaMask, Phantom, …). */
+export interface WalletOption {
+  rdns: string;
+  name: string;
+  icon?: string;
+  provider: Eip1193Provider;
+}
+
+// EIP-6963: wallets announce themselves in response to our request event.
+const announced = new Map<string, WalletOption>();
+if (typeof window !== "undefined") {
+  window.addEventListener("eip6963:announceProvider", (e) => {
+    const detail = (e as CustomEvent<Eip6963Detail>).detail;
+    if (detail?.info?.rdns && detail.provider) {
+      announced.set(detail.info.rdns, {
+        rdns: detail.info.rdns, name: detail.info.name, icon: detail.info.icon, provider: detail.provider,
+      });
+    }
+  });
+  window.dispatchEvent(new Event("eip6963:requestProvider"));
+}
+
+// MetaMask + Phantom float to the top of the picker.
+const PREFERRED = ["io.metamask", "app.phantom"];
+
+/** Every EVM wallet the browser exposes, MetaMask + Phantom first. */
+export function discoverWallets(): WalletOption[] {
+  if (typeof window === "undefined") return [];
+  window.dispatchEvent(new Event("eip6963:requestProvider")); // re-poll late injectors
+  const list = new Map(announced);
+
+  // Fallbacks for wallets that don't (yet) announce via EIP-6963.
+  if (!list.has("app.phantom") && window.phantom?.ethereum) {
+    list.set("app.phantom", { rdns: "app.phantom", name: "Phantom", provider: window.phantom.ethereum });
+  }
+  if (!list.has("io.metamask") && window.ethereum?.isMetaMask) {
+    list.set("io.metamask", { rdns: "io.metamask", name: "MetaMask", provider: window.ethereum });
+  }
+  if (list.size === 0 && window.ethereum) {
+    list.set("injected", { rdns: "injected", name: "Browser Wallet", provider: window.ethereum });
+  }
+
+  const rank = (r: string) => (PREFERRED.indexOf(r) === -1 ? 99 : PREFERRED.indexOf(r));
+  return [...list.values()].sort((a, b) => rank(a.rdns) - rank(b.rdns));
+}
+
+function pickWallet(rdns?: string): WalletOption | undefined {
+  const wallets = discoverWallets();
+  return (rdns ? wallets.find((w) => w.rdns === rdns) : undefined) ?? wallets[0];
 }
 
 /** A few common EVM chains for friendly labels in the tip UI. */
@@ -32,36 +92,48 @@ export function chainInfo(chainId: number) {
 }
 
 export function hasInjectedWallet(): boolean {
-  return typeof window !== "undefined" && !!window.ethereum;
+  return discoverWallets().length > 0;
 }
+
+// The provider the operator actually connected through — used for every signed
+// call so a send always goes to the same wallet they picked.
+let active: Eip1193Provider | null = null;
 
 export function getProvider(): Eip1193Provider {
-  if (!window.ethereum) throw new Error("No EVM wallet found. Install MetaMask, Rabby or Coinbase Wallet.");
-  return window.ethereum;
+  const p = active ?? (typeof window !== "undefined" ? window.ethereum : undefined);
+  if (!p) throw new Error("No EVM wallet connected. Install MetaMask or Phantom.");
+  return p;
 }
 
-/** Prompt the wallet to connect; returns the selected account + chain id. */
-export async function connectWallet(): Promise<{ address: string; chainId: number }> {
-  const p = getProvider();
-  const accounts = (await p.request({ method: "eth_requestAccounts" })) as string[];
+/** Prompt a specific wallet (by rdns) to connect; returns account + chain + wallet name. */
+export async function connectWallet(rdns?: string): Promise<{ address: string; chainId: number; rdns: string; name: string }> {
+  const chosen = pickWallet(rdns);
+  if (!chosen) throw new Error("No EVM wallet found. Install MetaMask or Phantom.");
+  const accounts = (await chosen.provider.request({ method: "eth_requestAccounts" })) as string[];
   if (!accounts?.length) throw new Error("No account authorized.");
-  const chainHex = (await p.request({ method: "eth_chainId" })) as string;
-  return { address: accounts[0], chainId: parseInt(chainHex, 16) };
+  const chainHex = (await chosen.provider.request({ method: "eth_chainId" })) as string;
+  active = chosen.provider;
+  return { address: accounts[0], chainId: parseInt(chainHex, 16), rdns: chosen.rdns, name: chosen.name };
 }
 
 /** Ask the wallet to switch to Ethereum mainnet (where USDC/USDT live). */
 export async function switchToEthereum(): Promise<void> {
-  const p = getProvider();
-  await p.request({ method: "wallet_switchEthereumChain", params: [{ chainId: "0x1" }] });
+  await getProvider().request({ method: "wallet_switchEthereumChain", params: [{ chainId: "0x1" }] });
+}
+
+/** The live provider for event listeners — by rdns if the caller knows which wallet. */
+export function providerFor(rdns?: string): Eip1193Provider | undefined {
+  return pickWallet(rdns)?.provider;
 }
 
 /** Read the currently-authorized account without prompting (for silent rehydrate). */
-export async function getCurrentAccount(): Promise<{ address: string; chainId: number } | null> {
-  if (!hasInjectedWallet()) return null;
-  const p = getProvider();
-  const accounts = (await p.request({ method: "eth_accounts" })) as string[];
+export async function getCurrentAccount(rdns?: string): Promise<{ address: string; chainId: number } | null> {
+  const chosen = pickWallet(rdns);
+  if (!chosen) return null;
+  const accounts = (await chosen.provider.request({ method: "eth_accounts" })) as string[];
   if (!accounts?.length) return null;
-  const chainHex = (await p.request({ method: "eth_chainId" })) as string;
+  active = chosen.provider;
+  const chainHex = (await chosen.provider.request({ method: "eth_chainId" })) as string;
   return { address: accounts[0], chainId: parseInt(chainHex, 16) };
 }
 
