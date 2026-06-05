@@ -99,6 +99,6 @@ export const useLayoutStore = create<LayoutState>()(
         set((s) => ({ buttons: s.buttons.map((x) => (x.id === b.id ? b : x)) })),
       removeButton: (id) => set((s) => ({ buttons: s.buttons.filter((x) => x.id !== id) })),
     }),
-    { name: "vibechat-layout-v9" },
+    { name: "vibechat-layout-v10" },
   ),
 );

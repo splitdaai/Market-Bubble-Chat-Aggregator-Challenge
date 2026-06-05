@@ -1,19 +1,19 @@
 import { motion } from "framer-motion";
-import { Palette, Pencil, Eye, Volume2, VolumeX, RotateCcw, Monitor, Radio, BarChart3, Plug } from "lucide-react";
+import { Palette, Pencil, Eye, RotateCcw, Monitor, Radio, BarChart3, Plug } from "lucide-react";
 import { useLayoutStore } from "@/store/layoutStore";
-import { useThemeStore } from "@/store/themeStore";
-import { useChatStore } from "@/store/chatStore";
+import { useModeStore } from "@/store/modeStore";
 import { useOverlayStore } from "@/store/overlayStore";
 import { useViewStore } from "@/store/viewStore";
+import { AudioControl } from "./AudioControl";
+import { LiveTimer } from "./LiveTimer";
 
 /** Top command bar — view tabs, edit-mode toggle, theme editor, sound, reset. */
 export function Topbar({ onOpenTheme, onOpenConnections }: { onOpenTheme: () => void; onOpenConnections: () => void }) {
   const editMode = useLayoutStore((s) => s.editMode);
   const toggleEditMode = useLayoutStore((s) => s.toggleEditMode);
   const resetLayout = useLayoutStore((s) => s.resetLayout);
-  const soundEnabled = useThemeStore((s) => s.soundEnabled);
-  const toggleSound = useThemeStore((s) => s.toggleSound);
-  const isMock = useChatStore((s) => s.isMock);
+  const demo = useModeStore((s) => s.demo);
+  const toggleDemo = useModeStore((s) => s.toggle);
   const overlayEnabled = useOverlayStore((s) => s.enabled);
   const toggleOverlay = useOverlayStore((s) => s.toggleEnabled);
   const view = useViewStore((s) => s.view);
@@ -34,16 +34,17 @@ export function Topbar({ onOpenTheme, onOpenConnections }: { onOpenTheme: () => 
         <div>
           <h1 className="flex items-center gap-2 text-lg font-extrabold leading-none tracking-tight">
             Market <span className="text-accent">Bubble</span>
-            <span className="flex items-center gap-1 rounded-md border border-red-500/50 bg-red-500/15 px-1.5 py-0.5 text-[10px] font-black uppercase tracking-wider text-red-400">
+            <span className="flex items-center gap-1.5 rounded-md border border-red-500/50 bg-red-500/15 px-1.5 py-0.5 text-[10px] font-black uppercase tracking-wider text-red-400">
               <span className="relative flex h-1.5 w-1.5">
                 <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-500/70" />
                 <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-red-500" />
               </span>
               Live
+              <LiveTimer className="tabular-nums text-red-200/90" />
             </span>
           </h1>
           <p className="mt-1 text-[10px] font-medium uppercase tracking-[0.2em] text-muted">
-            Multi-Stream Market Chat {isMock && "· Demo Mode"}
+            Multi-Stream Market Chat {demo && "· Demo Mode"}
           </p>
         </div>
       </div>
@@ -69,9 +70,19 @@ export function Topbar({ onOpenTheme, onOpenConnections }: { onOpenTheme: () => 
       </div>
 
       <div className="flex items-center gap-1.5">
-        <IconBtn onClick={toggleSound} active={soundEnabled} title="Sound FX">
-          {soundEnabled ? <Volume2 size={16} /> : <VolumeX size={16} />}
-        </IconBtn>
+        {isLive && (
+          <button
+            onClick={toggleDemo}
+            title={demo ? "Demo data is ON — click to go live (real data only)" : "Live mode — click for demo data"}
+            className={`flex items-center gap-1.5 rounded-xl border px-2.5 py-1.5 text-[11px] font-bold uppercase tracking-wider transition ${
+              demo ? "border-amber-400/40 bg-amber-400/10 text-amber-300 hover:bg-amber-400/20" : "border-emerald-400/40 bg-emerald-400/10 text-emerald-300 hover:bg-emerald-400/20"
+            }`}
+          >
+            <span className={`h-1.5 w-1.5 rounded-full ${demo ? "bg-amber-400" : "bg-emerald-400"}`} />
+            {demo ? "Demo" : "Live"}
+          </button>
+        )}
+        <AudioControl />
         <IconBtn onClick={onOpenConnections} title="Connections (platforms + OBS)">
           <Plug size={16} />
         </IconBtn>

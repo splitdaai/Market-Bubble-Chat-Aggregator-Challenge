@@ -149,6 +149,27 @@ body::-webkit-scrollbar-thumb:hover { background: rgba(var(--vc-accent-rgb), 0.6
 .vc-drag-handle { cursor: grab; }
 .vc-drag-handle:active { cursor: grabbing; }
 
+/* Themed volume slider thumb. */
+.vc-volume::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 13px;
+  height: 13px;
+  border-radius: 9999px;
+  background: var(--vc-accent);
+  box-shadow: 0 0 8px color-mix(in srgb, var(--vc-accent) 70%, transparent);
+  cursor: pointer;
+}
+.vc-volume::-moz-range-thumb {
+  width: 13px;
+  height: 13px;
+  border: none;
+  border-radius: 9999px;
+  background: var(--vc-accent);
+  box-shadow: 0 0 8px color-mix(in srgb, var(--vc-accent) 70%, transparent);
+  cursor: pointer;
+}
+
 @layer components {
   .vc-input {
     @apply w-full rounded-md border border-white/10 bg-black/40 px-2.5 py-1.5 text-sm text-ink outline-none transition focus:border-[var(--vc-accent)];

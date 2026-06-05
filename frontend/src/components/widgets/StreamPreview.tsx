@@ -6,7 +6,9 @@ import { useToastStore } from "@/store/toastStore";
 import { useClipsStore } from "@/store/clipsStore";
 import { useConnectionsStore } from "@/store/connectionsStore";
 import { usePreviewStore } from "@/store/previewStore";
+import { useAudioStore } from "@/store/audioStore";
 import { SourceBadge, platformColor } from "../SourceBadge";
+import { LiveTimer } from "../LiveTimer";
 import { compact } from "@/lib/format";
 
 /**
@@ -27,8 +29,21 @@ export function StreamPreview() {
   const capture = useClipsStore((s) => s.capture);
   const gid = useId().replace(/:/g, "");
 
+  const muted = useAudioStore((s) => s.muted);
+  const volume = useAudioStore((s) => s.volume);
+  const videoRef = useRef<HTMLVideoElement>(null);
+
   const [pick, setPick] = useState<string | null>(null); // accountId of focused channel
   const [videoOk, setVideoOk] = useState(true); // falls back to the chart skin if the clip can't load
+
+  // Drive the <video> muted/volume from the shared audio store (set as
+  // properties, not attributes, so they update live).
+  useEffect(() => {
+    const v = videoRef.current;
+    if (!v) return;
+    v.muted = muted;
+    v.volume = volume;
+  }, [muted, volume, videoOk, hidden]);
 
   // Channels sorted by activity for the switcher.
   const channels = useMemo(
@@ -107,6 +122,7 @@ export function StreamPreview() {
       {/* 16:9 preview — real stream video, with the chat-velocity chart as a fallback skin */}
       <div className="relative min-h-0 flex-1 overflow-hidden rounded-xl border border-white/10 bg-gradient-to-br from-black/40 to-[color-mix(in_srgb,var(--vc-accent)_10%,#04100c)]">
         <video
+          ref={videoRef}
           src="/stream-preview.mp4"
           autoPlay
           muted
@@ -132,9 +148,10 @@ export function StreamPreview() {
           </>
         )}
 
-        <span className="absolute left-2 top-2 flex items-center gap-1 rounded-md bg-black/55 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider text-red-400 backdrop-blur">
+        <span className="absolute left-2 top-2 flex items-center gap-1.5 rounded-md bg-black/55 px-1.5 py-0.5 text-[10px] font-black uppercase tracking-wider text-red-400 backdrop-blur">
           <span className="relative flex h-1.5 w-1.5"><span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-500/70" /><span className="relative h-1.5 w-1.5 rounded-full bg-red-500" /></span>
           Live
+          <LiveTimer className="tabular-nums text-white/90" />
         </span>
         <span className="absolute right-2 top-2 rounded-md bg-black/55 px-1.5 py-0.5 text-[11px] font-bold tabular-nums text-ink backdrop-blur">👁 {compact(focusViewers)}</span>
         {focused?.meta && (
