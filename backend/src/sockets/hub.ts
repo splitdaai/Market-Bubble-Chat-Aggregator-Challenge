@@ -32,7 +32,8 @@ export function bindHub(
 
   const broadcastStatus = () => io.emit("status", [...statuses.values()]);
 
-  for (const connector of connectors) {
+  // Subscribe a connector's message/status streams into the hub.
+  const wire = (connector: Connector) => {
     statuses.set(connector.platform, connector.status());
     connector.onMessage((m: ChatMessage) => {
       aggregator.ingest(m);
@@ -42,7 +43,28 @@ export function bindHub(
       statuses.set(s.platform, s);
       broadcastStatus();
     });
-  }
+  };
+
+  for (const connector of connectors) wire(connector);
+
+  /**
+   * Add (or replace) a connector AFTER startup — used when an account connects
+   * via OAuth so we spin up a live chat reader for its channel. Stops any
+   * existing connector for the same platform first, then wires + starts it.
+   */
+  const addConnector = async (connector: Connector) => {
+    const prev = registry.get(connector.platform);
+    if (prev && prev !== connector) { try { await prev.stop(); } catch { /* best-effort */ } }
+    registry.set(connector.platform, connector);
+    wire(connector);
+    try {
+      await connector.start();
+      console.log(`✓ ${connector.platform} connector linked to a connected account`);
+    } catch (e) {
+      console.error(`✗ ${connector.platform} account connector failed:`, e);
+    }
+    broadcastStatus();
+  };
 
   // Broadcast the real stats snapshot every 2s.
   const statsTimer = setInterval(() => io.emit("stats", aggregator.snapshot()), 2000);
@@ -72,6 +94,7 @@ export function bindHub(
 
   return {
     broadcastStatus,
+    addConnector,
     stop: () => clearInterval(statsTimer),
   };
 }

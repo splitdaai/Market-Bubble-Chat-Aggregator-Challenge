@@ -77,10 +77,30 @@ function startViewerPollers() {
 
 async function main() {
   const connectors = buildConnectors();
-  bindHub(io, connectors, aggregator, history);
+  const hub = bindHub(io, connectors, aggregator, history);
 
-  // OAuth connect flow — pushes the authed account list to all clients on change.
-  mountAuth(app, PUBLIC_URL, () => io.emit("accounts", getAccounts()));
+  // Auto-start a live chat reader for each connected Twitch/Kick account, so
+  // connecting via OAuth makes that channel's chat flow with no extra config.
+  // (Read is anonymous — just the channel name. X is a tweet-stream and YouTube
+  // has no chat connector, so those remain env-driven.)
+  const linked = new Map<string, string>(); // platform -> channel currently linked
+  const syncAccountConnectors = () => {
+    for (const a of getAccounts()) {
+      if (!a.connected || (a.platform !== "twitch" && a.platform !== "kick")) continue;
+      const channel = a.handle.replace(/^@/, "").toLowerCase();
+      if (linked.get(a.platform) === channel) continue;
+      linked.set(a.platform, channel);
+      const connector = a.platform === "twitch" ? new TwitchConnector(channel) : new KickConnector(channel);
+      void hub.addConnector(connector);
+    }
+  };
+
+  // OAuth connect flow — pushes the authed account list to all clients on change
+  // and wires up a chat reader for any newly-connected Twitch/Kick channel.
+  mountAuth(app, PUBLIC_URL, () => {
+    io.emit("accounts", getAccounts());
+    syncAccountConnectors();
+  });
   io.on("connection", (socket) => socket.emit("accounts", getAccounts()));
 
   // Save the current session into history (call when a stream ends).
