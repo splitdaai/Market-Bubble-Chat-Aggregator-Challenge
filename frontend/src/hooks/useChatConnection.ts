@@ -53,8 +53,10 @@ export function useChatConnection() {
     // Past streams for the analytics tab arrive from the backend on connect.
     conn.raw?.on("history", (sessions) => useAnalyticsStore.getState().setSessions(sessions));
 
-    // OAuth-authed accounts (live mode) replace the local demo account list.
-    conn.raw?.on("accounts", (accs) => { if (accs.length) useConnectionsStore.getState().setAccounts(accs); });
+    // OAuth-authed accounts (live mode) replace the local demo account list —
+    // even an empty list, so the demo channels don't leak into live mode.
+    // (`conn.raw` only exists for the real backend socket, never in demo.)
+    conn.raw?.on("accounts", (accs) => useConnectionsStore.getState().setAccounts(accs));
 
     // Drive the stats read-model on a steady cadence.
     const ticker = window.setInterval(tick, 1500);

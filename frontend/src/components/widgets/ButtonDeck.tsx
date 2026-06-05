@@ -4,6 +4,7 @@ import { Plus, Pencil } from "lucide-react";
 import { useLayoutStore } from "@/store/layoutStore";
 import { useToastStore } from "@/store/toastStore";
 import { burst } from "../Particles";
+import { getSocket } from "@/lib/socket";
 import type { ActionButton } from "@shared/types";
 
 /** Resolve a Lucide icon by name; fall back to a zap glyph. */
@@ -28,6 +29,8 @@ export function ButtonDeck({ onEdit }: { onEdit?: (b?: ActionButton) => void }) 
 
   const fire = (b: ActionButton, e: React.MouseEvent) => {
     burst(e.clientX, e.clientY, b.color, 22);
+    // Send the command to the backend in live mode (no-op socket in demo).
+    getSocket()?.emit("command:run", b);
     push({ message: `▶ ${b.command} → ${b.platforms.join(", ")}`, tone: "info" });
   };
 

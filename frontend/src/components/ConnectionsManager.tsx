@@ -43,6 +43,12 @@ export function ConnectionsManager({ open, onClose }: { open: boolean; onClose: 
   const [name, setName] = useState("");
   const [dockCopied, setDockCopied] = useState(false);
 
+  // Remove an account locally and, in live mode, revoke it server-side too.
+  const removeAccountFull = (id: string) => {
+    removeAccount(id);
+    if (BACKEND) fetch(`${BACKEND}/auth/account/${encodeURIComponent(id)}`, { method: "DELETE" }).catch(() => {});
+  };
+
   const dockUrl = typeof window !== "undefined" ? `${window.location.origin}${window.location.pathname}?dock=1` : "";
   const copyDock = async () => {
     try {
@@ -176,7 +182,7 @@ export function ConnectionsManager({ open, onClose }: { open: boolean; onClose: 
                               className={`rounded p-1 transition ${a.connected ? "text-emerald-400 hover:text-emerald-300" : "text-muted hover:text-ink"}`}>
                               <Power size={13} />
                             </button>
-                            <button onClick={() => removeAccount(a.id)} className="rounded p-1 text-muted transition hover:text-red-300" title="Remove">
+                            <button onClick={() => removeAccountFull(a.id)} className="rounded p-1 text-muted transition hover:text-red-300" title="Remove">
                               <Trash2 size={12} />
                             </button>
                           </div>
