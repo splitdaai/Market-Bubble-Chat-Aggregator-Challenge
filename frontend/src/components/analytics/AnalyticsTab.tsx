@@ -3,7 +3,7 @@ import { motion } from "framer-motion";
 import {
   Users, Eye, Clock, MessageSquare, DollarSign, Gift, TrendingUp, Radio, ArrowRight, RotateCcw,
 } from "lucide-react";
-import type { StreamSession, Platform } from "@shared/types";
+import type { StreamSession, Platform, KpiKey } from "@shared/types";
 import { useAnalyticsStore } from "@/store/analyticsStore";
 import { useStatsStore } from "@/store/statsStore";
 import { useConnectionsStore } from "@/store/connectionsStore";
@@ -30,14 +30,14 @@ const RANGE_LABEL: Record<Range, string> = {
 };
 
 /** Read a KPI field — aggregate, scoped to a platform, or scoped to an account. */
-function fv(s: StreamSession, field: string, plat: Plat, accountId?: string | null): number {
+function fv(s: StreamSession, field: KpiKey, plat: Plat, accountId?: string | null): number {
   if (accountId) {
     const a = s.perAccount?.find((x) => x.accountId === accountId);
-    return a ? (a as unknown as Record<string, number>)[field] ?? 0 : 0;
+    return a ? a[field] : 0;
   }
-  if (plat === "all") return (s as unknown as Record<string, number>)[field] ?? 0;
+  if (plat === "all") return s[field];
   const pp = s.perPlatform.find((x) => x.platform === plat);
-  return pp ? (pp as unknown as Record<string, number>)[field] ?? 0 : 0;
+  return pp ? pp[field] : 0;
 }
 
 /** Sub revenue ($) — per-platform sub counts × each platform's payout rate. */
@@ -52,11 +52,11 @@ function subRev(s: StreamSession, plat: Plat, accountId?: string | null): number
 }
 
 /** Value accessor that returns $ sub-revenue for the "subs" field, raw otherwise. */
-function valOf(s: StreamSession, field: string, plat: Plat, accountId?: string | null): number {
+function valOf(s: StreamSession, field: KpiKey, plat: Plat, accountId?: string | null): number {
   return field === "subs" ? subRev(s, plat, accountId) : fv(s, field, plat, accountId);
 }
 /** Money formatter for the "subs" field, the given formatter otherwise. */
-function fmtOf(field: string, base: (n: number) => string): (n: number) => string {
+function fmtOf(field: KpiKey, base: (n: number) => string): (n: number) => string {
   return field === "subs" ? fmtMoney : base;
 }
 
@@ -81,7 +81,7 @@ export function AnalyticsTab() {
   const all = useMemo(() => [...pastInRange, live], [pastInRange, live]);
   const prev = pastInRange[pastInRange.length - 1] ?? live; // last stream in range (else compare to self)
 
-  const [metricKey, setMetricKey] = useState("avgViewers");
+  const [metricKey, setMetricKey] = useState<KpiKey>("avgViewers");
   const [focusId, setFocusId] = useState("live"); // the "B" of the comparison
   const [plat, setPlat] = useState<Plat>("all"); // platform filter
   const [account, setAccount] = useState<string | null>(null); // account filter (overrides platform)
@@ -97,7 +97,7 @@ export function AnalyticsTab() {
 
   const trendPoints = all.map((s) => ({ label: s.live ? "LIVE" : fmtDate(s.startedAt), value: valOf(s, metric.key, plat, account), live: s.live }));
 
-  const KPIS = [
+  const KPIS: { label: string; icon: React.ReactNode; field: KpiKey; fmt: (n: number) => string }[] = [
     { label: "Avg Viewers", icon: <Users size={14} />, field: "avgViewers", fmt: fmtViewers },
     { label: "Peak Viewers", icon: <Eye size={14} />, field: "peakViewers", fmt: fmtViewers },
     { label: "Watch Time", icon: <Clock size={14} />, field: "watchTimeMinutes", fmt: fmtHours },
@@ -253,7 +253,7 @@ function CurrentStreamCard({
   live: StreamSession; prev: StreamSession; snap: ReturnType<typeof useStatsStore.getState>["snapshot"];
   plat: Plat; account: string | null; pace: boolean;
 }) {
-  const STATS = [
+  const STATS: { label: string; field: KpiKey; fmt: (n: number) => string }[] = [
     { label: "Avg Viewers", field: "avgViewers", fmt: fmtViewers },
     { label: "Peak", field: "peakViewers", fmt: fmtViewers },
     { label: "Chatters", field: "uniqueChatters", fmt: fmtInt },
@@ -347,7 +347,7 @@ function PlatformGrowth({ past, live, prev }: { past: StreamSession[]; live: Str
 
 /* -------------------------------- compare panel ------------------------------ */
 
-const COMPARE_ROWS: { label: string; field: string; fmt: (n: number) => string }[] = [
+const COMPARE_ROWS: { label: string; field: KpiKey; fmt: (n: number) => string }[] = [
   { label: "Avg Viewers", field: "avgViewers", fmt: fmtViewers },
   { label: "Peak Viewers", field: "peakViewers", fmt: fmtViewers },
   { label: "Watch Time", field: "watchTimeMinutes", fmt: fmtHours },

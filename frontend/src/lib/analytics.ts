@@ -1,4 +1,4 @@
-import type { StreamSession, PlatformKPIs, AccountKPIs, Platform } from "@shared/types";
+import type { StreamSession, PlatformKPIs, AccountKPIs, Platform, KpiKey } from "@shared/types";
 import type { StatsSnapshot } from "@/store/statsStore";
 import { useConnectionsStore } from "@/store/connectionsStore";
 import { compact } from "./format";
@@ -104,7 +104,7 @@ export function fmtDate(ts: number): string {
 /** Metric selector definitions for the trend chart — the chart reads values via
  *  `valOf(session, key)` in AnalyticsTab, so only key/label/fmt are needed. */
 export interface MetricDef {
-  key: string;
+  key: KpiKey;
   label: string;
   fmt: (n: number) => string;
 }

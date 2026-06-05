@@ -180,6 +180,14 @@ export interface StreamSession {
   perAccount?: AccountKPIs[];
 }
 
+/**
+ * The numeric KPI fields shared by StreamSession, PlatformKPIs, and AccountKPIs.
+ * Derived from PlatformKPIs (minus `platform`) so it can never drift from the
+ * data, and lets analytics index any of the three generically while staying
+ * fully type-checked — no `Record<string, number>` casts.
+ */
+export type KpiKey = keyof Omit<PlatformKPIs, "platform">;
+
 /* --------------------------------- Moderation -------------------------------- */
 
 export type ModerationAction =
