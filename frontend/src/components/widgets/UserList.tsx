@@ -44,6 +44,7 @@ export function UserList() {
   const [q, setQ] = useState("");
   const [channel, setChannel] = useState<"all" | string>("all");
   const [sort, setSort] = useState<SortKey>("messages");
+  const [walletOnly, setWalletOnly] = useState(true); // default: only wallet-connected (tippable) viewers
   const [menu, setMenu] = useState<{ x: number; y: number; user: ListUser } | null>(null);
 
   // Real chatters across all platforms, re-derived each stats tick.
@@ -59,6 +60,7 @@ export function UserList() {
       (u) =>
         (tab === "all" || u.platform === tab) &&
         (channel === "all" || u.channel === channel) &&
+        (!walletOnly || !!viewerWallet(u.name, demo)) &&
         (!needle || u.name.toLowerCase().includes(needle)),
     );
     return [...rows].sort((a, b) => {
@@ -67,7 +69,7 @@ export function UserList() {
       if (sort === "recent") return b.last - a.last;
       return b.count - a.count; // messages
     });
-  }, [all, tab, q, channel, sort]);
+  }, [all, tab, q, channel, sort, walletOnly, demo]);
 
   const counts = useMemo(() => {
     const c: Record<string, number> = { all: all.length };
@@ -90,7 +92,7 @@ export function UserList() {
     <div className="flex h-full flex-col p-3">
       <div className="mb-2 flex items-center justify-between">
         <span className="text-[11px] font-bold uppercase tracking-widest text-muted">Users</span>
-        <span className="text-[10px] text-muted">{compact(all.length)} total</span>
+        <span className="text-[10px] text-muted">{compact(filtered.length)} {walletOnly ? "with wallet" : "total"}</span>
       </div>
 
       {/* tabs — wrap so every platform is visible (no horizontal scroll) */}
@@ -120,6 +122,15 @@ export function UserList() {
             <ChannelChip key={c} label={c} active={channel === c} onClick={() => setChannel(c)} />
           ))}
         </div>
+        <button
+          onClick={() => setWalletOnly((v) => !v)}
+          title={walletOnly ? "Showing wallet-connected viewers — click to show all" : "Show only wallet-connected viewers"}
+          className={`flex shrink-0 items-center gap-1 rounded-md border px-1.5 py-1 text-[10px] font-bold transition ${
+            walletOnly ? "border-emerald-400/50 bg-emerald-400/15 text-emerald-300" : "border-white/10 text-muted hover:text-ink"
+          }`}
+        >
+          <Wallet size={11} /> Wallet
+        </button>
         <select
           value={sort}
           onChange={(e) => setSort(e.target.value as SortKey)}
