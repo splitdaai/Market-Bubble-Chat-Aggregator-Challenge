@@ -1,0 +1,96 @@
+import type { StreamSession, PlatformKPIs, Platform } from "@shared/types";
+import type { StatsSnapshot } from "@/store/statsStore";
+import { compact } from "./format";
+
+const PLATFORMS: Platform[] = ["twitch", "kick", "x"];
+
+/** Typical full broadcast length (min), used to project "on pace" totals. */
+const TARGET_MIN = 140;
+
+/**
+ * Build a synthetic "live" StreamSession from the in-progress stats snapshot.
+ *
+ * Rate metrics (avg/peak viewers) are always full-stream-representative. When
+ * `projected` is true, CUMULATIVE metrics (watch time, chatters, messages,
+ * donations, subs, followers) are scaled to an "on pace to finish at" estimate
+ * so they compare fairly against completed streams; otherwise they're the raw
+ * "so far" totals.
+ */
+export function buildLiveSession(snap: StatsSnapshot, projected = true): StreamSession {
+  const elapsedMin = Math.max(1, snap.elapsedMs / 60000);
+  const avg = (watchMin: number) => Math.round(watchMin / elapsedMin);
+  // Projection factor, capped so the first few minutes don't explode.
+  const f = projected ? Math.min(15, Math.max(1, TARGET_MIN / elapsedMin)) : 1;
+
+  const totalV = Math.max(1, PLATFORMS.reduce((s, p) => s + snap.perPlatform[p].viewers, 0));
+  const perPlatform: PlatformKPIs[] = PLATFORMS.map((p) => {
+    const v = snap.perPlatform[p];
+    const share = v.viewers / totalV;
+    return {
+      platform: p,
+      avgViewers: avg(v.watchTimeMinutes),
+      peakViewers: v.peakViewers,
+      uniqueChatters: Math.round(v.uniqueChatters * f),
+      messages: Math.round(v.messages * f),
+      watchTimeMinutes: Math.round(v.watchTimeMinutes * f),
+      donated: Math.round(snap.totalDonated * share * f),
+      subs: Math.round(snap.totalSubs * share * f),
+      followersGained: Math.round(v.followsGained * f),
+    };
+  });
+
+  return {
+    id: "live",
+    title: "Current Stream",
+    startedAt: snap.sessionStart,
+    durationMinutes: Math.round(projected ? TARGET_MIN : elapsedMin),
+    live: true,
+    avgViewers: avg(snap.totals.watchTimeMinutes),
+    peakViewers: snap.totals.peakViewers,
+    uniqueChatters: Math.round(snap.totals.uniqueChatters * f),
+    messages: Math.round(snap.totals.messages * f),
+    watchTimeMinutes: Math.round(snap.totals.watchTimeMinutes * f),
+    donated: Math.round(snap.totalDonated * f),
+    subs: Math.round(snap.totalSubs * f),
+    followersGained: Math.round(PLATFORMS.reduce((s, p) => s + snap.perPlatform[p].followsGained, 0) * f),
+    clipMoments: snap.clipMoments.length,
+    perPlatform,
+  };
+}
+
+/** Percent change curr vs prev. Returns null when prev is 0 (no baseline). */
+export function pctDelta(curr: number, prev: number): number | null {
+  if (prev === 0) return curr === 0 ? 0 : null;
+  return ((curr - prev) / prev) * 100;
+}
+
+/* ----------------------------------- format ---------------------------------- */
+
+export const fmtViewers = (n: number) => compact(Math.round(n));
+export const fmtMoney = (n: number) => `$${compact(Math.round(n))}`;
+export const fmtHours = (minutes: number) => `${compact(Math.round(minutes / 60))}h`;
+export const fmtInt = (n: number) => compact(Math.round(n));
+
+export function fmtDate(ts: number): string {
+  return new Date(ts).toLocaleDateString(undefined, { month: "short", day: "numeric" });
+}
+
+/** Accessors for the metric selector — single source of truth for the charts. */
+export interface MetricDef {
+  key: string;
+  label: string;
+  get: (s: StreamSession) => number;
+  fmt: (n: number) => string;
+  /** true when lower is worse (default); all our metrics are "up = good". */
+}
+
+export const METRICS: MetricDef[] = [
+  { key: "avgViewers", label: "Avg Viewers", get: (s) => s.avgViewers, fmt: fmtViewers },
+  { key: "peakViewers", label: "Peak Viewers", get: (s) => s.peakViewers, fmt: fmtViewers },
+  { key: "watchTimeMinutes", label: "Watch Hours", get: (s) => s.watchTimeMinutes, fmt: fmtHours },
+  { key: "uniqueChatters", label: "Chatters", get: (s) => s.uniqueChatters, fmt: fmtInt },
+  { key: "messages", label: "Messages", get: (s) => s.messages, fmt: fmtInt },
+  { key: "donated", label: "Donations", get: (s) => s.donated, fmt: fmtMoney },
+  { key: "subs", label: "Subs", get: (s) => s.subs, fmt: fmtInt },
+  { key: "followersGained", label: "Followers", get: (s) => s.followersGained, fmt: fmtInt },
+];

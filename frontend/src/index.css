@@ -1,0 +1,140 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* react-grid-layout + react-resizable base styles are imported in main.tsx
+   (before this file) so bundling order stays valid; themed overrides below. */
+
+/* ------------------------------------------------------------------ *
+ * Theme tokens. The in-app Theme Editor writes straight onto :root,
+ * so everything (Tailwind utilities + raw CSS) reacts live.
+ * ------------------------------------------------------------------ */
+:root {
+  --vc-bg: #04100c;
+  --vc-surface: rgba(9, 27, 21, 0.66);
+  --vc-accent: #16e6a4;
+  --vc-accent-rgb: 22, 230, 164;
+  --vc-accent2: #34d6ff;
+  --vc-text: #eafff6;
+  --vc-text-muted: #78b6a4;
+  --vc-glow: 0.82;
+  --vc-radius: 22px;
+  --vc-font: "Space Grotesk";
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--vc-bg);
+  color: var(--vc-text);
+  font-family: var(--vc-font), Inter, system-ui, sans-serif;
+  /* Allow the dashboard to grow taller than the viewport; the aurora +
+     particle layers are position:fixed so they stay put while content scrolls. */
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-font-smoothing: antialiased;
+}
+
+body::-webkit-scrollbar { width: 10px; }
+body::-webkit-scrollbar-track { background: transparent; }
+body::-webkit-scrollbar-thumb {
+  background: rgba(var(--vc-accent-rgb), 0.35);
+  border-radius: 99px;
+}
+body::-webkit-scrollbar-thumb:hover { background: rgba(var(--vc-accent-rgb), 0.6); }
+
+/* Animated aurora backdrop — the "expensive" feel, all GPU. */
+.vc-aurora::before {
+  content: "";
+  position: fixed;
+  inset: -40%;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(40% 40% at 20% 20%, rgba(var(--vc-accent-rgb), 0.18), transparent 60%),
+    radial-gradient(36% 36% at 82% 30%, rgba(45, 212, 255, 0.14), transparent 60%),
+    radial-gradient(45% 45% at 60% 90%, rgba(83, 252, 24, 0.08), transparent 60%);
+  filter: blur(40px);
+  animation: vc-drift 22s ease-in-out infinite alternate;
+}
+
+@keyframes vc-drift {
+  0% { transform: translate3d(0, 0, 0) scale(1); }
+  100% { transform: translate3d(2%, -3%, 0) scale(1.08); }
+}
+
+/* Subtle grid texture overlay. */
+.vc-grid-texture::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.025) 1px, transparent 1px);
+  background-size: 44px 44px;
+  mask-image: radial-gradient(circle at 50% 40%, #000 0%, transparent 80%);
+}
+
+/* Glass surface used by every panel. */
+.vc-glass {
+  background: var(--vc-surface);
+  backdrop-filter: blur(18px) saturate(140%);
+  -webkit-backdrop-filter: blur(18px) saturate(140%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--vc-radius);
+  box-shadow:
+    0 0 calc(var(--vc-glow) * 26px) rgba(var(--vc-accent-rgb), calc(var(--vc-glow) * 0.28)),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+/* Custom themed scrollbar. */
+.vc-scroll::-webkit-scrollbar { width: 8px; height: 8px; }
+.vc-scroll::-webkit-scrollbar-track { background: transparent; }
+.vc-scroll::-webkit-scrollbar-thumb {
+  background: rgba(var(--vc-accent-rgb), 0.4);
+  border-radius: 99px;
+}
+.vc-scroll::-webkit-scrollbar-thumb:hover { background: rgba(var(--vc-accent-rgb), 0.7); }
+
+/* ---- react-grid-layout theming ---- */
+.react-grid-item.react-grid-placeholder {
+  background: rgba(var(--vc-accent-rgb), 0.22) !important;
+  border: 1.5px dashed rgba(var(--vc-accent-rgb), 0.8);
+  border-radius: var(--vc-radius);
+  opacity: 1;
+}
+.react-grid-item > .react-resizable-handle {
+  filter: drop-shadow(0 0 4px rgba(var(--vc-accent-rgb), 0.8));
+}
+.react-grid-item > .react-resizable-handle::after {
+  border-right-color: rgba(var(--vc-accent-rgb), 0.9);
+  border-bottom-color: rgba(var(--vc-accent-rgb), 0.9);
+  width: 8px;
+  height: 8px;
+}
+.react-grid-item.react-draggable-dragging {
+  z-index: 30;
+  cursor: grabbing;
+}
+/* When NOT in edit mode, hide resize handles. */
+.vc-locked .react-resizable-handle { display: none; }
+
+.vc-drag-handle { cursor: grab; }
+.vc-drag-handle:active { cursor: grabbing; }
+
+@layer components {
+  .vc-input {
+    @apply w-full rounded-md border border-white/10 bg-black/40 px-2.5 py-1.5 text-sm text-ink outline-none transition focus:border-[var(--vc-accent)];
+  }
+}
