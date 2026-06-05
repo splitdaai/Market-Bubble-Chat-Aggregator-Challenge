@@ -207,6 +207,15 @@ export function ConnectionsManager({ open, onClose }: { open: boolean; onClose: 
                             <span className={`h-1.5 w-1.5 rounded-full ${a.connected ? "bg-emerald-400" : "bg-white/25"}`} />
                             <span className="text-sm font-semibold text-ink">{a.displayName}</span>
                             <span className="text-[10px] text-muted">{a.handle}</span>
+                            {a.connected ? (
+                              <span className="flex items-center gap-0.5 rounded-full bg-emerald-400/15 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-emerald-300">
+                                <Check size={9} /> Connected
+                              </span>
+                            ) : (
+                              <span className="rounded-full bg-white/8 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-muted">
+                                Paused
+                              </span>
+                            )}
                           </div>
                           <div className="flex items-center gap-1">
                             <button onClick={() => toggleAccount(a.id)} title={a.connected ? "Disconnect" : "Connect"}
