@@ -81,6 +81,11 @@ Then set `VITE_BACKEND_URL=http://localhost:4000` for the frontend and toggle th
 - Overlay: `<demo-url>/?overlay=1`
 - Dock: `<demo-url>/?dock=1`
 
+**Tests** (Vitest — pure-logic smoke tests for the money/format/web3/markets/moderation helpers):
+```bash
+cd frontend && npm test
+```
+
 ---
 
 ## 🧰 Tech stack
@@ -103,3 +108,8 @@ Chat / usernames / market data are rendered as escaped React text (no `innerHTML
 Tipping validates the recipient address before signing and never holds keys. The
 backend is a single-operator scaffold — add an auth gate + a non-wildcard
 `CORS_ORIGIN` before exposing it publicly.
+
+## 📄 License
+
+Proprietary — © 2026 Market Bubble, all rights reserved. Shared for evaluation
+and private review only. See [LICENSE](./LICENSE).
