@@ -14,6 +14,14 @@ let obsClient: ObsClient | null = null;
 
 const BACKEND = import.meta.env.VITE_BACKEND_URL as string | undefined;
 
+/** The backend .env vars each platform's OAuth needs, shown when it isn't set up. */
+const OAUTH_ENV: Partial<Record<Platform, string>> = {
+  twitch: "TWITCH_CLIENT_ID / TWITCH_CLIENT_SECRET",
+  youtube: "GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET",
+  x: "X_CLIENT_ID / X_CLIENT_SECRET",
+  kick: "KICK_CLIENT_ID / KICK_CLIENT_SECRET",
+};
+
 export function ConnectionsManager({ open, onClose }: { open: boolean; onClose: () => void }) {
   const accounts = useConnectionsStore((s) => s.accounts);
   const addAccount = useConnectionsStore((s) => s.addAccount);
@@ -42,6 +50,19 @@ export function ConnectionsManager({ open, onClose }: { open: boolean; onClose: 
   const [handle, setHandle] = useState("");
   const [name, setName] = useState("");
   const [dockCopied, setDockCopied] = useState(false);
+  // Which platforms have server-side OAuth credentials (from GET /auth/config).
+  // null = not yet known (demo / no backend) → treat as "Connect".
+  const [oauthConfig, setOauthConfig] = useState<Record<string, boolean> | null>(null);
+
+  useEffect(() => {
+    if (!open || !BACKEND) return;
+    let alive = true;
+    fetch(`${BACKEND}/auth/config`)
+      .then((r) => r.json())
+      .then((d) => { if (alive) setOauthConfig(d?.configured ?? {}); })
+      .catch(() => { if (alive) setOauthConfig({}); });
+    return () => { alive = false; };
+  }, [open]);
 
   // Remove an account locally and, in live mode, revoke it server-side too.
   const removeAccountFull = (id: string) => {
@@ -72,6 +93,15 @@ export function ConnectionsManager({ open, onClose }: { open: boolean; onClose: 
   const connectOAuth = (p: Platform) => {
     if (!BACKEND) {
       push({ message: "OAuth needs the backend — set VITE_BACKEND_URL and run the server (see README)", tone: "info" });
+      return;
+    }
+    // Don't pop a window onto a raw "not configured" backend error — tell the
+    // operator exactly which keys to set instead.
+    if (oauthConfig && oauthConfig[p] === false) {
+      push({
+        message: `${platformLabel(p)} OAuth isn't set up — add ${OAUTH_ENV[p] ?? "its CLIENT_ID/SECRET"} to backend/.env and restart the server (see OAUTH_SETUP.md).`,
+        tone: "info",
+      });
       return;
     }
     window.open(`${BACKEND}/auth/${p}/start`, "mb-oauth", "width=620,height=780");
@@ -138,6 +168,8 @@ export function ConnectionsManager({ open, onClose }: { open: boolean; onClose: 
             <div className="space-y-3">
               {CHAT_PLATFORMS.map((p) => {
                 const list = accounts.filter((a) => a.platform === p);
+                // Unknown (demo / no backend / not loaded) reads as ready → "Connect".
+                const oauthReady = !oauthConfig || oauthConfig[p] !== false;
                 return (
                   <div key={p} className="rounded-xl border border-white/8 bg-white/[0.02] p-2.5">
                     <div className="mb-2 flex items-center justify-between">
@@ -150,10 +182,10 @@ export function ConnectionsManager({ open, onClose }: { open: boolean; onClose: 
                           <button
                             onClick={() => connectOAuth(p)}
                             className="flex items-center gap-1 rounded-md px-2 py-1 text-[10px] font-bold text-white transition hover:opacity-90"
-                            style={{ background: `color-mix(in srgb, ${platformColor(p)} 80%, #000)` }}
-                            title={`Connect a ${platformLabel(p)} account via OAuth`}
+                            style={{ background: oauthReady ? `color-mix(in srgb, ${platformColor(p)} 80%, #000)` : "color-mix(in srgb, #f59e0b 35%, #000)" }}
+                            title={oauthReady ? `Connect a ${platformLabel(p)} account via OAuth` : `${platformLabel(p)} OAuth needs ${OAUTH_ENV[p]} in backend/.env`}
                           >
-                            <LogIn size={11} /> Connect
+                            <LogIn size={11} /> {oauthReady ? "Connect" : "Set up"}
                           </button>
                         )}
                         <button
