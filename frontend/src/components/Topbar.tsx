@@ -71,16 +71,24 @@ export function Topbar({ onOpenTheme, onOpenConnections }: { onOpenTheme: () => 
 
       <div className="flex items-center gap-1.5">
         {isLive && (
-          <button
-            onClick={toggleDemo}
-            title={demo ? "Demo data is ON — click to go live (real data only)" : "Live mode — click for demo data"}
-            className={`flex items-center gap-1.5 rounded-xl border px-2.5 py-1.5 text-[11px] font-bold uppercase tracking-wider transition ${
-              demo ? "border-amber-400/40 bg-amber-400/10 text-amber-300 hover:bg-amber-400/20" : "border-emerald-400/40 bg-emerald-400/10 text-emerald-300 hover:bg-emerald-400/20"
-            }`}
-          >
-            <span className={`h-1.5 w-1.5 rounded-full ${demo ? "bg-amber-400" : "bg-emerald-400"}`} />
-            {demo ? "Demo" : "Live"}
-          </button>
+          <div className="group relative">
+            <button
+              onClick={toggleDemo}
+              className={`flex items-center gap-1.5 rounded-xl border px-2.5 py-1.5 text-[11px] font-bold uppercase tracking-wider transition ${
+                demo ? "border-amber-400/40 bg-amber-400/10 text-amber-300 hover:bg-amber-400/20" : "border-emerald-400/40 bg-emerald-400/10 text-emerald-300 hover:bg-emerald-400/20"
+              }`}
+            >
+              <span className={`h-1.5 w-1.5 rounded-full ${demo ? "bg-amber-400" : "bg-emerald-400"}`} />
+              {demo ? "Demo" : "Live"}
+            </button>
+            {/* Guidance tooltip — nudges reviewers to go Live to connect real channels */}
+            <div className="pointer-events-none absolute right-0 top-full z-[60] mt-2 w-56 rounded-lg border border-white/12 bg-black/90 px-3 py-2 text-left text-[11px] font-medium normal-case leading-snug tracking-normal text-white/90 opacity-0 shadow-xl backdrop-blur transition-opacity duration-150 group-hover:opacity-100">
+              <span className="absolute -top-1 right-5 h-2 w-2 rotate-45 border-l border-t border-white/12 bg-black/90" />
+              {demo
+                ? "Demo data is on. Click to switch to Live — then connect your channels to test the real integration."
+                : "You're Live. Open the 🔌 Connections panel to link your channels and test."}
+            </div>
+          </div>
         )}
         <AudioControl />
         <IconBtn onClick={onOpenConnections} title="Connections (platforms + OBS)">
