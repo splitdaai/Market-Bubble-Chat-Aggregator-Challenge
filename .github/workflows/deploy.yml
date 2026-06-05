@@ -1,0 +1,58 @@
+name: Deploy frontend to S3
+
+# Auto-deploys the Market Bubble demo on every push to main — build the Vite
+# app and sync it to the public S3 website bucket.
+#
+# Requires three repo secrets (Settings → Secrets and variables → Actions):
+#   AWS_ACCESS_KEY_ID      — IAM key with s3:PutObject/DeleteObject on the bucket
+#   AWS_SECRET_ACCESS_KEY  — its secret
+#   AWS_REGION             — e.g. us-east-1   (optional, defaults below)
+# The bucket name is fixed to the existing demo bucket.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "frontend/**"
+      - "shared/**"
+      - ".github/workflows/deploy.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-frontend
+  cancel-in-progress: true
+
+env:
+  BUCKET: marketbubble-live-preview
+  AWS_REGION: ${{ secrets.AWS_REGION || 'us-east-1' }}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install
+        working-directory: frontend
+        run: npm ci
+
+      - name: Build
+        working-directory: frontend
+        run: npm run build
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Sync to S3
+        working-directory: frontend
+        run: aws s3 sync dist/ "s3://${BUCKET}/" --delete

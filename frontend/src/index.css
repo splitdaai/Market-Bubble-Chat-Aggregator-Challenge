@@ -115,13 +115,29 @@ body::-webkit-scrollbar-thumb:hover { background: rgba(var(--vc-accent-rgb), 0.6
   opacity: 1;
 }
 .react-grid-item > .react-resizable-handle {
+  z-index: 30; /* sit above any widget content (some use z-10) so it's grabbable */
+  width: 26px;
+  height: 26px;
   filter: drop-shadow(0 0 4px rgba(var(--vc-accent-rgb), 0.8));
 }
 .react-grid-item > .react-resizable-handle::after {
-  border-right-color: rgba(var(--vc-accent-rgb), 0.9);
-  border-bottom-color: rgba(var(--vc-accent-rgb), 0.9);
-  width: 8px;
-  height: 8px;
+  border-right-color: rgba(var(--vc-accent-rgb), 0.95);
+  border-bottom-color: rgba(var(--vc-accent-rgb), 0.95);
+  width: 11px;
+  height: 11px;
+  right: 4px;
+  bottom: 4px;
+}
+/* A faint always-visible grab affordance in the corner while editing. */
+.react-grid-item:not(.vc-locked) > .react-resizable-handle::before {
+  content: "";
+  position: absolute;
+  right: 2px;
+  bottom: 2px;
+  width: 16px;
+  height: 16px;
+  border-bottom-right-radius: 6px;
+  background: radial-gradient(circle at bottom right, rgba(var(--vc-accent-rgb), 0.28), transparent 70%);
 }
 .react-grid-item.react-draggable-dragging {
   z-index: 30;

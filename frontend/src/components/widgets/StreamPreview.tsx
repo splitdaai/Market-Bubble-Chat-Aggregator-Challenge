@@ -28,6 +28,7 @@ export function StreamPreview() {
   const gid = useId().replace(/:/g, "");
 
   const [pick, setPick] = useState<string | null>(null); // accountId of focused channel
+  const [videoOk, setVideoOk] = useState(true); // falls back to the chart skin if the clip can't load
 
   // Channels sorted by activity for the switcher.
   const channels = useMemo(
@@ -103,20 +104,33 @@ export function StreamPreview() {
         </div>
       </div>
 
-      {/* 16:9 preview */}
+      {/* 16:9 preview — real stream video, with the chat-velocity chart as a fallback skin */}
       <div className="relative min-h-0 flex-1 overflow-hidden rounded-xl border border-white/10 bg-gradient-to-br from-black/40 to-[color-mix(in_srgb,var(--vc-accent)_10%,#04100c)]">
-        <img src="/logo-white.png" alt="" className="pointer-events-none absolute left-1/2 top-1/2 h-1/2 -translate-x-1/2 -translate-y-1/2 opacity-[0.06]" />
-        <svg viewBox="0 0 100 56" preserveAspectRatio="none" className="absolute inset-0 h-full w-full">
-          <defs>
-            <linearGradient id={`prev-${gid}`} x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="var(--vc-accent)" stopOpacity="0.4" />
-              <stop offset="100%" stopColor="var(--vc-accent)" stopOpacity="0" />
-            </linearGradient>
-          </defs>
-          {chart.area && <path d={chart.area} fill={`url(#prev-${gid})`} />}
-          {chart.line && <path d={chart.line} fill="none" stroke="var(--vc-accent)" strokeWidth={1} vectorEffect="non-scaling-stroke" />}
-        </svg>
-        <div className="pointer-events-none absolute inset-0 animate-shimmer bg-[linear-gradient(110deg,transparent_40%,rgba(255,255,255,0.05)_50%,transparent_60%)] bg-[length:200%_100%]" />
+        <video
+          src="/stream-preview.mp4"
+          autoPlay
+          muted
+          loop
+          playsInline
+          onError={() => setVideoOk(false)}
+          className={`absolute inset-0 h-full w-full object-cover ${videoOk ? "" : "hidden"}`}
+        />
+        {!videoOk && (
+          <>
+            <img src="/logo-white.png" alt="" className="pointer-events-none absolute left-1/2 top-1/2 h-1/2 -translate-x-1/2 -translate-y-1/2 opacity-[0.06]" />
+            <svg viewBox="0 0 100 56" preserveAspectRatio="none" className="absolute inset-0 h-full w-full">
+              <defs>
+                <linearGradient id={`prev-${gid}`} x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="var(--vc-accent)" stopOpacity="0.4" />
+                  <stop offset="100%" stopColor="var(--vc-accent)" stopOpacity="0" />
+                </linearGradient>
+              </defs>
+              {chart.area && <path d={chart.area} fill={`url(#prev-${gid})`} />}
+              {chart.line && <path d={chart.line} fill="none" stroke="var(--vc-accent)" strokeWidth={1} vectorEffect="non-scaling-stroke" />}
+            </svg>
+            <div className="pointer-events-none absolute inset-0 animate-shimmer bg-[linear-gradient(110deg,transparent_40%,rgba(255,255,255,0.05)_50%,transparent_60%)] bg-[length:200%_100%]" />
+          </>
+        )}
 
         <span className="absolute left-2 top-2 flex items-center gap-1 rounded-md bg-black/55 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider text-red-400 backdrop-blur">
           <span className="relative flex h-1.5 w-1.5"><span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-500/70" /><span className="relative h-1.5 w-1.5 rounded-full bg-red-500" /></span>

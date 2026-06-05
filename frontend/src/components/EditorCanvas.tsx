@@ -101,8 +101,10 @@ export function EditorCanvas({ onEditButton }: { onEditButton: (b?: ActionButton
         resizeHandles={["se"]}
       >
         {layout.panels.map((panel) => (
-          <div key={panel.i} className="vc-glass overflow-hidden">
-            <div className="flex h-full flex-col">
+          // Grid item is NOT overflow-hidden so the resize handle (a sibling RGL
+          // appends at the corner) is never clipped or covered by widget content.
+          <div key={panel.i} className="vc-glass relative">
+            <div className="flex h-full flex-col overflow-hidden rounded-[inherit]">
               {/* panel chrome — only the grip + close show in edit mode */}
               {editMode && (
                 <div className="vc-drag-handle flex items-center justify-between border-b border-white/10 bg-white/[0.03] px-2 py-1">
