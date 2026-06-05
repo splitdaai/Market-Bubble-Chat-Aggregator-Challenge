@@ -7,6 +7,7 @@ import { useClipsStore } from "@/store/clipsStore";
 import { useAnalyticsStore } from "@/store/analyticsStore";
 import { useModeStore } from "@/store/modeStore";
 import { useConnectionsStore } from "@/store/connectionsStore";
+import { DEMO_ACCOUNTS } from "@/lib/accounts";
 
 /**
  * Boots the transport (real Socket.io if VITE_BACKEND_URL is set, else the mock
@@ -29,6 +30,13 @@ export function useChatConnection() {
     // Switching mode wipes any stale data so demo numbers never leak into live.
     useStatsStore.getState().reset();
     useChatStore.getState().clear();
+
+    // Self-heal: demo mode always needs its seed channels (Ansem/Banks/Market
+    // Bubble). If a prior live session left the account list empty, restore them
+    // so the dashboard never shows zero viewers / no channels in demo.
+    if (demo && useConnectionsStore.getState().accounts.length === 0) {
+      useConnectionsStore.getState().setAccounts(DEMO_ACCOUNTS);
+    }
 
     const conn = connect({
       onMessage: (m) => {
