@@ -2,6 +2,7 @@ import { Play, Radio, Clock } from "lucide-react";
 import { useBroadcastStore, BROADCASTS } from "@/store/broadcastStore";
 import { usePreviewStore } from "@/store/previewStore";
 import { useToastStore } from "@/store/toastStore";
+import { useBroadcastThumbs } from "@/hooks/useBroadcastThumbs";
 
 /** Past broadcasts (VODs) + the live stream — click one to play it in the preview. */
 export function Broadcasts() {
@@ -10,6 +11,7 @@ export function Broadcasts() {
   const previewHidden = usePreviewStore((s) => s.hidden);
   const showPreview = usePreviewStore((s) => s.toggle);
   const push = useToastStore((s) => s.push);
+  const thumbs = useBroadcastThumbs();
 
   const play = (id: string, title: string) => {
     select(id);
@@ -36,16 +38,13 @@ export function Broadcasts() {
                 active ? "border-accent/60 bg-accent/[0.08]" : "border-white/8 bg-white/[0.02] hover:border-accent/40 hover:bg-accent/[0.05]"
               }`}
             >
-              {/* thumb — a real frame from the broadcast */}
+              {/* thumb — a real frame captured from the broadcast */}
               <div className="relative h-11 w-16 shrink-0 overflow-hidden rounded-md border border-white/10 bg-black">
-                <video
-                  src={b.src}
-                  muted
-                  playsInline
-                  preload="metadata"
-                  onLoadedMetadata={(e) => { e.currentTarget.currentTime = b.startAt ?? 0.1; }}
-                  className="h-full w-full object-cover"
-                />
+                {thumbs[b.id] ? (
+                  <img src={thumbs[b.id]} alt="" className="h-full w-full object-cover" />
+                ) : (
+                  <div className="grid h-full w-full place-items-center"><img src="/logo-white.png" alt="" className="h-5 w-5 opacity-20" /></div>
+                )}
                 <span className="absolute inset-0 grid place-items-center bg-black/20 opacity-0 transition group-hover:bg-black/40 group-hover:opacity-100">
                   <Play size={16} className="text-white drop-shadow" />
                 </span>

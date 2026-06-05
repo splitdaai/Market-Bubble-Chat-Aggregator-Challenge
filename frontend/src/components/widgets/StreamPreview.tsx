@@ -161,7 +161,7 @@ export function StreamPreview() {
           src={broadcast.src}
           autoPlay
           muted
-          loop={!!broadcast.live}
+          loop
           playsInline
           onError={() => setVideoOk(false)}
           onPlay={() => setPlaying(true)}
