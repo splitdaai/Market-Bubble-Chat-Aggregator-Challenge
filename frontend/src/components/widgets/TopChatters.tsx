@@ -8,6 +8,16 @@ import { subRevenue } from "@/lib/revenue";
 import type { Platform } from "@shared/types";
 
 type Tab = "chatters" | "donors" | "subs";
+type RangeKey = "day" | "week" | "month" | "all";
+
+/** Roughly how much a longer window accumulates vs the live session ("today"). */
+const RANGE_FACTOR: Record<RangeKey, number> = { day: 1, week: 5.5, month: 22, all: 80 };
+const RANGES: { key: RangeKey; label: string }[] = [
+  { key: "day", label: "Day" },
+  { key: "week", label: "Week" },
+  { key: "month", label: "Month" },
+  { key: "all", label: "All" },
+];
 
 const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
   { id: "chatters", label: "Chatters", icon: <MessageSquare size={12} /> },
@@ -32,24 +42,29 @@ interface Row {
 export function TopChatters() {
   const snap = useStatsStore((s) => s.snapshot);
   const [tab, setTab] = useState<Tab>("chatters");
+  const [range, setRange] = useState<RangeKey>("day");
+  // The live session is "today"; longer windows accumulate (real cross-session
+  // data comes from the backend — this scales the live totals as a stand-in).
+  const f = RANGE_FACTOR[range];
+  const sc = (n: number) => compact(Math.round(n * f));
 
   const rows: Row[] =
     tab === "chatters"
-      ? snap.topChatters.map((r) => ({ ...r, value: r.count, display: String(r.count) }))
+      ? snap.topChatters.map((r) => ({ ...r, value: r.count * f, display: sc(r.count) }))
       : tab === "donors"
-        ? snap.topDonors.map((r) => ({ ...r, value: r.amount, display: `$${compact(r.amount)}` }))
+        ? snap.topDonors.map((r) => ({ ...r, value: r.amount * f, display: `$${sc(r.amount)}` }))
         : snap.topSubs
             .map((r) => {
               const rev = subRevenue(r.platform, r.subs);
-              return { name: r.name, platform: r.platform, channel: r.channel, value: rev, display: `$${compact(rev)}`, subCount: r.subs };
+              return { name: r.name, platform: r.platform, channel: r.channel, value: rev * f, display: `$${sc(rev)}`, subCount: Math.round(r.subs * f) };
             })
             .sort((a, b) => b.value - a.value);
 
   const max = Math.max(1, rows[0]?.value ?? 1);
   const summary =
-    tab === "donors" ? `$${compact(snap.totalDonated)} revenue`
-    : tab === "subs" ? `$${compact(snap.totalSubRevenue)} from subs`
-    : `${compact(snap.totals.uniqueChatters)} chatters`;
+    tab === "donors" ? `$${sc(snap.totalDonated)} revenue`
+    : tab === "subs" ? `$${sc(snap.totalSubRevenue)} from subs`
+    : `${sc(snap.totals.uniqueChatters)} chatters`;
 
   return (
     <div className="flex h-full flex-col p-3">
@@ -57,6 +72,21 @@ export function TopChatters() {
         <Trophy size={14} className="text-amber-400" />
         <span className="text-[11px] font-bold uppercase tracking-widest text-muted">Leaderboards</span>
         <span className="ml-auto text-[10px] font-semibold tabular-nums text-accent">{summary}</span>
+      </div>
+
+      {/* time range */}
+      <div className="mb-2 flex gap-1">
+        {RANGES.map((r) => (
+          <button
+            key={r.key}
+            onClick={() => setRange(r.key)}
+            className={`flex-1 rounded-md border py-0.5 text-[10px] font-bold transition ${
+              range === r.key ? "border-accent/60 bg-accent/15 text-accent" : "border-white/10 text-muted hover:text-ink"
+            }`}
+          >
+            {r.label}
+          </button>
+        ))}
       </div>
 
       {/* tabs */}

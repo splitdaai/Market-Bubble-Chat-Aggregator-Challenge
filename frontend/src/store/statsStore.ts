@@ -109,6 +109,10 @@ export interface PlatformLive {
   activeChatters: number;
   messages: number;
   messagesPerMin: number;
+  /** Subs contributed on this platform this session (count). */
+  subs: number;
+  /** Dollar value of those subs at this platform's payout rate. */
+  subRevenue: number;
   /** Rolling viewer samples for the per-platform sparkline (oldest→newest). */
   history: number[];
 }
@@ -190,7 +194,7 @@ function blankAccum(): Accum {
 function blankLive(): PlatformLive {
   return {
     viewers: 0, peakViewers: 0, watchTimeMinutes: 0, followsGained: 0,
-    uniqueChatters: 0, activeChatters: 0, messages: 0, messagesPerMin: 0, history: [],
+    uniqueChatters: 0, activeChatters: 0, messages: 0, messagesPerMin: 0, subs: 0, subRevenue: 0, history: [],
   };
 }
 
@@ -382,9 +386,11 @@ export const useStatsStore = create<StatsState>((set, get) => ({
       // chatter counts for this platform
       let unique = 0;
       let active = 0;
+      let subsCount = 0;
       for (const c of chatters.values()) {
         if (c.platform !== p) continue;
         unique += 1;
+        subsCount += c.subs;
         if (now - c.last < ACTIVE_WINDOW) active += 1;
       }
 
@@ -402,6 +408,8 @@ export const useStatsStore = create<StatsState>((set, get) => ({
         activeChatters: active,
         messages: a.messages,
         messagesPerMin: mpm,
+        subs: subsCount,
+        subRevenue: subRevenue(p, subsCount),
         history: [...viewersHist[p]],
       };
     }
@@ -485,6 +493,8 @@ export const useStatsStore = create<StatsState>((set, get) => ({
       acc.activeChatters += v.activeChatters;
       acc.messages += v.messages;
       acc.messagesPerMin += v.messagesPerMin;
+      acc.subs += v.subs;
+      acc.subRevenue += v.subRevenue;
       return acc;
     }, blankLive());
 

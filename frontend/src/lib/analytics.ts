@@ -35,7 +35,7 @@ export function buildLiveSession(snap: StatsSnapshot, projected = true): StreamS
       messages: Math.round(v.messages * f),
       watchTimeMinutes: Math.round(v.watchTimeMinutes * f),
       donated: Math.round(snap.totalDonated * share * f),
-      subs: Math.round(snap.totalSubs * share * f),
+      subs: Math.round(v.subs * f), // real per-platform sub count from the live dashboard
       followersGained: Math.round(v.followsGained * f),
     };
   });
@@ -117,6 +117,6 @@ export const METRICS: MetricDef[] = [
   { key: "uniqueChatters", label: "Chatters", get: (s) => s.uniqueChatters, fmt: fmtInt },
   { key: "messages", label: "Messages", get: (s) => s.messages, fmt: fmtInt },
   { key: "donated", label: "Donations", get: (s) => s.donated, fmt: fmtMoney },
-  { key: "subs", label: "Subs", get: (s) => s.subs, fmt: fmtInt },
+  { key: "subs", label: "Sub Revenue", get: (s) => s.subs, fmt: fmtMoney },
   { key: "followersGained", label: "Followers", get: (s) => s.followersGained, fmt: fmtInt },
 ];

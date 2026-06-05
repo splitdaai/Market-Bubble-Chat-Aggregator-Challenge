@@ -14,6 +14,7 @@ import { TrendChart, Sparkline, DeltaBadge } from "./charts";
 import { SourceBadge, platformColor, platformLabel } from "../SourceBadge";
 import { useActivePlatforms } from "@/hooks/useActivePlatforms";
 import { elapsed } from "@/lib/format";
+import { subRevenue } from "@/lib/revenue";
 
 const pk = (s: StreamSession, p: Platform) => s.perPlatform.find((x) => x.platform === p)!;
 
@@ -37,6 +38,26 @@ function fv(s: StreamSession, field: string, plat: Plat, accountId?: string | nu
   if (plat === "all") return (s as unknown as Record<string, number>)[field] ?? 0;
   const pp = s.perPlatform.find((x) => x.platform === plat);
   return pp ? (pp as unknown as Record<string, number>)[field] ?? 0 : 0;
+}
+
+/** Sub revenue ($) — per-platform sub counts × each platform's payout rate. */
+function subRev(s: StreamSession, plat: Plat, accountId?: string | null): number {
+  if (accountId) {
+    const a = s.perAccount?.find((x) => x.accountId === accountId);
+    return a ? subRevenue(a.platform, a.subs) : 0;
+  }
+  if (plat === "all") return s.perPlatform.reduce((sum, pp) => sum + subRevenue(pp.platform, pp.subs), 0);
+  const pp = s.perPlatform.find((x) => x.platform === plat);
+  return pp ? subRevenue(pp.platform, pp.subs) : 0;
+}
+
+/** Value accessor that returns $ sub-revenue for the "subs" field, raw otherwise. */
+function valOf(s: StreamSession, field: string, plat: Plat, accountId?: string | null): number {
+  return field === "subs" ? subRev(s, plat, accountId) : fv(s, field, plat, accountId);
+}
+/** Money formatter for the "subs" field, the given formatter otherwise. */
+function fmtOf(field: string, base: (n: number) => string): (n: number) => string {
+  return field === "subs" ? fmtMoney : base;
 }
 
 /** The analytics tab: historical KPIs, trends, and current-vs-past growth. */
@@ -74,7 +95,7 @@ export function AnalyticsTab() {
     return <div className="grid h-64 place-items-center text-muted">Loading analytics…</div>;
   }
 
-  const trendPoints = all.map((s) => ({ label: s.live ? "LIVE" : fmtDate(s.startedAt), value: fv(s, metric.key, plat, account), live: s.live }));
+  const trendPoints = all.map((s) => ({ label: s.live ? "LIVE" : fmtDate(s.startedAt), value: valOf(s, metric.key, plat, account), live: s.live }));
 
   const KPIS = [
     { label: "Avg Viewers", icon: <Users size={14} />, field: "avgViewers", fmt: fmtViewers },
@@ -82,7 +103,7 @@ export function AnalyticsTab() {
     { label: "Watch Time", icon: <Clock size={14} />, field: "watchTimeMinutes", fmt: fmtHours },
     { label: "Unique Chatters", icon: <MessageSquare size={14} />, field: "uniqueChatters", fmt: fmtInt },
     { label: "Donations", icon: <DollarSign size={14} />, field: "donated", fmt: fmtMoney },
-    { label: "Subs", icon: <Gift size={14} />, field: "subs", fmt: fmtInt },
+    { label: "Sub Revenue", icon: <Gift size={14} />, field: "subs", fmt: fmtMoney },
   ];
 
   return (
@@ -179,10 +200,10 @@ export function AnalyticsTab() {
             key={k.label}
             label={k.label}
             icon={k.icon}
-            value={k.fmt(fv(live, k.field, plat, account))}
-            curr={fv(live, k.field, plat, account)}
-            prev={fv(prev, k.field, plat, account)}
-            spark={all.map((s) => fv(s, k.field, plat, account))}
+            value={k.fmt(valOf(live, k.field, plat, account))}
+            curr={valOf(live, k.field, plat, account)}
+            prev={valOf(prev, k.field, plat, account)}
+            spark={all.map((s) => valOf(s, k.field, plat, account))}
           />
         ))}
       </div>
@@ -206,11 +227,11 @@ export function AnalyticsTab() {
           </div>
         </div>
         <div className="mb-2 flex items-baseline gap-2">
-          <span className="text-3xl font-extrabold text-accent">{metric.fmt(fv(live, metric.key, plat, account))}</span>
+          <span className="text-3xl font-extrabold text-accent">{fmtOf(metric.key, metric.fmt)(valOf(live, metric.key, plat, account))}</span>
           <span className="text-xs text-muted">current · {accountMeta ? `${accountMeta.displayName} · ` : plat === "all" ? "" : `${platformLabel(plat)} · `}{metric.label}</span>
-          <DeltaBadge curr={fv(live, metric.key, plat, account)} prev={fv(prev, metric.key, plat, account)} size="lg" />
+          <DeltaBadge curr={valOf(live, metric.key, plat, account)} prev={valOf(prev, metric.key, plat, account)} size="lg" />
         </div>
-        <TrendChart points={trendPoints} formatY={metric.fmt} />
+        <TrendChart points={trendPoints} formatY={fmtOf(metric.key, metric.fmt)} />
       </section>
 
       <div className="mt-4 grid gap-4 lg:grid-cols-2">
@@ -237,8 +258,8 @@ function CurrentStreamCard({
     { label: "Peak", field: "peakViewers", fmt: fmtViewers },
     { label: "Chatters", field: "uniqueChatters", fmt: fmtInt },
     { label: "Watch", field: "watchTimeMinutes", fmt: fmtHours },
-    { label: "Raised", field: "donated", fmt: fmtMoney },
-    { label: "Subs", field: "subs", fmt: fmtInt },
+    { label: "Revenue", field: "donated", fmt: fmtMoney },
+    { label: "Sub Rev", field: "subs", fmt: fmtMoney },
   ];
   return (
     <section
@@ -260,8 +281,8 @@ function CurrentStreamCard({
           <div key={s.label} className="rounded-lg border border-white/8 bg-white/[0.02] p-2.5">
             <div className="text-[10px] font-semibold uppercase tracking-wider text-muted">{s.label}</div>
             <div className="mt-0.5 flex items-center gap-1.5">
-              <span className="text-xl font-extrabold leading-none text-ink">{s.fmt(fv(live, s.field, plat, account))}</span>
-              <DeltaBadge curr={fv(live, s.field, plat, account)} prev={fv(prev, s.field, plat, account)} />
+              <span className="text-xl font-extrabold leading-none text-ink">{s.fmt(valOf(live, s.field, plat, account))}</span>
+              <DeltaBadge curr={valOf(live, s.field, plat, account)} prev={valOf(prev, s.field, plat, account)} />
             </div>
           </div>
         ))}
@@ -333,7 +354,7 @@ const COMPARE_ROWS: { label: string; field: string; fmt: (n: number) => string }
   { label: "Unique Chatters", field: "uniqueChatters", fmt: fmtInt },
   { label: "Messages", field: "messages", fmt: fmtInt },
   { label: "Donations", field: "donated", fmt: fmtMoney },
-  { label: "Subs", field: "subs", fmt: fmtInt },
+  { label: "Sub Revenue", field: "subs", fmt: fmtMoney },
   { label: "Followers", field: "followersGained", fmt: fmtInt },
 ];
 
@@ -371,7 +392,7 @@ function ComparePanel({ all, focusId, setFocusId, plat, account }: { all: Stream
 
       <div className="space-y-1">
         {COMPARE_ROWS.map((row) => {
-          const av = fv(a, row.field, plat, account), bv = fv(b, row.field, plat, account);
+          const av = valOf(a, row.field, plat, account), bv = valOf(b, row.field, plat, account);
           return (
             <div key={row.label} className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 rounded-md px-2 py-1 odd:bg-white/[0.02]">
               <span className="text-right text-xs tabular-nums text-muted">{row.fmt(av)}</span>
@@ -405,7 +426,7 @@ function StreamsTable({ all, focusId, setFocusId, plat, account }: { all: Stream
             <tr className="text-[10px] uppercase tracking-wider text-muted">
               <Th className="text-left">Date</Th>
               <Th className="text-left">Stream</Th>
-              <Th>Avg</Th><Th>Peak</Th><Th>Chatters</Th><Th>Watch</Th><Th>Raised</Th><Th>Subs</Th>
+              <Th>Avg</Th><Th>Peak</Th><Th>Chatters</Th><Th>Watch</Th><Th>Revenue</Th><Th>Sub $</Th>
               <Th>Avg Δ</Th>
             </tr>
           </thead>
@@ -435,7 +456,7 @@ function StreamsTable({ all, focusId, setFocusId, plat, account }: { all: Stream
                   <Td>{fmtInt(fv(s, "uniqueChatters", plat, account))}</Td>
                   <Td>{fmtHours(fv(s, "watchTimeMinutes", plat, account))}</Td>
                   <Td className="text-emerald-400">{fmtMoney(fv(s, "donated", plat, account))}</Td>
-                  <Td>{fmtInt(fv(s, "subs", plat, account))}</Td>
+                  <Td className="text-emerald-400/90">{fmtMoney(subRev(s, plat, account))}</Td>
                   <Td>{prevS ? <DeltaBadge curr={fv(s, "avgViewers", plat, account)} prev={fv(prevS, "avgViewers", plat, account)} /> : <span className="text-muted">—</span>}</Td>
                 </tr>
               );

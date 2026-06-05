@@ -122,10 +122,12 @@ export function PolymarketPanel() {
             const yes = Math.round(m.prob * 100);
             const no = 100 - yes;
             return (
-              <button
+              <a
                 key={m.id}
-                onClick={() => pin(m)}
-                title="Click to pin to the OBS overlay"
+                href={m.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                title="Open this market on Polymarket"
                 className="group flex flex-col gap-1 rounded-lg border border-white/8 bg-white/[0.02] p-2 text-left transition hover:border-accent/40 hover:bg-accent/[0.05]"
               >
                 <div className="flex items-start justify-between gap-2">
@@ -142,28 +144,27 @@ export function PolymarketPanel() {
                   <span className="text-red-400">No {no}%</span>
                 </div>
                 <div className="flex items-center justify-between text-[10px] text-muted">
-                  <span className="rounded bg-white/8 px-1 py-0.5 font-bold uppercase tracking-wider">{m.category}</span>
-                  <span className="flex items-center gap-2">
+                  <span className="flex items-center gap-1.5">
+                    <span className="rounded bg-white/8 px-1 py-0.5 font-bold uppercase tracking-wider">{m.category}</span>
                     <span className="flex items-center gap-0.5 tabular-nums"><TrendingUp size={9} /> {fmtVol(m.volume24h)}</span>
-                    <a
-                      href={m.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      onClick={(e) => e.stopPropagation()}
-                      className="text-muted transition hover:text-accent"
-                      title="Open on Polymarket"
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <span className="hidden items-center gap-0.5 text-muted opacity-0 transition group-hover:flex group-hover:opacity-100"><ExternalLink size={10} /> open</span>
+                    <button
+                      onClick={(e) => { e.preventDefault(); e.stopPropagation(); pin(m); }}
+                      title="Pin this market to the OBS overlay"
+                      className="flex items-center gap-1 rounded-md border border-white/12 px-1.5 py-0.5 font-bold text-muted transition hover:border-accent/60 hover:bg-accent/15 hover:text-accent"
                     >
-                      <ExternalLink size={11} />
-                    </a>
-                    <Monitor size={12} className="text-muted opacity-0 transition group-hover:opacity-100 group-hover:text-accent" />
+                      <Monitor size={11} /> Overlay
+                    </button>
                   </span>
                 </div>
-              </button>
+              </a>
             );
           })
         )}
       </div>
-      <p className="mt-1.5 shrink-0 text-center text-[9px] text-muted opacity-60">Click a market to pin it to the OBS overlay</p>
+      <p className="mt-1.5 shrink-0 text-center text-[9px] text-muted opacity-60">Click a market to open it on Polymarket · use Overlay to pin it to OBS</p>
     </div>
   );
 }
