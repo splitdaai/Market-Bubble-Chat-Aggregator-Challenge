@@ -1,12 +1,15 @@
 import { useMemo, useState } from "react";
-import { Search, Shield, DollarSign, Gift } from "lucide-react";
+import { Search, Shield, DollarSign, Gift, Wallet } from "lucide-react";
 import type { Platform, ModerationAction } from "@shared/types";
 import { useStatsStore, type UserRow } from "@/store/statsStore";
 import { useToastStore } from "@/store/toastStore";
+import { useModeStore } from "@/store/modeStore";
+import { useUserCardStore } from "@/store/userCardStore";
 import { moderate } from "@/lib/api";
 import { SourceBadge, platformLabel, platformColor } from "../SourceBadge";
 import { useActivePlatforms } from "@/hooks/useActivePlatforms";
 import { ModMenu } from "../ModMenu";
+import { viewerWallet } from "@/lib/viewerWallets";
 import { compact } from "@/lib/format";
 
 type ListUser = UserRow;
@@ -25,6 +28,8 @@ export function UserList() {
   const snap = useStatsStore((s) => s.snapshot);
   const listUsers = useStatsStore((s) => s.listUsers);
   const push = useToastStore((s) => s.push);
+  const demo = useModeStore((s) => s.demo);
+  const showUser = useUserCardStore((s) => s.show);
   const platforms = useActivePlatforms();
 
   const [tab, setTab] = useState<"all" | Platform>("all");
@@ -90,26 +95,33 @@ export function UserList() {
         {filtered.length === 0 ? (
           <div className="grid h-full place-items-center text-[11px] text-muted opacity-70">No users</div>
         ) : (
-          filtered.slice(0, CAP).map((u, i) => (
-            <button
-              key={`${u.platform}:${u.name}:${i}`}
-              onClick={(e) => setMenu({ x: e.clientX, y: e.clientY, user: u })}
-              onContextMenu={(e) => { e.preventDefault(); setMenu({ x: e.clientX, y: e.clientY, user: u }); }}
-              className="group flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left transition hover:bg-white/[0.05]"
-            >
-              <SourceBadge platform={u.platform} compact />
-              <span className="flex-1 truncate text-sm font-semibold text-ink">{u.name}</span>
-              {u.donated > 0 && (
-                <span className="flex items-center gap-0.5 text-[10px] font-bold text-emerald-400"><DollarSign size={9} />{compact(u.donated)}</span>
-              )}
-              {u.subs > 0 && (
-                <span className="flex items-center gap-0.5 text-[10px] font-bold text-accent"><Gift size={9} />{u.subs}</span>
-              )}
-              <span className="w-8 text-right text-[10px] tabular-nums text-muted">{compact(u.count)}</span>
-              <span className="w-7 text-right text-[10px] tabular-nums text-muted opacity-60">{ago(u.last)}</span>
-              <Shield size={12} className="text-muted opacity-0 transition group-hover:opacity-100 group-hover:text-accent" />
-            </button>
-          ))
+          filtered.slice(0, CAP).map((u, i) => {
+            const tippable = !!viewerWallet(u.name, demo);
+            return (
+              <button
+                key={`${u.platform}:${u.name}:${i}`}
+                onClick={() => showUser(u.name, u.platform)}
+                onContextMenu={(e) => { e.preventDefault(); setMenu({ x: e.clientX, y: e.clientY, user: u }); }}
+                title="View profile & messages — right-click to moderate"
+                className="group flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left transition hover:bg-white/[0.05]"
+              >
+                <SourceBadge platform={u.platform} compact />
+                <span className="flex-1 truncate text-sm font-semibold text-ink">{u.name}</span>
+                {tippable && (
+                  <Wallet size={12} className="shrink-0 text-emerald-400" aria-label="Wallet-connected — can receive tips" />
+                )}
+                {u.donated > 0 && (
+                  <span className="flex items-center gap-0.5 text-[10px] font-bold text-emerald-400"><DollarSign size={9} />{compact(u.donated)}</span>
+                )}
+                {u.subs > 0 && (
+                  <span className="flex items-center gap-0.5 text-[10px] font-bold text-accent"><Gift size={9} />{u.subs}</span>
+                )}
+                <span className="w-8 text-right text-[10px] tabular-nums text-muted">{compact(u.count)}</span>
+                <span className="w-7 text-right text-[10px] tabular-nums text-muted opacity-60">{ago(u.last)}</span>
+                <Shield size={12} className="text-muted opacity-0 transition group-hover:opacity-100 group-hover:text-accent" />
+              </button>
+            );
+          })
         )}
         {filtered.length > CAP && (
           <div className="py-2 text-center text-[10px] text-muted">Showing top {CAP} of {compact(filtered.length)} — search to narrow</div>

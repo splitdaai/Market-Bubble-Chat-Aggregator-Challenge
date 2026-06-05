@@ -1,11 +1,13 @@
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Plug, ShieldCheck, MonitorPlay, Loader2, Check, ExternalLink, Plus, Trash2, Power, LogIn, LayoutDashboard, Copy } from "lucide-react";
+import { X, Plug, ShieldCheck, MonitorPlay, Loader2, Check, ExternalLink, Plus, Trash2, Power, LogIn, LayoutDashboard, Copy, Wallet } from "lucide-react";
 import type { Platform } from "@shared/types";
 import { CHAT_PLATFORMS, SourceBadge, platformLabel, platformColor } from "./SourceBadge";
 import { useConnectionsStore } from "@/store/connectionsStore";
 import { useToastStore } from "@/store/toastStore";
+import { useWalletStore } from "@/store/walletStore";
 import { connectObs, addOverlaySource, type ObsClient } from "@/lib/obs";
+import { chainInfo, shortAddr, hasInjectedWallet } from "@/lib/web3";
 
 // Held at module scope so the connection survives the modal closing/reopening.
 let obsClient: ObsClient | null = null;
@@ -25,6 +27,15 @@ export function ConnectionsManager({ open, onClose }: { open: boolean; onClose: 
   const setObsConfig = useConnectionsStore((s) => s.setObsConfig);
   const setObsState = useConnectionsStore((s) => s.setObsState);
   const push = useToastStore((s) => s.push);
+
+  const walletAddress = useWalletStore((s) => s.address);
+  const walletChainId = useWalletStore((s) => s.chainId);
+  const walletConnecting = useWalletStore((s) => s.connecting);
+  const walletError = useWalletStore((s) => s.error);
+  const tipEnabled = useWalletStore((s) => s.tipEnabled);
+  const connectWalletNow = useWalletStore((s) => s.connect);
+  const disconnectWallet = useWalletStore((s) => s.disconnect);
+  const setTipEnabled = useWalletStore((s) => s.setTipEnabled);
 
   const [password, setPassword] = useState("");
   const [adding, setAdding] = useState<Platform | null>(null);
@@ -249,6 +260,50 @@ export function ConnectionsManager({ open, onClose }: { open: boolean; onClose: 
               <a href={dockUrl} target="_blank" rel="noreferrer" className="mt-2 inline-flex items-center gap-1 text-[10px] font-semibold text-muted hover:text-accent">
                 <ExternalLink size={11} /> Preview the dock
               </a>
+            </div>
+
+            {/* ---- Tipping wallet (EVM) ---- */}
+            <h3 className="mb-2 mt-5 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-muted">
+              <Wallet size={13} /> Tipping Wallet
+            </h3>
+            <div className="rounded-xl border border-white/8 bg-white/[0.02] p-3">
+              <p className="mb-3 text-[11px] leading-relaxed text-muted">
+                Connect your EVM wallet to tip viewers who've linked theirs. Tippable viewers show a{" "}
+                <Wallet size={11} className="inline text-emerald-400" /> in chat and the user list. Non-custodial — every
+                tip is approved in your wallet.
+              </p>
+
+              {!hasInjectedWallet() ? (
+                <div className="rounded-lg border border-amber-400/20 bg-amber-400/5 px-3 py-2 text-[11px] text-amber-200/90">
+                  No EVM wallet detected. Install MetaMask, Rabby or Coinbase Wallet, then reload.
+                </div>
+              ) : !walletAddress ? (
+                <>
+                  <button
+                    onClick={connectWalletNow}
+                    disabled={walletConnecting}
+                    className="flex w-full items-center justify-center gap-2 rounded-lg bg-accent/20 py-2 text-sm font-bold text-accent shadow-neon transition hover:bg-accent/30 disabled:opacity-50"
+                  >
+                    {walletConnecting ? <Loader2 size={15} className="animate-spin" /> : <Wallet size={15} />}
+                    {walletConnecting ? "Check your wallet…" : "Connect EVM Wallet"}
+                  </button>
+                  {walletError && <div className="mt-2 text-[11px] text-red-400">{walletError}</div>}
+                </>
+              ) : (
+                <>
+                  <div className="flex items-center justify-between">
+                    <span className="flex items-center gap-1.5 text-sm font-semibold text-emerald-400">
+                      <Check size={14} /> {shortAddr(walletAddress)}
+                      {walletChainId && <span className="rounded-full bg-white/8 px-2 py-0.5 text-[10px] font-bold text-ink">{chainInfo(walletChainId).name}</span>}
+                    </span>
+                    <button onClick={disconnectWallet} className="rounded-lg border border-white/10 px-2.5 py-1 text-xs font-semibold text-muted hover:text-red-300">Disconnect</button>
+                  </div>
+                  <label className="mt-3 flex items-center justify-between rounded-lg bg-white/[0.02] px-3 py-2">
+                    <span className="text-xs font-semibold text-ink">Show tip button on wallet-connected viewers</span>
+                    <input type="checkbox" checked={tipEnabled} onChange={(e) => setTipEnabled(e.target.checked)} className="h-4 w-4 accent-[var(--vc-accent)]" />
+                  </label>
+                </>
+              )}
             </div>
 
             <div className="mt-4 flex items-start gap-2 rounded-lg border border-white/8 bg-white/[0.02] p-2.5 text-[10px] leading-relaxed text-muted">

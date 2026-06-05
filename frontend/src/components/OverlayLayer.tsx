@@ -77,12 +77,14 @@ export function OverlayLayer() {
   };
 
   return (
-    <div className="fixed inset-0 z-[140]" onPointerMove={onPointerMove} onPointerUp={onPointerUp}>
+    // pointer-events-none so the overlay editor never blocks the dashboard
+    // beneath it — only the chips, chat panel and control bar opt back in.
+    <div className="pointer-events-none fixed inset-0 z-[140]" onPointerMove={onPointerMove} onPointerUp={onPointerUp}>
       {/* draggable chips + chat panel */}
       {elements.filter((el) => el.visible).map((el) => (
         <div
           key={el.id}
-          className="absolute cursor-grab touch-none active:cursor-grabbing"
+          className="pointer-events-auto absolute cursor-grab touch-none active:cursor-grabbing"
           style={{ left: el.x, top: el.y }}
           onPointerDown={(e) => onPointerDown(e, el.id, el.x, el.y)}
         >

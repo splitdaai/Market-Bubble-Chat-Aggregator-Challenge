@@ -51,7 +51,7 @@ export function GiveawayBot() {
       <AnimatePresence mode="wait">
         {/* -------------------------------- IDLE -------------------------------- */}
         {phase === "idle" && (
-          <motion.div key="idle" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex flex-1 flex-col gap-2">
+          <motion.div key="idle" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex flex-1 flex-col gap-1.5">
             <label className="block">
               <span className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-muted">Entry keyword</span>
               <input value={config.keyword} onChange={(e) => setConfig({ keyword: e.target.value })} className="vc-input font-mono" placeholder="!enter" />
@@ -66,7 +66,7 @@ export function GiveawayBot() {
             </label>
             <button
               onClick={start}
-              className="mt-auto flex items-center justify-center gap-2 rounded-xl border border-accent/50 bg-accent/20 py-2.5 text-sm font-bold text-accent shadow-neon transition hover:bg-accent/30"
+              className="mt-1 flex items-center justify-center gap-2 rounded-xl border border-accent/50 bg-accent/20 py-2 text-sm font-bold text-accent shadow-neon transition hover:bg-accent/30"
             >
               <Play size={15} /> Open Giveaway
             </button>

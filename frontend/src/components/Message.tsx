@@ -2,8 +2,11 @@ import { memo, useState } from "react";
 import { motion } from "framer-motion";
 import type { ChatMessage, ModerationAction } from "@shared/types";
 import { SourceBadge, platformColor } from "./SourceBadge";
-import { Shield, Star, Crown, BadgeCheck, Gem } from "lucide-react";
+import { Shield, Star, Crown, BadgeCheck, Gem, Wallet } from "lucide-react";
 import { ModMenu } from "./ModMenu";
+import { useUserCardStore } from "@/store/userCardStore";
+import { useModeStore } from "@/store/modeStore";
+import { viewerWallet } from "@/lib/viewerWallets";
 
 const badgeIcon: Record<string, React.ReactNode> = {
   moderator: <Shield size={11} className="text-emerald-400" />,
@@ -28,7 +31,10 @@ interface Props {
 
 function MessageInner({ msg, deleted, onModerate }: Props) {
   const [menuAt, setMenuAt] = useState<{ x: number; y: number } | null>(null);
+  const showUser = useUserCardStore((s) => s.show);
+  const demo = useModeStore((s) => s.demo);
   const color = msg.color ?? platformColor(msg.platform);
+  const hasWallet = !!viewerWallet(msg.username, demo);
 
   return (
     <>
@@ -64,10 +70,14 @@ function MessageInner({ msg, deleted, onModerate }: Props) {
           <button
             className="font-bold hover:underline"
             style={{ color }}
-            onClick={(e) => setMenuAt({ x: e.clientX, y: e.clientY })}
+            onClick={() => showUser(msg.username, msg.platform)}
+            title="View profile & messages"
           >
             {msg.username}
           </button>
+          {hasWallet && (
+            <Wallet size={11} className="text-emerald-400" aria-label="Wallet-connected — can receive tips" />
+          )}
           <span className="text-[10px] tabular-nums text-muted opacity-60">{fmtTime(msg.timestamp)}</span>
           <span className={`ml-0.5 break-words text-ink/90 ${deleted ? "line-through opacity-60" : ""}`}>
             {msg.message}

@@ -15,9 +15,9 @@ const DEFAULT_LAYOUT: Layout = {
     { i: "deck-1", widget: "button-deck", x: 4, y: 32, w: 4, h: 6, minW: 2, minH: 4 },
     // Right column.
     { i: "status-1", widget: "connection-status", x: 8, y: 0, w: 4, h: 6, minW: 2, minH: 4 },
-    { i: "giveaway-1", widget: "giveaway", x: 8, y: 6, w: 4, h: 11, minW: 2, minH: 8 },
-    { i: "chatters-1", widget: "top-chatters", x: 8, y: 17, w: 4, h: 9, minW: 2, minH: 6 },
-    { i: "users-1", widget: "user-list", x: 8, y: 26, w: 4, h: 13, minW: 3, minH: 6 },
+    { i: "giveaway-1", widget: "giveaway", x: 8, y: 6, w: 4, h: 7, minW: 2, minH: 6 },
+    { i: "chatters-1", widget: "top-chatters", x: 8, y: 13, w: 4, h: 9, minW: 2, minH: 6 },
+    { i: "users-1", widget: "user-list", x: 8, y: 22, w: 4, h: 16, minW: 3, minH: 6 },
   ],
 };
 
@@ -101,6 +101,6 @@ export const useLayoutStore = create<LayoutState>()(
         set((s) => ({ buttons: s.buttons.map((x) => (x.id === b.id ? b : x)) })),
       removeButton: (id) => set((s) => ({ buttons: s.buttons.filter((x) => x.id !== id) })),
     }),
-    { name: "vibechat-layout-v6" },
+    { name: "vibechat-layout-v7" },
   ),
 );

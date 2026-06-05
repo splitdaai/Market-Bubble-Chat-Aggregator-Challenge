@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { ActionButton } from "@shared/types";
 import { Topbar } from "./components/Topbar";
 import { EditorCanvas } from "./components/EditorCanvas";
@@ -11,13 +11,18 @@ import { OverlayPage } from "./components/OverlayPage";
 import { DockView } from "./components/DockView";
 import { AnalyticsTab } from "./components/analytics/AnalyticsTab";
 import { ConnectionsManager } from "./components/ConnectionsManager";
+import { UserCard } from "./components/UserCard";
 import { useViewStore } from "./store/viewStore";
 import { useChatConnection } from "./hooks/useChatConnection";
+import { useWalletStore } from "./store/walletStore";
 
 export default function App() {
   // Always boot the data pipeline — both the dashboard and the OBS overlay
   // route consume the same live stats/chat stream.
   useChatConnection();
+
+  // Re-attach to an already-authorized EVM wallet + watch for account changes.
+  useEffect(() => useWalletStore.getState().hydrate(), []);
 
   const view = useViewStore((s) => s.view);
   const [themeOpen, setThemeOpen] = useState(false);
@@ -47,6 +52,7 @@ export default function App() {
       </main>
 
       <OverlayLayer />
+      <UserCard />
       <ConnectionsManager open={connOpen} onClose={() => setConnOpen(false)} />
       <ThemeEditor open={themeOpen} onClose={() => setThemeOpen(false)} />
       <ButtonEditor
