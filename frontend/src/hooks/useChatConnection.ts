@@ -38,6 +38,17 @@ export function useChatConnection() {
       useConnectionsStore.getState().setAccounts(DEMO_ACCOUNTS);
     }
 
+    // Analytics history follows the mode: demo seeds rich mock history; live
+    // clears it and defers to the backend's `history` event (real data, which
+    // may be empty) — so live never shows fake demo streams next to a zero
+    // current stream.
+    if (demo) {
+      useAnalyticsStore.setState({ live: false });
+      useAnalyticsStore.getState().ensureSeeded();
+    } else {
+      useAnalyticsStore.setState({ live: true, sessions: [] });
+    }
+
     const conn = connect({
       onMessage: (m) => {
         addMessage(m);
