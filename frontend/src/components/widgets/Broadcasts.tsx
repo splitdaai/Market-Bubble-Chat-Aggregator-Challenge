@@ -36,13 +36,24 @@ export function Broadcasts() {
                 active ? "border-accent/60 bg-accent/[0.08]" : "border-white/8 bg-white/[0.02] hover:border-accent/40 hover:bg-accent/[0.05]"
               }`}
             >
-              {/* thumb */}
-              <div className="relative grid h-11 w-16 shrink-0 place-items-center overflow-hidden rounded-md border border-white/10 bg-black">
-                <img src="/logo-white.png" alt="" className="h-6 w-6 opacity-20" />
-                <span className="absolute inset-0 grid place-items-center bg-black/30 opacity-0 transition group-hover:opacity-100">
-                  <Play size={16} className="text-white" />
+              {/* thumb — a real frame from the broadcast */}
+              <div className="relative h-11 w-16 shrink-0 overflow-hidden rounded-md border border-white/10 bg-black">
+                <video
+                  src={b.src}
+                  muted
+                  playsInline
+                  preload="metadata"
+                  onLoadedMetadata={(e) => { e.currentTarget.currentTime = b.startAt ?? 0.1; }}
+                  className="h-full w-full object-cover"
+                />
+                <span className="absolute inset-0 grid place-items-center bg-black/20 opacity-0 transition group-hover:bg-black/40 group-hover:opacity-100">
+                  <Play size={16} className="text-white drop-shadow" />
                 </span>
-                {b.live && <span className="absolute left-1 top-1 rounded bg-red-500 px-1 text-[7px] font-black uppercase text-white">live</span>}
+                {b.live ? (
+                  <span className="absolute left-1 top-1 flex items-center gap-0.5 rounded bg-red-500 px-1 text-[7px] font-black uppercase text-white">live</span>
+                ) : (
+                  <span className="absolute bottom-0.5 right-0.5 rounded bg-black/70 px-1 text-[7px] font-bold tabular-nums text-white">{b.duration}</span>
+                )}
               </div>
               <div className="min-w-0 flex-1">
                 <div className="truncate text-[13px] font-bold text-ink">{b.title}</div>
