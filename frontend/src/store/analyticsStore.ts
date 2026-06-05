@@ -26,7 +26,13 @@ export const useAnalyticsStore = create<AnalyticsState>()(
       ensureSeeded: () => {
         if (!get().live && get().sessions.length === 0) set({ sessions: generateHistory(12) });
       },
-      setSessions: (sessions) => set({ sessions, live: true }),
+      setSessions: (sessions) => {
+        // An empty history from the backend (no saved streams yet) must NOT wipe
+        // the demo seed or flip us into "live" — otherwise analytics is stuck on
+        // "Loading…" forever. Only real sessions take over.
+        if (sessions.length === 0) return;
+        set({ sessions, live: true });
+      },
       saveSession: (s) => set((st) => ({ sessions: [...st.sessions, s] })),
       reseed: () => {
         if (!get().live) set({ sessions: generateHistory(12) });

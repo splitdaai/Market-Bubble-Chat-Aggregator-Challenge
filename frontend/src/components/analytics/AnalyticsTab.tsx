@@ -91,7 +91,9 @@ export function AnalyticsTab() {
   const accountMeta = account ? accountsList.find((a) => a.id === account) : null;
   const scopeLabel = accountMeta ? `${accountMeta.displayName} · ${platformLabel(accountMeta.platform)}` : plat === "all" ? "All platforms" : platformLabel(plat);
 
-  if (past.length === 0) {
+  // Only a genuine cold-start (no past streams AND no live session) shows the
+  // loader — otherwise we always have at least the current stream to render.
+  if (all.length === 0) {
     return <div className="grid h-64 place-items-center text-muted">Loading analytics…</div>;
   }
 
