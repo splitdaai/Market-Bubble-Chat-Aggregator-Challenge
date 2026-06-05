@@ -4,6 +4,7 @@ import { Flame, Zap, TrendingUp, ExternalLink, Monitor, Search, RefreshCw } from
 import { fetchMarkets, breakingFrom, fmtVol, POLY_CATEGORIES, MOCK_MARKETS, type PolyMarket } from "@/lib/polymarket";
 import { useOverlayStore } from "@/store/overlayStore";
 import { useToastStore } from "@/store/toastStore";
+import { PolymarketLogo } from "../PolymarketLogo";
 
 type View = "trending" | "breaking" | "all" | "other" | (typeof POLY_CATEGORIES)[number];
 
@@ -56,8 +57,7 @@ export function PolymarketPanel() {
       {/* header */}
       <div className="mb-2 flex items-center justify-between">
         <div className="flex items-center gap-1.5">
-          <span className="grid h-5 w-5 place-items-center rounded-md bg-accent/15 text-[10px] font-black text-accent">P</span>
-          <span className="text-[11px] font-bold uppercase tracking-widest text-muted">Polymarket</span>
+          <PolymarketLogo size={17} className="text-accent" />
           {isError && <span className="text-[9px] font-semibold text-amber-300">· demo</span>}
         </div>
         <button onClick={() => refetch()} title="Refresh markets" className="rounded p-1 text-muted transition hover:text-accent">

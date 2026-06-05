@@ -1,13 +1,13 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { Trophy, DollarSign, Gift, MessageSquare } from "lucide-react";
+import { Trophy, Gift, MessageSquare } from "lucide-react";
 import { useStatsStore } from "@/store/statsStore";
 import { SourceBadge, platformColor } from "../SourceBadge";
 import { compact } from "@/lib/format";
 import { subRevenue } from "@/lib/revenue";
 import type { Platform } from "@shared/types";
 
-type Tab = "chatters" | "donors" | "subs";
+type Tab = "chatters" | "subs";
 type RangeKey = "day" | "week" | "month" | "all";
 
 /** Roughly how much a longer window accumulates vs the live session ("today"). */
@@ -21,7 +21,6 @@ const RANGES: { key: RangeKey; label: string }[] = [
 
 const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
   { id: "chatters", label: "Chatters", icon: <MessageSquare size={12} /> },
-  { id: "donors", label: "Revenue", icon: <DollarSign size={12} /> },
   { id: "subs", label: "Subs", icon: <Gift size={12} /> },
 ];
 
@@ -51,19 +50,16 @@ export function TopChatters() {
   const rows: Row[] =
     tab === "chatters"
       ? snap.topChatters.map((r) => ({ ...r, value: r.count * f, display: sc(r.count) }))
-      : tab === "donors"
-        ? snap.topDonors.map((r) => ({ ...r, value: r.amount * f, display: `$${sc(r.amount)}` }))
-        : snap.topSubs
-            .map((r) => {
-              const rev = subRevenue(r.platform, r.subs);
-              return { name: r.name, platform: r.platform, channel: r.channel, value: rev * f, display: `$${sc(rev)}`, subCount: Math.round(r.subs * f) };
-            })
-            .sort((a, b) => b.value - a.value);
+      : snap.topSubs
+          .map((r) => {
+            const rev = subRevenue(r.platform, r.subs);
+            return { name: r.name, platform: r.platform, channel: r.channel, value: rev * f, display: `$${sc(rev)}`, subCount: Math.round(r.subs * f) };
+          })
+          .sort((a, b) => b.value - a.value);
 
   const max = Math.max(1, rows[0]?.value ?? 1);
   const summary =
-    tab === "donors" ? `$${sc(snap.totalDonated)} revenue`
-    : tab === "subs" ? `$${sc(snap.totalSubRevenue)} from subs`
+    tab === "subs" ? `$${sc(snap.totalSubRevenue)} from subs`
     : `${sc(snap.totals.uniqueChatters)} chatters`;
 
   return (
@@ -107,7 +103,7 @@ export function TopChatters() {
       <div className="vc-scroll flex-1 space-y-1 overflow-y-auto">
         {rows.length === 0 && (
           <div className="grid h-full place-items-center text-center text-[11px] text-muted opacity-70">
-            {tab === "donors" ? "No donations yet" : tab === "subs" ? "No subs yet" : "tallying chatters…"}
+            {tab === "subs" ? "No subs yet" : "tallying chatters…"}
           </div>
         )}
         {rows.map((r, i) => (
