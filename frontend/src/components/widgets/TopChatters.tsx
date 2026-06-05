@@ -19,6 +19,7 @@ interface Row {
   platform: Platform;
   value: number;
   display: string;
+  channel?: string;
 }
 
 /**
@@ -86,6 +87,7 @@ export function TopChatters() {
               {i + 1}
             </span>
             <SourceBadge platform={r.platform} compact />
+            {r.channel && <span className="z-10 shrink-0 text-[10px] font-semibold text-muted/80">{r.channel}</span>}
             <span className="z-10 flex-1 truncate text-sm font-semibold text-ink">{r.name}</span>
             <span className={`z-10 text-xs font-bold tabular-nums ${tab === "donors" ? "text-emerald-400" : "text-accent"}`}>
               {tab === "subs" ? `${r.display}×` : r.display}

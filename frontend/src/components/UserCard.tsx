@@ -142,6 +142,7 @@ export function UserCard() {
               <div className="mt-0.5 flex flex-wrap items-center gap-1.5">
                 <SourceBadge platform={open.platform} compact />
                 <span className="text-[11px] text-muted">{platformLabel(open.platform)}</span>
+                {row?.channel && <span className="rounded-full bg-white/8 px-1.5 py-0.5 text-[10px] font-semibold text-ink">{row.channel}</span>}
                 {wallet && (
                   <span className="flex items-center gap-1 rounded-full bg-emerald-400/15 px-1.5 py-0.5 text-[10px] font-bold text-emerald-300" title="Wallet-connected viewer">
                     <Wallet size={10} /> {shortAddr(wallet)}

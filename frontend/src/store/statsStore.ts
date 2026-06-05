@@ -38,6 +38,8 @@ interface ChatterInfo {
   donated: number;
   /** Cumulative subs contributed (own subs + gifted). */
   subs: number;
+  /** Source channel this viewer is watching (Ansem / Banks / Market Bubble). */
+  channel?: string;
 }
 
 interface Accum {
@@ -54,6 +56,7 @@ export interface ChatterRow {
   name: string;
   platform: Platform;
   count: number;
+  channel?: string;
 }
 
 /** A full chatter record for the user-list panel. */
@@ -64,18 +67,21 @@ export interface UserRow {
   last: number;
   donated: number;
   subs: number;
+  channel?: string;
 }
 
 export interface DonorRow {
   name: string;
   platform: Platform;
   amount: number;
+  channel?: string;
 }
 
 export interface SubRow {
   name: string;
   platform: Platform;
   subs: number;
+  channel?: string;
 }
 
 /** Raw per-account accumulators surfaced for the analytics account filter. */
@@ -219,6 +225,7 @@ export const useStatsStore = create<StatsState>((set, get) => ({
     const c = chatters.get(key) ?? { name: m.username, platform: m.platform, count: 0, last: now, donated: 0, subs: 0 };
     c.count += 1;
     c.last = now;
+    if (m.channel) c.channel = m.channel;
     if (m.event) {
       // Tips + bits + the dollar value of subs all count toward "donated".
       c.donated += m.event.amount;
@@ -317,10 +324,10 @@ export const useStatsStore = create<StatsState>((set, get) => ({
         const count = 1 + Math.floor(Math.random() * Math.random() * 18);
         const isX = p === "x" || p === "youtube";
         const name = `${isX ? "@" : ""}${pick(HANDLES)}${10 + Math.floor(Math.random() * 89)}`;
-        chatters.set(`${p}:seed-${seq}`, { name, platform: p, count, last: Date.now() - Math.random() * 240_000, donated, subs });
-
         // attribute the seeded chatter to one of this platform's channels
         const acc = platAccounts.length ? pick(platAccounts) : null;
+        chatters.set(`${p}:seed-${seq}`, { name, platform: p, count, last: Date.now() - Math.random() * 240_000, donated, subs, channel: acc?.displayName });
+
         if (acc) {
           const bucket = byAccount.get(acc.id) ?? { platform: p, messages: 0, chatters: new Set<string>(), donated: 0, subs: 0 };
           bucket.messages += count;
@@ -420,17 +427,17 @@ export const useStatsStore = create<StatsState>((set, get) => ({
     const topChatters = all
       .sort((x, y) => y.count - x.count)
       .slice(0, 8)
-      .map((c) => ({ name: c.name, platform: c.platform, count: c.count }));
+      .map((c) => ({ name: c.name, platform: c.platform, count: c.count, channel: c.channel }));
     const topDonors = all
       .filter((c) => c.donated > 0)
       .sort((x, y) => y.donated - x.donated)
       .slice(0, 8)
-      .map((c) => ({ name: c.name, platform: c.platform, amount: c.donated }));
+      .map((c) => ({ name: c.name, platform: c.platform, amount: c.donated, channel: c.channel }));
     const topSubs = all
       .filter((c) => c.subs > 0)
       .sort((x, y) => y.subs - x.subs)
       .slice(0, 8)
-      .map((c) => ({ name: c.name, platform: c.platform, subs: c.subs }));
+      .map((c) => ({ name: c.name, platform: c.platform, subs: c.subs, channel: c.channel }));
     const totalDonated = all.reduce((s, c) => s + c.donated, 0);
     const totalSubs = all.reduce((s, c) => s + c.subs, 0);
 

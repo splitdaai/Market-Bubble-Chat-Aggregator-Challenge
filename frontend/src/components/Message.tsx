@@ -62,6 +62,9 @@ function MessageInner({ msg, deleted, onModerate }: Props) {
       >
         <div className="flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5 text-[13px] leading-snug">
           <SourceBadge platform={msg.platform} compact />
+          {msg.channel && (
+            <span className="text-[10px] font-semibold text-muted/80" title={`Watching ${msg.channel}`}>{msg.channel}</span>
+          )}
           {msg.badges?.map((b, idx) => (
             <span key={idx} title={b.label} className="inline-grid place-items-center">
               {badgeIcon[b.type]}

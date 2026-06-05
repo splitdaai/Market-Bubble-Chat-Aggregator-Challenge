@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import GridLayout, { WidthProvider, type Layout as RGLLayout } from "react-grid-layout";
 import { useToastStore } from "@/store/toastStore";
-import { GripVertical, X, Plus, MessageSquare, Activity, BarChart3, Flame, Zap, Smile, Scissors, Trophy, Gift, Film, Users } from "lucide-react";
+import { GripVertical, X, Plus, MessageSquare, Activity, BarChart3, Flame, Zap, Smile, Scissors, Trophy, Gift, Film, Users, Monitor, LayoutGrid } from "lucide-react";
 import { useLayoutStore } from "@/store/layoutStore";
 import type { PanelLayout, WidgetKind, ActionButton } from "@shared/types";
 import { ChatFeed } from "./ChatFeed";
@@ -15,6 +15,8 @@ import { TopChatters } from "./widgets/TopChatters";
 import { GiveawayBot } from "./widgets/GiveawayBot";
 import { Clips } from "./widgets/Clips";
 import { UserList } from "./widgets/UserList";
+import { StreamPreview } from "./widgets/StreamPreview";
+import { OpsPanel } from "./widgets/OpsPanel";
 
 const Grid = WidthProvider(GridLayout);
 
@@ -30,6 +32,8 @@ const WIDGET_META: Record<WidgetKind, { label: string; icon: React.ReactNode }> 
   giveaway: { label: "Giveaway Bot", icon: <Gift size={15} /> },
   clips: { label: "Clips", icon: <Film size={15} /> },
   "user-list": { label: "Users", icon: <Users size={15} /> },
+  "stream-preview": { label: "Stream Preview", icon: <Monitor size={15} /> },
+  ops: { label: "Ops Panel", icon: <LayoutGrid size={15} /> },
 };
 
 function renderWidget(panel: PanelLayout, onEditButton: (b?: ActionButton) => void) {
@@ -45,6 +49,8 @@ function renderWidget(panel: PanelLayout, onEditButton: (b?: ActionButton) => vo
     case "giveaway": return <GiveawayBot />;
     case "clips": return <Clips />;
     case "user-list": return <UserList />;
+    case "stream-preview": return <StreamPreview />;
+    case "ops": return <OpsPanel />;
   }
 }
 

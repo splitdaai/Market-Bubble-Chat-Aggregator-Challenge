@@ -6,18 +6,18 @@ import type { Layout, PanelLayout, WidgetKind, ActionButton } from "@shared/type
 const DEFAULT_LAYOUT: Layout = {
   version: 1,
   panels: [
-    // Chat takes the full left column.
-    { i: "feed-1", widget: "chat-feed", x: 0, y: 0, w: 4, h: 38, minW: 3, minH: 6 },
-    // Middle column.
-    { i: "stats-1", widget: "stats", x: 4, y: 0, w: 4, h: 11, minW: 3, minH: 8 },
-    { i: "clip-1", widget: "clip-radar", x: 4, y: 11, w: 4, h: 10, minW: 3, minH: 7 },
-    { i: "clips-1", widget: "clips", x: 4, y: 21, w: 4, h: 11, minW: 3, minH: 7 },
-    { i: "deck-1", widget: "button-deck", x: 4, y: 32, w: 4, h: 6, minW: 2, minH: 4 },
-    // Right column.
-    { i: "status-1", widget: "connection-status", x: 8, y: 0, w: 4, h: 6, minW: 2, minH: 4 },
-    { i: "giveaway-1", widget: "giveaway", x: 8, y: 6, w: 4, h: 7, minW: 2, minH: 6 },
-    { i: "chatters-1", widget: "top-chatters", x: 8, y: 13, w: 4, h: 9, minW: 2, minH: 6 },
-    { i: "users-1", widget: "user-list", x: 8, y: 22, w: 4, h: 16, minW: 3, minH: 6 },
+    // Live Stats — full-width thick tile across the top.
+    { i: "stats-1", widget: "stats", x: 0, y: 0, w: 12, h: 15, minW: 5, minH: 9 },
+    // Stream preview in the middle.
+    { i: "preview-1", widget: "stream-preview", x: 0, y: 15, w: 8, h: 13, minW: 4, minH: 4 },
+    // Chat down the right side.
+    { i: "feed-1", widget: "chat-feed", x: 8, y: 15, w: 4, h: 27, minW: 3, minH: 6 },
+    // Consolidated ops (Connections / Giveaway / Clips) + leaderboards below the preview.
+    { i: "ops-1", widget: "ops", x: 0, y: 28, w: 4, h: 14, minW: 3, minH: 8 },
+    { i: "chatters-1", widget: "top-chatters", x: 4, y: 28, w: 4, h: 14, minW: 2, minH: 6 },
+    // Users + action deck.
+    { i: "users-1", widget: "user-list", x: 0, y: 42, w: 4, h: 12, minW: 3, minH: 6 },
+    { i: "deck-1", widget: "button-deck", x: 4, y: 42, w: 8, h: 6, minW: 2, minH: 4 },
   ],
 };
 
@@ -101,6 +101,6 @@ export const useLayoutStore = create<LayoutState>()(
         set((s) => ({ buttons: s.buttons.map((x) => (x.id === b.id ? b : x)) })),
       removeButton: (id) => set((s) => ({ buttons: s.buttons.filter((x) => x.id !== id) })),
     }),
-    { name: "vibechat-layout-v7" },
+    { name: "vibechat-layout-v8" },
   ),
 );

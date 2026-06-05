@@ -106,6 +106,7 @@ export function UserList() {
                 className="group flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left transition hover:bg-white/[0.05]"
               >
                 <SourceBadge platform={u.platform} compact />
+                {u.channel && <span className="shrink-0 text-[10px] font-semibold text-muted/80">{u.channel}</span>}
                 <span className="flex-1 truncate text-sm font-semibold text-ink">{u.name}</span>
                 {tippable && (
                   <Wallet size={12} className="shrink-0 text-emerald-400" aria-label="Wallet-connected — can receive tips" />

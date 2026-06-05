@@ -235,7 +235,9 @@ export type WidgetKind =
   | "top-chatters"
   | "giveaway"
   | "clips"
-  | "user-list";
+  | "user-list"
+  | "stream-preview"
+  | "ops";
 
 export interface Layout {
   version: 1;
