@@ -1,8 +1,9 @@
-import type { StreamSession, PlatformKPIs, Platform } from "@shared/types";
+import type { StreamSession, PlatformKPIs, AccountKPIs, Platform } from "@shared/types";
 import type { StatsSnapshot } from "@/store/statsStore";
+import { useConnectionsStore } from "@/store/connectionsStore";
 import { compact } from "./format";
 
-const PLATFORMS: Platform[] = ["twitch", "kick", "x"];
+const PLATFORMS: Platform[] = ["twitch", "kick", "x", "youtube", "pumpfun"];
 
 /** Typical full broadcast length (min), used to project "on pace" totals. */
 const TARGET_MIN = 140;
@@ -39,6 +40,30 @@ export function buildLiveSession(snap: StatsSnapshot, projected = true): StreamS
     };
   });
 
+  // Per-account breakdown: cumulative metrics from the per-account accumulators,
+  // viewers/watch-time split from the platform total by each account's msg share.
+  const accountsList = useConnectionsStore.getState().accounts;
+  const platMsgTotal: Record<string, number> = {};
+  for (const a of snap.accounts) platMsgTotal[a.platform] = (platMsgTotal[a.platform] ?? 0) + a.messages;
+  const perAccount: AccountKPIs[] = snap.accounts.map((a) => {
+    const meta = accountsList.find((x) => x.id === a.accountId);
+    const pp = perPlatform.find((x) => x.platform === a.platform)!;
+    const share = (platMsgTotal[a.platform] || 0) > 0 ? a.messages / platMsgTotal[a.platform] : 0;
+    return {
+      accountId: a.accountId,
+      displayName: meta?.displayName ?? a.accountId,
+      platform: a.platform,
+      avgViewers: Math.round(pp.avgViewers * share),
+      peakViewers: Math.round(pp.peakViewers * share),
+      uniqueChatters: Math.round(a.uniqueChatters * f),
+      messages: Math.round(a.messages * f),
+      watchTimeMinutes: Math.round(pp.watchTimeMinutes * share),
+      donated: Math.round(a.donated * f),
+      subs: Math.round(a.subs * f),
+      followersGained: Math.round(pp.followersGained * share),
+    };
+  });
+
   return {
     id: "live",
     title: "Current Stream",
@@ -55,6 +80,7 @@ export function buildLiveSession(snap: StatsSnapshot, projected = true): StreamS
     followersGained: Math.round(PLATFORMS.reduce((s, p) => s + snap.perPlatform[p].followsGained, 0) * f),
     clipMoments: snap.clipMoments.length,
     perPlatform,
+    perAccount,
   };
 }
 

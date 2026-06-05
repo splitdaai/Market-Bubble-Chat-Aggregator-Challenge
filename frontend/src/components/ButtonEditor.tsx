@@ -4,7 +4,7 @@ import { X, Trash2 } from "lucide-react";
 import { useLayoutStore } from "@/store/layoutStore";
 import type { ActionButton, Platform } from "@shared/types";
 
-const PLATFORMS: Platform[] = ["twitch", "kick", "x"];
+const PLATFORMS: Platform[] = ["twitch", "kick", "x", "youtube", "pumpfun"];
 const ICONS = ["Swords", "Rocket", "Megaphone", "Timer", "Flame", "Heart", "Zap", "Crown", "Gift", "PartyPopper"];
 
 const blank = (): ActionButton => ({

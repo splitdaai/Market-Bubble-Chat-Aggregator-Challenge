@@ -2,16 +2,15 @@ import { Eye } from "lucide-react";
 import { useChatStore } from "@/store/chatStore";
 import { useStatsStore } from "@/store/statsStore";
 import { SourceBadge } from "../SourceBadge";
+import { useActivePlatforms } from "@/hooks/useActivePlatforms";
 import { compact } from "@/lib/format";
-import type { Platform } from "@shared/types";
-
-const ALL: Platform[] = ["twitch", "kick", "x"];
 
 /** Per-platform connection health pills, each showing live viewership. */
 export function ConnectionStatusWidget() {
   const statuses = useChatStore((s) => s.statuses);
   const isMock = useChatStore((s) => s.isMock);
   const perPlatform = useStatsStore((s) => s.snapshot.perPlatform);
+  const ALL = useActivePlatforms();
   const byPlatform = new Map(statuses.map((s) => [s.platform, s]));
 
   return (

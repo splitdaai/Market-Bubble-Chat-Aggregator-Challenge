@@ -5,19 +5,35 @@
  */
 
 /** The live chat sources we aggregate. Add more here and the UI follows. */
-export type Platform = "twitch" | "x" | "kick";
+export type Platform = "twitch" | "kick" | "x" | "youtube" | "pumpfun";
+
+/** @deprecated alias — every platform is first-class now. */
+export type ExtPlatform = Platform;
 
 /**
- * Every platform we can hold credentials for or moderate on — the live chat
- * sources plus broadcast/credential-only platforms (YouTube, pump.fun).
+ * A single connected channel/account. Multiple accounts per platform are
+ * aggregated into one feed (e.g. Ansem + Banks + Market Bubble on Twitch).
  */
-export type ExtPlatform = Platform | "youtube" | "pumpfun";
+export interface Account {
+  /** Stable unique id, e.g. `twitch:ansem`. */
+  id: string;
+  platform: Platform;
+  /** Channel/handle used to connect, e.g. "ansem". */
+  handle: string;
+  /** Friendly label shown in the UI, e.g. "Ansem". */
+  displayName: string;
+  connected: boolean;
+}
 
 /** A single normalized chat message — every connector MUST emit this shape. */
 export interface ChatMessage {
   /** Globally-unique id: `${platform}:${nativeId}` so we never collide. */
   id: string;
   platform: Platform;
+  /** Which connected account/channel this message came from (Account.id). */
+  accountId?: string;
+  /** Friendly source channel label, e.g. "Ansem". */
+  channel?: string;
   /** Display name as shown in the source chat. */
   username: string;
   /** Raw message text (emotes still as :codes: — frontend resolves them). */
@@ -135,6 +151,12 @@ export interface PlatformKPIs {
   followersGained: number;
 }
 
+/** Per-account KPI breakdown so analytics can filter by individual channel. */
+export interface AccountKPIs extends PlatformKPIs {
+  accountId: string;
+  displayName: string;
+}
+
 export interface StreamSession {
   id: string;
   title: string;
@@ -154,6 +176,8 @@ export interface StreamSession {
   followersGained: number;
   clipMoments: number;
   perPlatform: PlatformKPIs[];
+  /** Per-account breakdown (Ansem, Banks, …) for the analytics account filter. */
+  perAccount?: AccountKPIs[];
 }
 
 /* --------------------------------- Moderation -------------------------------- */

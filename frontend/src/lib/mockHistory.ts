@@ -1,4 +1,5 @@
-import type { StreamSession, PlatformKPIs, Platform } from "@shared/types";
+import type { StreamSession, PlatformKPIs, AccountKPIs, Platform } from "@shared/types";
+import { DEMO_ACCOUNTS, accountShare } from "./accounts";
 
 /**
  * Seed analytics with believable past streams — weekly ("Live every Thursday")
@@ -7,7 +8,7 @@ import type { StreamSession, PlatformKPIs, Platform } from "@shared/types";
  * The backend (Codex) replaces this with real persisted sessions.
  */
 
-const PLATFORMS: Platform[] = ["twitch", "kick", "x"];
+const PLATFORMS: Platform[] = ["twitch", "kick", "x", "youtube", "pumpfun"];
 
 const TITLES = [
   "Fed Decision Live",
@@ -74,30 +75,46 @@ export function generateHistory(count = 12): StreamSession[] {
     const followersGained = Math.round((25 + g * 300) * jitter(0.25));
     const clipMoments = Math.round((3 + g * 14) * jitter(0.4));
 
-    // Platform mix: Twitch leads, X is the fastest-growing share, Kick steady-ish.
-    const xShare = 0.15 + g * 0.17;
-    const kickShare = 0.2 - g * 0.05;
-    const twitchShare = 1 - xShare - kickShare;
-    const shares: Record<Platform, number> = { twitch: twitchShare, kick: kickShare, x: xShare };
+    // Platform mix: Twitch + YouTube lead, X is the fastest-growing share.
+    const xShare = 0.10 + g * 0.12;
+    const ytShare = 0.18 + g * 0.06;
+    const kickShare = 0.16 - g * 0.04;
+    const pfShare = 0.06 + g * 0.02;
+    const twitchShare = Math.max(0.1, 1 - xShare - ytShare - kickShare - pfShare);
+    const shares: Record<Platform, number> = { twitch: twitchShare, kick: kickShare, x: xShare, youtube: ytShare, pumpfun: pfShare };
+
+    const totals = { avgViewers, peakViewers, uniqueChatters, messages, watchTimeMinutes, donated, subs, followersGained };
+    const perPlatform = buildPerPlatform(totals, shares);
+
+    // per-account breakdown so analytics can filter by Ansem / Banks / Market Bubble
+    const platformKpis = new Map(perPlatform.map((k) => [k.platform, k]));
+    const perAccount: AccountKPIs[] = DEMO_ACCOUNTS.map((acc) => {
+      const k = platformKpis.get(acc.platform)!;
+      const w = accountShare(acc, DEMO_ACCOUNTS) * jitter(0.12);
+      return {
+        accountId: acc.id,
+        displayName: acc.displayName,
+        platform: acc.platform,
+        avgViewers: Math.round(k.avgViewers * w),
+        peakViewers: Math.round(k.peakViewers * w),
+        uniqueChatters: Math.round(k.uniqueChatters * w),
+        messages: Math.round(k.messages * w),
+        watchTimeMinutes: Math.round(k.watchTimeMinutes * w),
+        donated: Math.round(k.donated * w),
+        subs: Math.round(k.subs * w),
+        followersGained: Math.round(k.followersGained * w),
+      };
+    });
 
     sessions.push({
       id: `s-${i}`,
       title: TITLES[i % TITLES.length],
       startedAt,
       durationMinutes,
-      avgViewers,
-      peakViewers,
-      uniqueChatters,
-      messages,
-      watchTimeMinutes,
-      donated,
-      subs,
-      followersGained,
+      ...totals,
       clipMoments,
-      perPlatform: buildPerPlatform(
-        { avgViewers, peakViewers, uniqueChatters, messages, watchTimeMinutes, donated, subs, followersGained },
-        shares,
-      ),
+      perPlatform,
+      perAccount,
     });
   }
 

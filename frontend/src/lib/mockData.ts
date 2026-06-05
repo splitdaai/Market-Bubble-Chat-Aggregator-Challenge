@@ -1,9 +1,12 @@
 import type { ChatMessage, Platform, Badge, ChatEvent } from "@shared/types";
 import { useGiveawayStore } from "@/store/giveawayStore";
+import { useConnectionsStore, connectedAccounts } from "@/store/connectionsStore";
 
 /**
  * Mock message firehose. Lets the whole UI feel alive with zero backend.
- * The real socket layer swaps this out transparently (see socket.ts).
+ * Generates messages across every connected account (multi-account, multi-
+ * platform), tagged with their source channel. The real socket layer swaps
+ * this out transparently (see socket.ts).
  */
 
 const USERS: Record<Platform, { name: string; color: string }[]> = {
@@ -22,6 +25,18 @@ const USERS: Record<Platform, { name: string; color: string }[]> = {
     { name: "@cryptochad", color: "#e7e9ea" },
     { name: "@vibesonly", color: "#b8c0c8" },
     { name: "@degenharry", color: "#ffffff" },
+  ],
+  youtube: [
+    { name: "@MacroMike", color: "#ff6d6d" },
+    { name: "@ChartWizard", color: "#ff9aa2" },
+    { name: "@OptionsOracle", color: "#ffd0d0" },
+    { name: "@BullRunBecky", color: "#ff4d4d" },
+  ],
+  pumpfun: [
+    { name: "0xWhale", color: "#5fe6a8" },
+    { name: "SolSniper", color: "#7affc0" },
+    { name: "degenDan", color: "#3fdd95" },
+    { name: "moonfarmer", color: "#9affd0" },
   ],
 };
 
@@ -60,6 +75,8 @@ const BADGES: Record<Platform, Badge[][]> = {
   ],
   kick: [[{ type: "og", label: "OG" }], [{ type: "subscriber", label: "Sub" }], []],
   x: [[{ type: "verified", label: "Verified" }], []],
+  youtube: [[{ type: "subscriber", label: "Member" }], [{ type: "moderator", label: "Mod" }], []],
+  pumpfun: [[{ type: "og", label: "Holder" }], []],
 };
 
 let seq = 0;
@@ -100,9 +117,13 @@ function makeHype(): { text: string; event?: ChatEvent } {
   return { text: pick(["RAID INCOMING 🚀🚀🚀", "HYPE TRAIN LETS GOOO"]) };
 }
 
-/** Generate a single believable message. */
+/** Generate a single believable message from one of the connected accounts. */
 export function makeMockMessage(forced?: Platform): ChatMessage {
-  const platform: Platform = forced ?? pick(["twitch", "kick", "x", "twitch", "kick"] as Platform[]);
+  const accounts = connectedAccounts(useConnectionsStore.getState().accounts);
+  const pool = forced ? accounts.filter((a) => a.platform === forced) : accounts;
+  const account = pool.length ? pick(pool) : null;
+  const platform: Platform = account?.platform ?? forced ?? pick(["twitch", "kick", "x", "youtube", "pumpfun"] as Platform[]);
+
   const user = randomUser(platform);
   const isHype = Math.random() < 0.14;
   const hype = isHype ? makeHype() : null;
@@ -111,6 +132,8 @@ export function makeMockMessage(forced?: Platform): ChatMessage {
     id: `${platform}:mock-${seq}-${Math.floor(Math.random() * 1e6)}`,
     nativeId: `mock-${seq}`,
     platform,
+    accountId: account?.id,
+    channel: account?.displayName,
     username: user.name,
     color: user.color,
     message: hype ? hype.text : pick(LINES),

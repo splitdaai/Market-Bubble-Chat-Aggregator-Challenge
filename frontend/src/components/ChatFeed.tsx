@@ -8,9 +8,8 @@ import { moderate } from "@/lib/api";
 import { useToastStore } from "@/store/toastStore";
 import { burst } from "./Particles";
 import { accentColor } from "@/lib/theme";
+import { useActivePlatforms } from "@/hooks/useActivePlatforms";
 import { ChevronDown } from "lucide-react";
-
-const ALL: Platform[] = ["twitch", "kick", "x"];
 
 /**
  * The unified feed. Newest at the bottom, smooth auto-scroll that pauses when
@@ -27,6 +26,7 @@ export function ChatFeed({ panel }: { panel: PanelLayout }) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [pinned, setPinned] = useState(true);
   const lastHype = useRef<string | null>(null);
+  const ALL = useActivePlatforms();
 
   // Panels can be scoped to specific platforms via props.platforms.
   const scoped = (panel.props?.platforms as Platform[] | undefined) ?? null;

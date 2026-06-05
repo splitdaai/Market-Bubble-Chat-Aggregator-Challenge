@@ -1,45 +1,15 @@
 import { useMemo, useState } from "react";
 import { Search, Shield, DollarSign, Gift } from "lucide-react";
-import type { ExtPlatform, ModerationAction } from "@shared/types";
-import { useStatsStore } from "@/store/statsStore";
-import { useConnectionsStore } from "@/store/connectionsStore";
+import type { Platform, ModerationAction } from "@shared/types";
+import { useStatsStore, type UserRow } from "@/store/statsStore";
 import { useToastStore } from "@/store/toastStore";
 import { moderate } from "@/lib/api";
-import { SourceBadge, EXT_PLATFORMS, platformLabel, platformColor } from "../SourceBadge";
+import { SourceBadge, platformLabel, platformColor } from "../SourceBadge";
+import { useActivePlatforms } from "@/hooks/useActivePlatforms";
 import { ModMenu } from "../ModMenu";
 import { compact } from "@/lib/format";
 
-interface ListUser {
-  name: string;
-  platform: ExtPlatform;
-  count: number;
-  last: number;
-  donated: number;
-  subs: number;
-}
-
-/** Synthetic viewers for the credential-only platforms (shown once connected). */
-const EXT_USERS: ListUser[] = (() => {
-  const out: ListUser[] = [];
-  const yt = ["cryptoKing", "ChartWizard", "DiamondHandsDan", "MacroMike", "OptionsOracle", "BullRunBecky", "theTapeReader", "AlphaSeeker", "RektRecovery", "GammaGremlin"];
-  const pf = ["0xWhale", "SolSniper", "pumpchaser", "degenDan", "moonfarmer", "liqHunter", "apeing_in", "100xOrZero", "bagSecured", "exitLiquidity"];
-  const mk = (platform: ExtPlatform, names: string[], n: number) => {
-    for (let i = 0; i < n; i++) {
-      const base = names[Math.floor(Math.random() * names.length)];
-      out.push({
-        platform,
-        name: `${platform === "youtube" ? "@" : ""}${base}${10 + Math.floor(Math.random() * 89)}`,
-        count: 1 + Math.floor(Math.random() * Math.random() * 16),
-        last: Date.now() - Math.random() * 300_000,
-        donated: Math.random() < 0.12 ? [5, 10, 20, 50, 100][Math.floor(Math.random() * 5)] : 0,
-        subs: Math.random() < 0.15 ? [1, 1, 3, 5][Math.floor(Math.random() * 4)] : 0,
-      });
-    }
-  };
-  mk("youtube", yt, 150);
-  mk("pumpfun", pf, 60);
-  return out;
-})();
+type ListUser = UserRow;
 
 function ago(ts: number): string {
   const s = (Date.now() - ts) / 1000;
@@ -54,20 +24,16 @@ const CAP = 250;
 export function UserList() {
   const snap = useStatsStore((s) => s.snapshot);
   const listUsers = useStatsStore((s) => s.listUsers);
-  const platforms = useConnectionsStore((s) => s.platforms);
   const push = useToastStore((s) => s.push);
+  const platforms = useActivePlatforms();
 
-  const [tab, setTab] = useState<"all" | ExtPlatform>("all");
+  const [tab, setTab] = useState<"all" | Platform>("all");
   const [q, setQ] = useState("");
   const [menu, setMenu] = useState<{ x: number; y: number; user: ListUser } | null>(null);
 
-  // Real chatters re-derive each stats tick; ext users appear once connected.
+  // Real chatters across all platforms, re-derived each stats tick.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  const real = useMemo<ListUser[]>(() => listUsers() as ListUser[], [snap, listUsers]);
-  const all = useMemo<ListUser[]>(() => {
-    const ext = EXT_USERS.filter((u) => platforms[u.platform]?.connected);
-    return [...real, ...ext];
-  }, [real, platforms]);
+  const all = useMemo<ListUser[]>(() => listUsers(), [snap, listUsers]);
 
   const filtered = useMemo(() => {
     const needle = q.trim().toLowerCase();
@@ -78,9 +44,9 @@ export function UserList() {
 
   const counts = useMemo(() => {
     const c: Record<string, number> = { all: all.length };
-    for (const p of EXT_PLATFORMS) c[p] = all.filter((u) => u.platform === p).length;
+    for (const p of platforms) c[p] = all.filter((u) => u.platform === p).length;
     return c;
-  }, [all]);
+  }, [all, platforms]);
 
   const handleModerate = async (u: ListUser, action: ModerationAction) => {
     const res = await moderate({ platform: u.platform, username: u.name, action });
@@ -93,8 +59,6 @@ export function UserList() {
     push({ message: res.ok ? `${verb} · ${u.platform}` : `Failed: ${res.error}`, tone: res.ok ? "ok" : "error" });
   };
 
-  const extTabUnconnected = tab !== "all" && (tab === "youtube" || tab === "pumpfun") && !platforms[tab]?.connected;
-
   return (
     <div className="flex h-full flex-col p-3">
       <div className="mb-2 flex items-center justify-between">
@@ -102,10 +66,10 @@ export function UserList() {
         <span className="text-[10px] text-muted">{compact(all.length)} total</span>
       </div>
 
-      {/* tabs */}
-      <div className="vc-scroll mb-2 flex gap-1 overflow-x-auto pb-1">
+      {/* tabs — wrap so every platform is visible (no horizontal scroll) */}
+      <div className="mb-2 flex flex-wrap gap-1">
         <Tab label="All" active={tab === "all"} onClick={() => setTab("all")} n={counts.all} />
-        {EXT_PLATFORMS.map((p) => (
+        {platforms.map((p) => (
           <Tab key={p} label={platformLabel(p)} active={tab === p} onClick={() => setTab(p)} n={counts[p]} color={platformColor(p)} />
         ))}
       </div>
@@ -123,11 +87,7 @@ export function UserList() {
 
       {/* list */}
       <div className="vc-scroll flex-1 space-y-0.5 overflow-y-auto">
-        {extTabUnconnected ? (
-          <div className="grid h-full place-items-center px-4 text-center text-[11px] text-muted opacity-80">
-            Connect {platformLabel(tab as ExtPlatform)} in Connections to load its viewers.
-          </div>
-        ) : filtered.length === 0 ? (
+        {filtered.length === 0 ? (
           <div className="grid h-full place-items-center text-[11px] text-muted opacity-70">No users</div>
         ) : (
           filtered.slice(0, CAP).map((u, i) => (

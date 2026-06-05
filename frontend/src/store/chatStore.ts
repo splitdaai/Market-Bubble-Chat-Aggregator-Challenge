@@ -24,7 +24,7 @@ interface ChatState {
 export const useChatStore = create<ChatState>((set) => ({
   messages: [],
   statuses: [],
-  enabled: { twitch: true, kick: true, x: true },
+  enabled: { twitch: true, kick: true, x: true, youtube: true, pumpfun: true },
   deleted: new Set(),
   isMock: true,
 

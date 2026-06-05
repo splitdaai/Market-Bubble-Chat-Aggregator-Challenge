@@ -1,12 +1,9 @@
 import { motion } from "framer-motion";
 import { Eye, Users, Clock, TrendingUp, Activity, Zap } from "lucide-react";
 import { useStatsStore } from "@/store/statsStore";
-import { platformColor } from "../SourceBadge";
+import { platformColor, platformLabel } from "../SourceBadge";
+import { useActivePlatforms } from "@/hooks/useActivePlatforms";
 import { compact, watchTime, elapsed } from "@/lib/format";
-import type { Platform } from "@shared/types";
-
-const ALL: Platform[] = ["twitch", "kick", "x"];
-const PLATFORM_LABEL: Record<Platform, string> = { twitch: "Twitch", kick: "Kick", x: "X" };
 
 /**
  * The headline live-stats panel: aggregate viewers + per-platform breakdown of
@@ -16,6 +13,7 @@ const PLATFORM_LABEL: Record<Platform, string> = { twitch: "Twitch", kick: "Kick
 export function StatsWidget() {
   const snap = useStatsStore((s) => s.snapshot);
   const isMock = useStatsStore((s) => s.isMock);
+  const ALL = useActivePlatforms();
   const t = snap.totals;
   const totalViewers = Math.max(1, t.viewers);
 
@@ -54,7 +52,7 @@ export function StatsWidget() {
             <div
               key={p}
               style={{ width: `${(snap.perPlatform[p].viewers / totalViewers) * 100}%`, background: platformColor(p) }}
-              title={`${PLATFORM_LABEL[p]}: ${compact(snap.perPlatform[p].viewers)} viewers`}
+              title={`${platformLabel(p)}: ${compact(snap.perPlatform[p].viewers)} viewers`}
             />
           ))}
         </div>
@@ -78,7 +76,7 @@ export function StatsWidget() {
             <div key={p} className="rounded-lg border border-white/8 bg-white/[0.02] px-2.5 py-2">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold" style={{ color: platformColor(p) }}>
-                  {PLATFORM_LABEL[p]}
+                  {platformLabel(p)}
                 </span>
                 <span className="flex items-center gap-1 text-xs font-semibold text-ink">
                   <Eye size={11} className="text-muted" /> {compact(s.viewers)}

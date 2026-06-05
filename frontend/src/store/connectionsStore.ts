@@ -1,32 +1,22 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import type { ExtPlatform } from "@shared/types";
-import { EXT_PLATFORMS } from "@/components/SourceBadge";
+import type { Account, Platform } from "@shared/types";
+import { DEMO_ACCOUNTS } from "@/lib/accounts";
 
 /**
- * Connection state for streaming platforms + OBS.
+ * Connected accounts + OBS.
  *
- * SECURITY: we never store platform passwords, tokens, or API keys in the
- * browser. Platform accounts connect via each platform's official OAuth (the
- * backend holds tokens server-side). Only non-secret status + the display
- * handle are persisted. The OBS password lives in component state for the
- * session and is used solely to talk to OBS WebSocket on this device.
+ * Multiple accounts per platform are aggregated into one feed. Seeded with demo
+ * channels (Ansem, Banks, Market Bubble) so multi-account aggregation is visible
+ * out of the box.
+ *
+ * SECURITY: we never store platform passwords/tokens in the browser. Accounts
+ * connect via each platform's official OAuth (tokens live server-side). The OBS
+ * password is session-only and used solely to talk to OBS locally.
  */
 
-export interface PlatformConn {
-  connected: boolean;
-  handle?: string;
-}
-
-function blankPlatforms(): Record<ExtPlatform, PlatformConn> {
-  return EXT_PLATFORMS.reduce(
-    (acc, p) => ((acc[p] = { connected: false }), acc),
-    {} as Record<ExtPlatform, PlatformConn>,
-  );
-}
-
 interface ConnectionsState {
-  platforms: Record<ExtPlatform, PlatformConn>;
+  accounts: Account[];
   obs: { host: string; port: number };
   // runtime-only (never persisted)
   obsConnected: boolean;
@@ -34,8 +24,9 @@ interface ConnectionsState {
   obsError?: string;
   obsBusy: boolean;
 
-  connectPlatform: (p: ExtPlatform, handle: string) => void;
-  disconnectPlatform: (p: ExtPlatform) => void;
+  addAccount: (platform: Platform, handle: string, displayName: string) => void;
+  removeAccount: (id: string) => void;
+  toggleAccount: (id: string) => void;
   setObsConfig: (patch: Partial<{ host: string; port: number }>) => void;
   setObsState: (patch: Partial<Pick<ConnectionsState, "obsConnected" | "obsVersion" | "obsError" | "obsBusy">>) => void;
 }
@@ -43,24 +34,34 @@ interface ConnectionsState {
 export const useConnectionsStore = create<ConnectionsState>()(
   persist(
     (set) => ({
-      platforms: blankPlatforms(),
+      accounts: DEMO_ACCOUNTS,
       obs: { host: "127.0.0.1", port: 4455 },
       obsConnected: false,
       obsVersion: undefined,
       obsError: undefined,
       obsBusy: false,
 
-      connectPlatform: (p, handle) =>
-        set((s) => ({ platforms: { ...s.platforms, [p]: { connected: true, handle } } })),
-      disconnectPlatform: (p) =>
-        set((s) => ({ platforms: { ...s.platforms, [p]: { connected: false } } })),
+      addAccount: (platform, handle, displayName) =>
+        set((s) => {
+          const clean = handle.trim().replace(/^@?/, platform === "x" || platform === "youtube" ? "@" : "");
+          const id = `${platform}:${clean.replace(/^@/, "").toLowerCase()}`;
+          if (s.accounts.some((a) => a.id === id)) return s;
+          return {
+            accounts: [...s.accounts, { id, platform, handle: clean, displayName: displayName.trim() || clean, connected: true }],
+          };
+        }),
+      removeAccount: (id) => set((s) => ({ accounts: s.accounts.filter((a) => a.id !== id) })),
+      toggleAccount: (id) =>
+        set((s) => ({ accounts: s.accounts.map((a) => (a.id === id ? { ...a, connected: !a.connected } : a)) })),
       setObsConfig: (patch) => set((s) => ({ obs: { ...s.obs, ...patch } })),
       setObsState: (patch) => set(patch),
     }),
     {
-      name: "vibechat-connections",
-      // Persist only non-secret config; OBS connection state is runtime.
-      partialize: (s) => ({ platforms: s.platforms, obs: s.obs }),
+      name: "vibechat-connections-v3",
+      partialize: (s) => ({ accounts: s.accounts, obs: s.obs }),
     },
   ),
 );
+
+/** Accounts currently aggregated into the feed. */
+export const connectedAccounts = (accounts: Account[]) => accounts.filter((a) => a.connected);

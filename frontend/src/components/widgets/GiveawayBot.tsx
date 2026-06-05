@@ -4,10 +4,8 @@ import { Gift, Play, Square, Dices, RotateCcw, Users } from "lucide-react";
 import { useGiveawayStore, entrantsByPlatform } from "@/store/giveawayStore";
 import { SourceBadge, platformColor } from "../SourceBadge";
 import { burst } from "../Particles";
+import { useActivePlatforms } from "@/hooks/useActivePlatforms";
 import { compact } from "@/lib/format";
-import type { Platform } from "@shared/types";
-
-const ALL: Platform[] = ["twitch", "kick", "x"];
 
 /**
  * Cross-platform giveaway bot. Viewers on Twitch, Kick and X all enter with the
@@ -26,6 +24,7 @@ export function GiveawayBot() {
 
   const rootRef = useRef<HTMLDivElement>(null);
   const counts = entrantsByPlatform(entrants);
+  const ALL = useActivePlatforms();
 
   // Confetti when a winner is revealed.
   useEffect(() => {
@@ -91,11 +90,11 @@ export function GiveawayBot() {
             </div>
 
             {/* per-platform entry split */}
-            <div className="mt-2 grid grid-cols-3 gap-1.5">
+            <div className="mt-2 grid grid-cols-5 gap-1">
               {ALL.map((p) => (
                 <div key={p} className="rounded-lg border border-white/8 bg-white/[0.02] py-1.5 text-center">
                   <div className="mb-0.5 flex justify-center"><SourceBadge platform={p} compact /></div>
-                  <div className="text-sm font-bold tabular-nums" style={{ color: platformColor(p) }}>{counts[p]}</div>
+                  <div className="text-xs font-bold tabular-nums" style={{ color: platformColor(p) }}>{counts[p]}</div>
                 </div>
               ))}
             </div>

@@ -42,10 +42,10 @@ const META: Record<
   },
 };
 
-/** Chat sources that actually produce a live message feed. */
-export const CHAT_PLATFORMS: Platform[] = ["twitch", "kick", "x"];
-/** Every platform we can hold credentials for / moderate on. */
-export const EXT_PLATFORMS: ExtPlatform[] = ["twitch", "kick", "x", "youtube", "pumpfun"];
+/** Every platform we aggregate — all are first-class chat sources now. */
+export const CHAT_PLATFORMS: Platform[] = ["twitch", "kick", "x", "youtube", "pumpfun"];
+/** Alias kept for existing imports. */
+export const EXT_PLATFORMS: ExtPlatform[] = CHAT_PLATFORMS;
 
 export function SourceBadge({ platform, compact = false }: { platform: ExtPlatform; compact?: boolean }) {
   const m = META[platform];

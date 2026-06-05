@@ -80,7 +80,7 @@ export const useGiveawayStore = create<GiveawayState>((set, get) => ({
 
 /** Helper for the UI: entrant counts per platform. */
 export function entrantsByPlatform(entrants: GiveawayEntrant[]): Record<Platform, number> {
-  const counts: Record<Platform, number> = { twitch: 0, kick: 0, x: 0 };
+  const counts: Record<Platform, number> = { twitch: 0, kick: 0, x: 0, youtube: 0, pumpfun: 0 };
   for (const e of entrants) counts[e.platform] += 1;
   return counts;
 }

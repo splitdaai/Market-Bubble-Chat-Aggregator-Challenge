@@ -6,19 +6,33 @@ import {
 import type { StreamSession, Platform } from "@shared/types";
 import { useAnalyticsStore } from "@/store/analyticsStore";
 import { useStatsStore } from "@/store/statsStore";
+import { useConnectionsStore } from "@/store/connectionsStore";
 import {
   buildLiveSession, METRICS, fmtViewers, fmtMoney, fmtHours, fmtInt, fmtDate, pctDelta,
 } from "@/lib/analytics";
 import { TrendChart, Sparkline, DeltaBadge } from "./charts";
 import { SourceBadge, platformColor, platformLabel } from "../SourceBadge";
+import { useActivePlatforms } from "@/hooks/useActivePlatforms";
 
-const PLATFORMS: Platform[] = ["twitch", "kick", "x"];
 const pk = (s: StreamSession, p: Platform) => s.perPlatform.find((x) => x.platform === p)!;
 
 type Plat = "all" | Platform;
+type Range = "all" | "hour" | "day" | "week" | "month" | "year";
 
-/** Read a KPI field from a session, aggregate or scoped to one platform. */
-function fv(s: StreamSession, field: string, plat: Plat): number {
+const DAY = 86_400_000;
+const RANGE_MS: Record<Exclude<Range, "all">, number> = {
+  hour: 3_600_000, day: DAY, week: 7 * DAY, month: 30 * DAY, year: 365 * DAY,
+};
+const RANGE_LABEL: Record<Range, string> = {
+  all: "All time", hour: "Past hour", day: "Past day", week: "Past week", month: "Past month", year: "Past year",
+};
+
+/** Read a KPI field — aggregate, scoped to a platform, or scoped to an account. */
+function fv(s: StreamSession, field: string, plat: Plat, accountId?: string | null): number {
+  if (accountId) {
+    const a = s.perAccount?.find((x) => x.accountId === accountId);
+    return a ? (a as unknown as Record<string, number>)[field] ?? 0 : 0;
+  }
   if (plat === "all") return (s as unknown as Record<string, number>)[field] ?? 0;
   const pp = s.perPlatform.find((x) => x.platform === plat);
   return pp ? (pp as unknown as Record<string, number>)[field] ?? 0 : 0;
@@ -34,21 +48,32 @@ export function AnalyticsTab() {
   useEffect(() => { ensureSeeded(); }, [ensureSeeded]);
 
   const [pace, setPace] = useState(true); // true = "on pace" projection, false = "so far"
+  const [range, setRange] = useState<Range>("all"); // time window
   const live = useMemo(() => buildLiveSession(snap, pace), [snap, pace]);
   const past = useMemo(() => [...sessions].sort((a, b) => a.startedAt - b.startedAt), [sessions]);
-  const all = useMemo(() => [...past, live], [past, live]);
-  const prev = past[past.length - 1]; // last completed stream
+  const pastInRange = useMemo(() => {
+    if (range === "all") return past;
+    const cutoff = Date.now() - RANGE_MS[range];
+    return past.filter((s) => s.startedAt >= cutoff);
+  }, [past, range]);
+  const all = useMemo(() => [...pastInRange, live], [pastInRange, live]);
+  const prev = pastInRange[pastInRange.length - 1] ?? live; // last stream in range (else compare to self)
 
   const [metricKey, setMetricKey] = useState("avgViewers");
   const [focusId, setFocusId] = useState("live"); // the "B" of the comparison
   const [plat, setPlat] = useState<Plat>("all"); // platform filter
+  const [account, setAccount] = useState<string | null>(null); // account filter (overrides platform)
+  const accountsList = useConnectionsStore((s) => s.accounts);
+  const activePlats = useActivePlatforms();
   const metric = METRICS.find((m) => m.key === metricKey)!;
+  const accountMeta = account ? accountsList.find((a) => a.id === account) : null;
+  const scopeLabel = accountMeta ? `${accountMeta.displayName} · ${platformLabel(accountMeta.platform)}` : plat === "all" ? "All platforms" : platformLabel(plat);
 
-  if (!prev) {
+  if (past.length === 0) {
     return <div className="grid h-64 place-items-center text-muted">Loading analytics…</div>;
   }
 
-  const trendPoints = all.map((s) => ({ label: s.live ? "LIVE" : fmtDate(s.startedAt), value: fv(s, metric.key, plat), live: s.live }));
+  const trendPoints = all.map((s) => ({ label: s.live ? "LIVE" : fmtDate(s.startedAt), value: fv(s, metric.key, plat, account), live: s.live }));
 
   const KPIS = [
     { label: "Avg Viewers", icon: <Users size={14} />, field: "avgViewers", fmt: fmtViewers },
@@ -68,27 +93,45 @@ export function AnalyticsTab() {
             <TrendingUp className="text-accent" /> Stream Analytics
           </h2>
           <p className="mt-0.5 text-xs text-muted">
-            {past.length} past streams · since {fmtDate(past[0].startedAt)} ·{" "}
-            <span className="font-semibold text-ink">{plat === "all" ? "All platforms" : platformLabel(plat)}</span> ·{" "}
+            {pastInRange.length} stream{pastInRange.length === 1 ? "" : "s"} · {RANGE_LABEL[range]} ·{" "}
+            <span className="font-semibold text-ink">{scopeLabel}</span> ·{" "}
             current{pace ? " (on pace)" : " (so far)"} vs last
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           {/* platform filter */}
-          <div className="flex items-center gap-1 rounded-lg border border-white/10 bg-white/[0.03] p-1">
-            {(["all", ...PLATFORMS] as Plat[]).map((p) => (
+          <div className="flex flex-wrap items-center gap-1 rounded-lg border border-white/10 bg-white/[0.03] p-1">
+            {(["all", ...activePlats] as Plat[]).map((p) => (
               <button
                 key={p}
-                onClick={() => setPlat(p)}
+                onClick={() => { setPlat(p); setAccount(null); }}
                 className={`rounded-md px-2.5 py-1 text-[11px] font-bold capitalize transition ${
-                  plat === p ? "bg-accent/20 text-accent" : "text-muted hover:text-ink"
+                  !account && plat === p ? "bg-accent/20 text-accent" : "text-muted hover:text-ink"
                 }`}
-                style={plat === p && p !== "all" ? { color: platformColor(p) } : undefined}
+                style={!account && plat === p && p !== "all" ? { color: platformColor(p) } : undefined}
               >
                 {p === "all" ? "All" : platformLabel(p)}
               </button>
             ))}
           </div>
+          {/* per-account filter */}
+          <select
+            value={account ?? ""}
+            onChange={(e) => setAccount(e.target.value || null)}
+            className={`rounded-lg border bg-black/40 px-2 py-1.5 text-[11px] font-semibold outline-none focus:border-accent ${account ? "border-accent text-accent" : "border-white/10 text-muted"}`}
+            title="Filter by account"
+          >
+            <option value="">All accounts</option>
+            {activePlats.map((p) => {
+              const onP = accountsList.filter((a) => a.platform === p);
+              if (!onP.length) return null;
+              return (
+                <optgroup key={p} label={platformLabel(p)}>
+                  {onP.map((a) => <option key={a.id} value={a.id}>{a.displayName} · {platformLabel(p)}</option>)}
+                </optgroup>
+              );
+            })}
+          </select>
           {/* current-stream comparison mode */}
           <div className="flex items-center gap-1 rounded-lg border border-white/10 bg-white/[0.03] p-1" title="How to count the in-progress stream">
             <button
@@ -104,6 +147,17 @@ export function AnalyticsTab() {
               So far
             </button>
           </div>
+          {/* time range */}
+          <select
+            value={range}
+            onChange={(e) => setRange(e.target.value as Range)}
+            className={`rounded-lg border bg-black/40 px-2 py-1.5 text-[11px] font-bold outline-none focus:border-accent ${range !== "all" ? "border-accent text-accent" : "border-white/10 text-muted"}`}
+            title="Time range"
+          >
+            {(["all", "year", "month", "week", "day", "hour"] as Range[]).map((r) => (
+              <option key={r} value={r}>{RANGE_LABEL[r]}</option>
+            ))}
+          </select>
           <button
             onClick={reseed}
             className="flex items-center gap-1.5 rounded-lg border border-white/10 px-3 py-1.5 text-xs font-semibold text-muted transition hover:text-ink"
@@ -121,10 +175,10 @@ export function AnalyticsTab() {
             key={k.label}
             label={k.label}
             icon={k.icon}
-            value={k.fmt(fv(live, k.field, plat))}
-            curr={fv(live, k.field, plat)}
-            prev={fv(prev, k.field, plat)}
-            spark={all.map((s) => fv(s, k.field, plat))}
+            value={k.fmt(fv(live, k.field, plat, account))}
+            curr={fv(live, k.field, plat, account)}
+            prev={fv(prev, k.field, plat, account)}
+            spark={all.map((s) => fv(s, k.field, plat, account))}
           />
         ))}
       </div>
@@ -148,20 +202,20 @@ export function AnalyticsTab() {
           </div>
         </div>
         <div className="mb-2 flex items-baseline gap-2">
-          <span className="text-3xl font-extrabold text-accent">{metric.fmt(fv(live, metric.key, plat))}</span>
-          <span className="text-xs text-muted">current · {plat === "all" ? "" : `${platformLabel(plat)} · `}{metric.label}</span>
-          <DeltaBadge curr={fv(live, metric.key, plat)} prev={fv(prev, metric.key, plat)} size="lg" />
+          <span className="text-3xl font-extrabold text-accent">{metric.fmt(fv(live, metric.key, plat, account))}</span>
+          <span className="text-xs text-muted">current · {accountMeta ? `${accountMeta.displayName} · ` : plat === "all" ? "" : `${platformLabel(plat)} · `}{metric.label}</span>
+          <DeltaBadge curr={fv(live, metric.key, plat, account)} prev={fv(prev, metric.key, plat, account)} size="lg" />
         </div>
         <TrendChart points={trendPoints} formatY={metric.fmt} />
       </section>
 
       <div className="mt-4 grid gap-4 lg:grid-cols-2">
-        <PlatformGrowth past={past} live={live} prev={prev} />
-        <ComparePanel all={all} focusId={focusId} setFocusId={setFocusId} plat={plat} />
+        <PlatformGrowth past={pastInRange} live={live} prev={prev} />
+        <ComparePanel all={all} focusId={focusId} setFocusId={setFocusId} plat={plat} account={account} />
       </div>
 
       {/* streams table */}
-      <StreamsTable all={all} focusId={focusId} setFocusId={setFocusId} plat={plat} />
+      <StreamsTable all={all} focusId={focusId} setFocusId={setFocusId} plat={plat} account={account} />
     </div>
   );
 }
@@ -188,12 +242,13 @@ function KpiCard({ label, icon, value, curr, prev, spark }: {
 /* ------------------------------ platform growth ------------------------------ */
 
 function PlatformGrowth({ past, live, prev }: { past: StreamSession[]; live: StreamSession; prev: StreamSession }) {
-  const totalNow = Math.max(1, PLATFORMS.reduce((s, p) => s + pk(live, p).avgViewers, 0));
+  const plats = useActivePlatforms();
+  const totalNow = Math.max(1, plats.reduce((s, p) => s + pk(live, p).avgViewers, 0));
   return (
     <section className="vc-glass p-4">
       <h3 className="mb-3 text-sm font-bold uppercase tracking-widest text-muted">Platform Growth</h3>
       <div className="space-y-2.5">
-        {PLATFORMS.map((p) => {
+        {plats.map((p) => {
           const curr = pk(live, p).avgViewers;
           const was = pk(prev, p).avgViewers;
           const spark = [...past, live].map((s) => pk(s, p).avgViewers);
@@ -232,7 +287,7 @@ const COMPARE_ROWS: { label: string; field: string; fmt: (n: number) => string }
   { label: "Followers", field: "followersGained", fmt: fmtInt },
 ];
 
-function ComparePanel({ all, focusId, setFocusId, plat }: { all: StreamSession[]; focusId: string; setFocusId: (id: string) => void; plat: Plat }) {
+function ComparePanel({ all, focusId, setFocusId, plat, account }: { all: StreamSession[]; focusId: string; setFocusId: (id: string) => void; plat: Plat; account: string | null }) {
   // B = focused stream; A = the one immediately before it chronologically.
   const bIdx = Math.max(0, all.findIndex((s) => s.id === focusId));
   const b = all[bIdx];
@@ -266,7 +321,7 @@ function ComparePanel({ all, focusId, setFocusId, plat }: { all: StreamSession[]
 
       <div className="space-y-1">
         {COMPARE_ROWS.map((row) => {
-          const av = fv(a, row.field, plat), bv = fv(b, row.field, plat);
+          const av = fv(a, row.field, plat, account), bv = fv(b, row.field, plat, account);
           return (
             <div key={row.label} className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 rounded-md px-2 py-1 odd:bg-white/[0.02]">
               <span className="text-right text-xs tabular-nums text-muted">{row.fmt(av)}</span>
@@ -285,7 +340,7 @@ function ComparePanel({ all, focusId, setFocusId, plat }: { all: StreamSession[]
 
 /* -------------------------------- streams table ------------------------------ */
 
-function StreamsTable({ all, focusId, setFocusId, plat }: { all: StreamSession[]; focusId: string; setFocusId: (id: string) => void; plat: Plat }) {
+function StreamsTable({ all, focusId, setFocusId, plat, account }: { all: StreamSession[]; focusId: string; setFocusId: (id: string) => void; plat: Plat; account: string | null }) {
   const rows = [...all].reverse(); // newest first
 
   return (
@@ -325,13 +380,13 @@ function StreamsTable({ all, focusId, setFocusId, plat }: { all: StreamSession[]
                       {s.title}
                     </span>
                   </Td>
-                  <Td className="font-semibold">{fmtViewers(fv(s, "avgViewers", plat))}</Td>
-                  <Td>{fmtViewers(fv(s, "peakViewers", plat))}</Td>
-                  <Td>{fmtInt(fv(s, "uniqueChatters", plat))}</Td>
-                  <Td>{fmtHours(fv(s, "watchTimeMinutes", plat))}</Td>
-                  <Td className="text-emerald-400">{fmtMoney(fv(s, "donated", plat))}</Td>
-                  <Td>{fmtInt(fv(s, "subs", plat))}</Td>
-                  <Td>{prevS ? <DeltaBadge curr={fv(s, "avgViewers", plat)} prev={fv(prevS, "avgViewers", plat)} /> : <span className="text-muted">—</span>}</Td>
+                  <Td className="font-semibold">{fmtViewers(fv(s, "avgViewers", plat, account))}</Td>
+                  <Td>{fmtViewers(fv(s, "peakViewers", plat, account))}</Td>
+                  <Td>{fmtInt(fv(s, "uniqueChatters", plat, account))}</Td>
+                  <Td>{fmtHours(fv(s, "watchTimeMinutes", plat, account))}</Td>
+                  <Td className="text-emerald-400">{fmtMoney(fv(s, "donated", plat, account))}</Td>
+                  <Td>{fmtInt(fv(s, "subs", plat, account))}</Td>
+                  <Td>{prevS ? <DeltaBadge curr={fv(s, "avgViewers", plat, account)} prev={fv(prevS, "avgViewers", plat, account)} /> : <span className="text-muted">—</span>}</Td>
                 </tr>
               );
             })}

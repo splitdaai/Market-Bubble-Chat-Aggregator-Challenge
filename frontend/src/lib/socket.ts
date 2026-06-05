@@ -27,6 +27,8 @@ const MOCK_STATUS: ConnectionStatus[] = [
   { platform: "twitch", connected: true, channel: "#demo", latencyMs: 42 },
   { platform: "kick", connected: true, channel: "demo", latencyMs: 61 },
   { platform: "x", connected: true, channel: "stream", latencyMs: 88 },
+  { platform: "youtube", connected: true, channel: "live", latencyMs: 73 },
+  { platform: "pumpfun", connected: true, channel: "coin", latencyMs: 95 },
 ];
 
 export interface Transport {
