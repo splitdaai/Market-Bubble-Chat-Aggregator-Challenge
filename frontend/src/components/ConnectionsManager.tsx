@@ -25,7 +25,6 @@ const OAUTH_ENV: Partial<Record<Platform, string>> = {
 
 export function ConnectionsManager({ open, onClose }: { open: boolean; onClose: () => void }) {
   const accounts = useConnectionsStore((s) => s.accounts);
-  const addAccount = useConnectionsStore((s) => s.addAccount);
   const removeAccount = useConnectionsStore((s) => s.removeAccount);
   const toggleAccount = useConnectionsStore((s) => s.toggleAccount);
   const obs = useConnectionsStore((s) => s.obs);
@@ -45,9 +44,6 @@ export function ConnectionsManager({ open, onClose }: { open: boolean; onClose: 
   const setTipEnabled = useWalletStore((s) => s.setTipEnabled);
 
   const [password, setPassword] = useState("");
-  const [adding, setAdding] = useState<Platform | null>(null);
-  const [handle, setHandle] = useState("");
-  const [name, setName] = useState("");
   const [dockCopied, setDockCopied] = useState(false);
   // Which platforms have server-side OAuth credentials (from GET /auth/config).
   // null = not yet known (demo / no backend) → treat as "Connect".
@@ -79,13 +75,6 @@ export function ConnectionsManager({ open, onClose }: { open: boolean; onClose: 
     } catch {
       push({ message: dockUrl, tone: "info" });
     }
-  };
-
-  const submitAdd = (p: Platform) => {
-    if (!handle.trim()) return;
-    addAccount(p, handle, name || handle);
-    push({ message: `Added ${name || handle} on ${platformLabel(p)} (demo)`, tone: "info" });
-    setHandle(""); setName(""); setAdding(null);
   };
 
   // Launch the real OAuth flow in a popup (live mode + configured backend).
@@ -177,23 +166,21 @@ export function ConnectionsManager({ open, onClose }: { open: boolean; onClose: 
                         <span className="text-[10px] text-muted">{list.filter((a) => a.connected).length}/{list.length} live</span>
                       </div>
                       <div className="flex items-center gap-1.5">
-                        {p !== "pumpfun" && (
-                          <button
-                            onClick={() => connectOAuth(p)}
-                            className="flex items-center gap-1 rounded-md px-2 py-1 text-[10px] font-bold text-white transition hover:opacity-90"
-                            style={{ background: oauthReady ? `color-mix(in srgb, ${platformColor(p)} 80%, #000)` : "color-mix(in srgb, #f59e0b 35%, #000)" }}
-                            title={oauthReady ? `Connect a ${platformLabel(p)} account via OAuth` : `${platformLabel(p)} OAuth needs ${OAUTH_ENV[p]} in backend/.env`}
-                          >
-                            <LogIn size={11} /> {oauthReady ? "Connect" : "Set up"}
-                          </button>
-                        )}
+                        {/* One OAuth button per platform: Set up → Connect → + Add account.
+                            Every click runs the real OAuth flow, so additional accounts
+                            are logged in (never typed in by hand). */}
                         <button
-                          onClick={() => { setAdding(adding === p ? null : p); setHandle(""); setName(""); }}
-                          className="flex items-center gap-1 rounded-md border px-2 py-1 text-[10px] font-bold transition"
-                          style={{ borderColor: `color-mix(in srgb, ${platformColor(p)} 50%, transparent)`, color: platformColor(p) }}
-                          title="Add a channel manually (demo)"
+                          onClick={() => connectOAuth(p)}
+                          className="flex items-center gap-1 rounded-md px-2 py-1 text-[10px] font-bold text-white transition hover:opacity-90"
+                          style={{ background: oauthReady ? `color-mix(in srgb, ${platformColor(p)} 80%, #000)` : "color-mix(in srgb, #f59e0b 35%, #000)" }}
+                          title={
+                            !oauthReady
+                              ? `${platformLabel(p)} OAuth needs ${OAUTH_ENV[p]} in backend/.env`
+                              : `${list.length ? "Add another" : "Connect a"} ${platformLabel(p)} account via OAuth`
+                          }
                         >
-                          <Plus size={11} /> {p === "pumpfun" ? "Connect Wallet" : "Add"}
+                          {oauthReady && list.length > 0 ? <Plus size={11} /> : <LogIn size={11} />}
+                          {!oauthReady ? "Set up" : list.length > 0 ? "Add account" : "Connect"}
                         </button>
                       </div>
                     </div>
@@ -229,18 +216,6 @@ export function ConnectionsManager({ open, onClose }: { open: boolean; onClose: 
                         </div>
                       ))}
                     </div>
-
-                    {/* add form */}
-                    {adding === p && (
-                      <div className="mt-2 flex items-center gap-1.5">
-                        <input autoFocus value={handle} onChange={(e) => setHandle(e.target.value)}
-                          placeholder={p === "pumpfun" ? "wallet / token" : p === "x" || p === "youtube" ? "@handle" : "channel"}
-                          className="vc-input flex-1 text-xs" onKeyDown={(e) => e.key === "Enter" && submitAdd(p)} />
-                        <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Label (Ansem)"
-                          className="vc-input flex-1 text-xs" onKeyDown={(e) => e.key === "Enter" && submitAdd(p)} />
-                        <button onClick={() => submitAdd(p)} className="rounded-md bg-accent/20 px-3 py-1.5 text-xs font-bold text-accent hover:bg-accent/30">Add</button>
-                      </div>
-                    )}
                   </div>
                 );
               })}
