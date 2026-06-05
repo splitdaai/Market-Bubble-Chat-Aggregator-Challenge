@@ -7,9 +7,17 @@ import { useClipsStore } from "@/store/clipsStore";
 import { useConnectionsStore } from "@/store/connectionsStore";
 import { usePreviewStore } from "@/store/previewStore";
 import { useAudioStore } from "@/store/audioStore";
+import { useBroadcastStore, BROADCASTS } from "@/store/broadcastStore";
 import { SourceBadge, platformColor } from "../SourceBadge";
 import { LiveTimer } from "../LiveTimer";
 import { compact } from "@/lib/format";
+
+/** seconds → M:SS */
+function clock(s: number): string {
+  if (!isFinite(s) || s < 0) s = 0;
+  const m = Math.floor(s / 60);
+  return `${m}:${Math.floor(s % 60).toString().padStart(2, "0")}`;
+}
 
 /**
  * The center-stage stream preview. Shows the currently-watched channel (chat
@@ -31,17 +39,35 @@ export function StreamPreview() {
 
   const muted = useAudioStore((s) => s.muted);
   const volume = useAudioStore((s) => s.volume);
+  const currentId = useBroadcastStore((s) => s.currentId);
+  const broadcast = BROADCASTS.find((b) => b.id === currentId) ?? BROADCASTS[0];
   const videoRef = useRef<HTMLVideoElement>(null);
 
   const [pick, setPick] = useState<string | null>(null); // accountId of focused channel
   const [videoOk, setVideoOk] = useState(true); // falls back to the chart skin if the clip can't load
   const [playing, setPlaying] = useState(true);
+  const [progress, setProgress] = useState(0);
+  const [duration, setDuration] = useState(0);
 
   const togglePlay = () => {
     const v = videoRef.current;
     if (!v) return;
     if (v.paused) v.play().catch(() => {});
     else v.pause();
+  };
+
+  // Jump to this broadcast's start frame whenever the selection changes.
+  useEffect(() => {
+    const v = videoRef.current;
+    if (!v) return;
+    const seek = () => { v.currentTime = broadcast.startAt ?? 0; v.play().catch(() => {}); };
+    if (v.readyState >= 1) seek();
+    else v.addEventListener("loadedmetadata", seek, { once: true });
+  }, [broadcast.id, broadcast.startAt]);
+
+  const onSeek = (t: number) => {
+    const v = videoRef.current;
+    if (v) { v.currentTime = t; setProgress(t); }
   };
 
   // Drive the <video> muted/volume from the shared audio store (set as
@@ -132,27 +158,19 @@ export function StreamPreview() {
       <div className="relative min-h-0 flex-1 overflow-hidden rounded-xl border border-white/10 bg-black">
         <video
           ref={videoRef}
-          src="/stream-preview.mp4"
+          src={broadcast.src}
           autoPlay
           muted
-          loop
+          loop={!!broadcast.live}
           playsInline
           onError={() => setVideoOk(false)}
           onPlay={() => setPlaying(true)}
           onPause={() => setPlaying(false)}
+          onTimeUpdate={(e) => setProgress(e.currentTarget.currentTime)}
+          onLoadedMetadata={(e) => setDuration(e.currentTarget.duration)}
           onClick={togglePlay}
           className={`absolute inset-0 h-full w-full cursor-pointer object-contain ${videoOk ? "" : "hidden"}`}
         />
-        {/* play/pause */}
-        {videoOk && (
-          <button
-            onClick={togglePlay}
-            title={playing ? "Pause" : "Play"}
-            className="absolute bottom-2 left-1/2 z-10 flex -translate-x-1/2 items-center gap-1.5 rounded-full border border-white/20 bg-black/60 px-3 py-1 text-[11px] font-bold text-white backdrop-blur transition hover:border-accent/60 hover:text-accent"
-          >
-            {playing ? <Pause size={13} /> : <Play size={13} />} {playing ? "Pause" : "Play"}
-          </button>
-        )}
         {/* big center play affordance when paused */}
         {videoOk && !playing && (
           <button
@@ -182,11 +200,18 @@ export function StreamPreview() {
           </>
         )}
 
-        <span className="absolute left-2 top-2 flex items-center gap-1.5 rounded-md bg-black/55 px-1.5 py-0.5 text-[10px] font-black uppercase tracking-wider text-red-400 backdrop-blur">
-          <span className="relative flex h-1.5 w-1.5"><span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-500/70" /><span className="relative h-1.5 w-1.5 rounded-full bg-red-500" /></span>
-          Live
-          <LiveTimer className="tabular-nums text-white/90" />
-        </span>
+        {broadcast.live ? (
+          <span className="absolute left-2 top-2 flex items-center gap-1.5 rounded-md bg-black/55 px-1.5 py-0.5 text-[10px] font-black uppercase tracking-wider text-red-400 backdrop-blur">
+            <span className="relative flex h-1.5 w-1.5"><span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-500/70" /><span className="relative h-1.5 w-1.5 rounded-full bg-red-500" /></span>
+            Live
+            <LiveTimer className="tabular-nums text-white/90" />
+          </span>
+        ) : (
+          <span className="absolute left-2 top-2 flex max-w-[70%] items-center gap-1.5 rounded-md bg-black/55 px-1.5 py-0.5 text-[10px] font-black uppercase tracking-wider text-accent backdrop-blur">
+            <span className="rounded bg-accent/20 px-1">VOD</span>
+            <span className="truncate normal-case text-white/90">{broadcast.title}</span>
+          </span>
+        )}
         <span className="absolute right-2 top-2 rounded-md bg-black/55 px-1.5 py-0.5 text-[11px] font-bold tabular-nums text-ink backdrop-blur">👁 {compact(focusViewers)}</span>
         {focused?.meta && (
           <span className="absolute bottom-2 left-2 flex items-center gap-1.5 rounded-md bg-black/55 px-1.5 py-0.5 backdrop-blur">
@@ -196,6 +221,27 @@ export function StreamPreview() {
         )}
         <span className="absolute bottom-2 right-2 rounded-md bg-black/55 px-1.5 py-0.5 text-[9px] tabular-nums text-muted backdrop-blur">{velocity[velocity.length - 1] ?? 0} msg/min</span>
       </div>
+
+      {/* transport — play/pause + seek the whole clip */}
+      {videoOk && (
+        <div className="mt-2 flex shrink-0 items-center gap-2">
+          <button onClick={togglePlay} title={playing ? "Pause" : "Play"} className="grid h-7 w-7 shrink-0 place-items-center rounded-lg border border-white/12 text-white transition hover:border-accent/60 hover:text-accent">
+            {playing ? <Pause size={14} /> : <Play size={14} className="ml-0.5" />}
+          </button>
+          <input
+            type="range"
+            min={0}
+            max={duration || 1}
+            step={0.1}
+            value={Math.min(progress, duration || 0)}
+            onChange={(e) => onSeek(Number(e.target.value))}
+            className="vc-volume h-1.5 flex-1 cursor-pointer appearance-none rounded-full"
+            style={{ background: `linear-gradient(to right, var(--vc-accent) ${duration ? (progress / duration) * 100 : 0}%, rgba(255,255,255,0.12) ${duration ? (progress / duration) * 100 : 0}%)` }}
+            title="Scrub the clip"
+          />
+          <span className="shrink-0 text-[10px] tabular-nums text-muted">{clock(progress)} / {clock(duration)}</span>
+        </div>
+      )}
 
       {/* channel switcher */}
       {channels.length > 1 && (

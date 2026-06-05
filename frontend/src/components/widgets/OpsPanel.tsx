@@ -1,14 +1,16 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { Gift, Film } from "lucide-react";
+import { Gift, Film, Radio } from "lucide-react";
 import { GiveawayBot } from "./GiveawayBot";
 import { Clips } from "./Clips";
+import { Broadcasts } from "./Broadcasts";
 
-type Tab = "giveaway" | "clips";
+type Tab = "giveaway" | "clips" | "broadcasts";
 
 const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
   { id: "giveaway", label: "Giveaways", icon: <Gift size={15} /> },
   { id: "clips", label: "Clips", icon: <Film size={15} /> },
+  { id: "broadcasts", label: "Broadcasts", icon: <Radio size={15} /> },
 ];
 
 /**
@@ -54,6 +56,7 @@ export function OpsPanel() {
       <div className="min-h-0 flex-1">
         {tab === "giveaway" && <GiveawayBot />}
         {tab === "clips" && <Clips />}
+        {tab === "broadcasts" && <Broadcasts />}
       </div>
     </div>
   );

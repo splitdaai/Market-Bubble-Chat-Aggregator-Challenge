@@ -49,6 +49,12 @@ export async function connectWallet(): Promise<{ address: string; chainId: numbe
   return { address: accounts[0], chainId: parseInt(chainHex, 16) };
 }
 
+/** Ask the wallet to switch to Ethereum mainnet (where USDC/USDT live). */
+export async function switchToEthereum(): Promise<void> {
+  const p = getProvider();
+  await p.request({ method: "wallet_switchEthereumChain", params: [{ chainId: "0x1" }] });
+}
+
 /** Read the currently-authorized account without prompting (for silent rehydrate). */
 export async function getCurrentAccount(): Promise<{ address: string; chainId: number } | null> {
   if (!hasInjectedWallet()) return null;

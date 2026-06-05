@@ -1,8 +1,8 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { Wallet, X, Send, Check, ExternalLink, Loader2, AlertTriangle } from "lucide-react";
 import { useWalletStore } from "@/store/walletStore";
-import { sendToken, tokenFor, stablesOn, chainInfo, shortAddr, hasInjectedWallet, type Stable } from "@/lib/web3";
+import { sendToken, tokenFor, stablesOn, chainInfo, shortAddr, hasInjectedWallet, switchToEthereum, type Stable } from "@/lib/web3";
 import { useToastStore } from "@/store/toastStore";
 
 const PRESETS = ["5", "10", "25", "50"];
@@ -34,6 +34,29 @@ export function TipModal({
   const available = stablesOn(chainId); // which of USDC/USDT exist on this chain
   const activeToken = available.includes(token) ? token : available[0];
   const tokenInfo = activeToken ? tokenFor(chainId, activeToken) : undefined;
+
+  const [switching, setSwitching] = useState(false);
+  const switchEth = async () => {
+    setSwitching(true);
+    setError(null);
+    try {
+      await switchToEthereum(); // wallet emits chainChanged → store updates → USDC/USDT appear
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not switch network");
+    } finally {
+      setSwitching(false);
+    }
+  };
+
+  // Auto-prompt the switch to Ethereum once, if connected on an unsupported chain.
+  const triedSwitch = useRef(false);
+  useEffect(() => {
+    if (address && chainId && available.length === 0 && !triedSwitch.current) {
+      triedSwitch.current = true;
+      switchEth();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [address, chainId, available.length]);
 
   const send = async () => {
     if (!address || !tokenInfo || !activeToken) return;
@@ -113,9 +136,18 @@ export function TipModal({
             </div>
 
             {!activeToken ? (
-              <div className="flex flex-col items-center gap-2 rounded-xl border border-amber-400/20 bg-amber-400/5 px-3 py-3 text-center text-[12px] text-amber-200/90">
+              <div className="flex flex-col items-center gap-3 rounded-xl border border-amber-400/20 bg-amber-400/5 px-3 py-3 text-center text-[12px] text-amber-200/90">
                 <AlertTriangle size={18} className="text-amber-400" />
-                No USDC/USDT on {chain?.name ?? "this network"}. Switch your wallet to Ethereum, Base, Arbitrum, Optimism or Polygon.
+                <span>No USDC/USDT on {chain?.name ?? "this network"}. Tips run on Ethereum (or Base / Arbitrum / Optimism / Polygon).</span>
+                <button
+                  onClick={switchEth}
+                  disabled={switching}
+                  className="flex w-full items-center justify-center gap-2 rounded-xl border border-accent/50 bg-accent/20 py-2 text-sm font-bold text-accent shadow-neon transition hover:bg-accent/30 disabled:opacity-50"
+                >
+                  {switching ? <Loader2 size={15} className="animate-spin" /> : <Wallet size={15} />}
+                  {switching ? "Check your wallet…" : "Switch to Ethereum"}
+                </button>
+                {error && <span className="text-[11px] text-red-300">{error}</span>}
               </div>
             ) : (
               <>

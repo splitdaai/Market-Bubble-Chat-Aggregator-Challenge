@@ -13,6 +13,14 @@ import { viewerWallet } from "@/lib/viewerWallets";
 import { compact } from "@/lib/format";
 
 type ListUser = UserRow;
+type SortKey = "messages" | "donated" | "name" | "recent";
+
+const SORTS: { key: SortKey; label: string }[] = [
+  { key: "messages", label: "Messages" },
+  { key: "donated", label: "$ Spent" },
+  { key: "name", label: "Name" },
+  { key: "recent", label: "Recent" },
+];
 
 function ago(ts: number): string {
   const s = (Date.now() - ts) / 1000;
@@ -34,18 +42,32 @@ export function UserList() {
 
   const [tab, setTab] = useState<"all" | Platform>("all");
   const [q, setQ] = useState("");
+  const [channel, setChannel] = useState<"all" | string>("all");
+  const [sort, setSort] = useState<SortKey>("messages");
   const [menu, setMenu] = useState<{ x: number; y: number; user: ListUser } | null>(null);
 
   // Real chatters across all platforms, re-derived each stats tick.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const all = useMemo<ListUser[]>(() => listUsers(), [snap, listUsers]);
 
+  // Channels present in the data (Ansem / Banks / Market Bubble).
+  const channels = useMemo(() => [...new Set(all.map((u) => u.channel).filter(Boolean))] as string[], [all]);
+
   const filtered = useMemo(() => {
     const needle = q.trim().toLowerCase();
-    return all
-      .filter((u) => (tab === "all" || u.platform === tab) && (!needle || u.name.toLowerCase().includes(needle)))
-      .sort((a, b) => b.count - a.count);
-  }, [all, tab, q]);
+    const rows = all.filter(
+      (u) =>
+        (tab === "all" || u.platform === tab) &&
+        (channel === "all" || u.channel === channel) &&
+        (!needle || u.name.toLowerCase().includes(needle)),
+    );
+    return [...rows].sort((a, b) => {
+      if (sort === "name") return a.name.replace(/^@/, "").localeCompare(b.name.replace(/^@/, ""));
+      if (sort === "donated") return b.donated - a.donated;
+      if (sort === "recent") return b.last - a.last;
+      return b.count - a.count; // messages
+    });
+  }, [all, tab, q, channel, sort]);
 
   const counts = useMemo(() => {
     const c: Record<string, number> = { all: all.length };
@@ -88,6 +110,26 @@ export function UserList() {
           placeholder="Search users…"
           className="w-full bg-transparent text-sm text-ink outline-none placeholder:text-muted"
         />
+      </div>
+
+      {/* channel filter + sort */}
+      <div className="mb-2 flex items-center gap-1.5">
+        <div className="flex min-w-0 flex-1 flex-wrap gap-1">
+          <ChannelChip label="All" active={channel === "all"} onClick={() => setChannel("all")} />
+          {channels.map((c) => (
+            <ChannelChip key={c} label={c} active={channel === c} onClick={() => setChannel(c)} />
+          ))}
+        </div>
+        <select
+          value={sort}
+          onChange={(e) => setSort(e.target.value as SortKey)}
+          title="Sort users"
+          className="shrink-0 rounded-md border border-white/10 bg-black/40 px-1.5 py-1 text-[10px] font-bold text-muted outline-none focus:border-accent"
+        >
+          {SORTS.map((s) => (
+            <option key={s.key} value={s.key}>{s.label}</option>
+          ))}
+        </select>
       </div>
 
       {/* list */}
@@ -154,6 +196,19 @@ function Tab({ label, active, onClick, n, color }: { label: string; active: bool
     >
       {label}
       {n != null && <span className="rounded bg-white/10 px-1 text-[9px] tabular-nums">{compact(n)}</span>}
+    </button>
+  );
+}
+
+function ChannelChip({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      className={`shrink-0 rounded-md border px-1.5 py-0.5 text-[10px] font-bold transition ${
+        active ? "border-accent/60 bg-accent/15 text-accent" : "border-white/10 text-muted hover:text-ink"
+      }`}
+    >
+      {label}
     </button>
   );
 }
