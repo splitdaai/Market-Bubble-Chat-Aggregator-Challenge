@@ -1,0 +1,43 @@
+# Render Blueprint — one-click deploy of the Market Bubble backend (free tier).
+#
+# Deploy:  render.com → New + → Blueprint → pick this repo → Apply.
+# You'll get an HTTPS URL like  https://market-bubble-backend.onrender.com
+#
+# Use that as the OAuth redirect base when registering each platform app:
+#   https://<your-service>.onrender.com/auth/<platform>/callback
+#
+# PUBLIC_URL is auto-detected from RENDER_EXTERNAL_URL, so the callback URLs are
+# correct with no extra config. Add your OAuth client IDs/secrets in the Render
+# dashboard (they're marked sync:false here, so they're never committed).
+services:
+  - type: web
+    name: market-bubble-backend
+    runtime: node
+    rootDir: backend
+    plan: free
+    buildCommand: npm install --include=dev
+    startCommand: npm start
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      # Origins allowed to call the backend (CORS). The hosted demo by default;
+      # add a local dev origin too if you point a local frontend here (comma-sep).
+      - key: CORS_ORIGIN
+        value: http://marketbubble-live-preview.s3-website-us-east-1.amazonaws.com
+      # --- OAuth app credentials (Render prompts you to fill these; never committed) ---
+      - key: TWITCH_CLIENT_ID
+        sync: false
+      - key: TWITCH_CLIENT_SECRET
+        sync: false
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      - key: X_CLIENT_ID
+        sync: false
+      - key: X_CLIENT_SECRET
+        sync: false
+      - key: KICK_CLIENT_ID
+        sync: false
+      - key: KICK_CLIENT_SECRET
+        sync: false

@@ -15,8 +15,12 @@ import { twitchViewers, kickViewers, youtubeViewers } from "./stats/viewers.ts";
 import { mountAuth, getAccounts } from "./auth.ts";
 
 const PORT = Number(process.env.PORT ?? 4000);
-const ORIGIN = process.env.CORS_ORIGIN ?? "*";
-const PUBLIC_URL = process.env.PUBLIC_URL ?? `http://localhost:${PORT}`;
+// Non-wildcard CORS allowlist in production (comma-separated origins); "*" only
+// as a local-dev default. e.g. CORS_ORIGIN="https://app.example,http://localhost:5184"
+const ORIGIN = process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(",").map((s) => s.trim()) : "*";
+// The externally-reachable backend URL (used to build OAuth redirect URIs).
+// Auto-detected on Render (RENDER_EXTERNAL_URL); set PUBLIC_URL explicitly elsewhere.
+const PUBLIC_URL = process.env.PUBLIC_URL ?? process.env.RENDER_EXTERNAL_URL ?? `http://localhost:${PORT}`;
 
 const app = express();
 app.use(cors({ origin: ORIGIN }));
