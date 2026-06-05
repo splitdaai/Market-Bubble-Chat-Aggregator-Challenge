@@ -1,19 +1,22 @@
+import { useState } from "react";
 import { motion } from "framer-motion";
 import { Eye, Users, Clock, TrendingUp, Activity, Zap } from "lucide-react";
 import { useStatsStore } from "@/store/statsStore";
 import { platformColor, platformLabel } from "../SourceBadge";
 import { useActivePlatforms } from "@/hooks/useActivePlatforms";
+import { byStreamer } from "@/lib/streamers";
 import { compact, watchTime, elapsed } from "@/lib/format";
 
 /**
- * The headline live-stats panel: aggregate viewers + per-platform breakdown of
- * live viewers, unique chatters, and cumulative watch time, with a share-of-
- * voice bar and engagement (chatter→viewer) ratio.
+ * The headline live-stats panel: aggregate viewers + a per-platform OR
+ * per-channel breakdown of viewers, unique chatters, watch time and engagement.
  */
 export function StatsWidget() {
   const snap = useStatsStore((s) => s.snapshot);
   const isMock = useStatsStore((s) => s.isMock);
   const ALL = useActivePlatforms();
+  const [mode, setMode] = useState<"platform" | "channel">("platform");
+  const streamers = byStreamer(snap.accounts);
   const t = snap.totals;
   const totalViewers = Math.max(1, t.viewers);
 
@@ -65,31 +68,63 @@ export function StatsWidget() {
         <MiniStat icon={<Zap size={13} />} label="Chat" value={String(t.messagesPerMin)} sub="msg/min" />
       </div>
 
-      {/* per-platform rows */}
+      {/* group toggle */}
+      <div className="flex gap-1 rounded-lg bg-white/[0.03] p-0.5">
+        {(["platform", "channel"] as const).map((m) => (
+          <button
+            key={m}
+            onClick={() => setMode(m)}
+            className={`flex-1 rounded-md py-0.5 text-[10px] font-bold transition ${mode === m ? "bg-accent/20 text-accent" : "text-muted hover:text-ink"}`}
+          >
+            {m === "platform" ? "By platform" : "By channel"}
+          </button>
+        ))}
+      </div>
+
+      {/* breakdown rows */}
       <div className="flex flex-col gap-1.5">
-        {ALL.map((p) => {
-          const s = snap.perPlatform[p];
-          const wt = watchTime(s.watchTimeMinutes);
-          // engagement = active chatters as a % of viewers (the "lurker ratio" inverse)
-          const engagement = s.viewers > 0 ? (s.activeChatters / s.viewers) * 100 : 0;
-          return (
-            <div key={p} className="rounded-lg border border-white/8 bg-white/[0.02] px-2.5 py-2">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold" style={{ color: platformColor(p) }}>
-                  {platformLabel(p)}
-                </span>
-                <span className="flex items-center gap-1 text-xs font-semibold text-ink">
-                  <Eye size={11} className="text-muted" /> {compact(s.viewers)}
-                </span>
-              </div>
-              <div className="mt-1 grid grid-cols-3 gap-1 text-[10px]">
-                <Cell label="unique" value={compact(s.uniqueChatters)} />
-                <Cell label="watch" value={`${wt.value}${wt.unit === "min" ? "m" : "h"}`} />
-                <Cell label="engage" value={`${engagement.toFixed(1)}%`} />
-              </div>
-            </div>
-          );
-        })}
+        {mode === "platform"
+          ? ALL.map((p) => {
+              const s = snap.perPlatform[p];
+              const wt = watchTime(s.watchTimeMinutes);
+              const engagement = s.viewers > 0 ? (s.activeChatters / s.viewers) * 100 : 0;
+              return (
+                <div key={p} className="rounded-lg border border-white/8 bg-white/[0.02] px-2.5 py-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold" style={{ color: platformColor(p) }}>{platformLabel(p)}</span>
+                    <span className="flex items-center gap-1 text-xs font-semibold text-ink"><Eye size={11} className="text-muted" /> {compact(s.viewers)}</span>
+                  </div>
+                  <div className="mt-1 grid grid-cols-3 gap-1 text-[10px]">
+                    <Cell label="unique" value={compact(s.uniqueChatters)} />
+                    <Cell label="watch" value={`${wt.value}${wt.unit === "min" ? "m" : "h"}`} />
+                    <Cell label="engage" value={`${engagement.toFixed(1)}%`} />
+                  </div>
+                </div>
+              );
+            })
+          : streamers.map((st) => {
+              const wt = watchTime(st.watchTimeMinutes);
+              const engagement = st.viewers > 0 ? (st.uniqueChatters / st.viewers) * 100 : 0;
+              return (
+                <div key={st.name} className="rounded-lg border border-white/8 bg-white/[0.02] px-2.5 py-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-xs font-bold text-ink">{st.name}</span>
+                      <span className="flex gap-0.5">
+                        {st.platforms.map((p) => <span key={p} className="h-1.5 w-2.5 rounded-full" style={{ background: platformColor(p) }} title={p} />)}
+                      </span>
+                    </div>
+                    <span className="flex items-center gap-1 text-xs font-semibold text-ink"><Eye size={11} className="text-muted" /> {compact(st.viewers)}</span>
+                  </div>
+                  <div className="mt-1 grid grid-cols-4 gap-1 text-[10px]">
+                    <Cell label="unique" value={compact(st.uniqueChatters)} />
+                    <Cell label="watch" value={`${wt.value}${wt.unit === "min" ? "m" : "h"}`} />
+                    <Cell label="$" value={`$${compact(st.donated)}`} />
+                    <Cell label="subs" value={compact(st.subs)} />
+                  </div>
+                </div>
+              );
+            })}
       </div>
 
       {isMock && (

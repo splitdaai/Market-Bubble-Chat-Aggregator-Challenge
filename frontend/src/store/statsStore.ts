@@ -2,6 +2,7 @@ import { create } from "zustand";
 import type { ChatMessage, Platform, AggregateStats } from "@shared/types";
 import { scoreMessage } from "@/lib/sentiment";
 import { useConnectionsStore, connectedAccounts } from "@/store/connectionsStore";
+import { accountShare } from "@/lib/accounts";
 
 /**
  * The stats brain.
@@ -80,7 +81,10 @@ export interface SubRow {
 /** Raw per-account accumulators surfaced for the analytics account filter. */
 export interface AccountStat {
   accountId: string;
+  displayName: string;
   platform: Platform;
+  viewers: number;
+  watchTimeMinutes: number;
   messages: number;
   uniqueChatters: number;
   donated: number;
@@ -407,10 +411,26 @@ export const useStatsStore = create<StatsState>((set, get) => ({
     const totalDonated = all.reduce((s, c) => s + c.donated, 0);
     const totalSubs = all.reduce((s, c) => s + c.subs, 0);
 
-    // ---- per-account stats (analytics filter) ----
-    const accounts: AccountStat[] = [...byAccount.entries()].map(([accountId, a]) => ({
-      accountId, platform: a.platform, messages: a.messages, uniqueChatters: a.chatters.size, donated: a.donated, subs: a.subs,
-    }));
+    // ---- per-account stats (analytics filter + per-channel breakdowns) ----
+    // Built from every connected account so each channel shows even at 0 msgs;
+    // viewers/watch-time are the platform total split by the account's weight.
+    const conns = connectedAccounts(useConnectionsStore.getState().accounts);
+    const accounts: AccountStat[] = conns.map((acc) => {
+      const b = byAccount.get(acc.id);
+      const pv = perPlatform[acc.platform];
+      const share = accountShare(acc, conns);
+      return {
+        accountId: acc.id,
+        displayName: acc.displayName,
+        platform: acc.platform,
+        viewers: Math.round(pv.viewers * share),
+        watchTimeMinutes: Math.round(pv.watchTimeMinutes * share),
+        messages: b?.messages ?? 0,
+        uniqueChatters: b?.chatters.size ?? 0,
+        donated: b?.donated ?? 0,
+        subs: b?.subs ?? 0,
+      };
+    });
 
     // ---- totals ----
     const totals = PLATFORMS.reduce((acc, p) => {
