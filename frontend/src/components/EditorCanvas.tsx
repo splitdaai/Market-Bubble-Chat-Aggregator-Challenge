@@ -1,5 +1,6 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import GridLayout, { WidthProvider, type Layout as RGLLayout } from "react-grid-layout";
+import { useToastStore } from "@/store/toastStore";
 import { GripVertical, X, Plus, MessageSquare, Activity, BarChart3, Flame, Zap, Smile, Scissors, Trophy, Gift, Film, Users } from "lucide-react";
 import { useLayoutStore } from "@/store/layoutStore";
 import type { PanelLayout, WidgetKind, ActionButton } from "@shared/types";
@@ -59,6 +60,16 @@ export function EditorCanvas({ onEditButton }: { onEditButton: (b?: ActionButton
   const removePanel = useLayoutStore((s) => s.removePanel);
   const addPanel = useLayoutStore((s) => s.addPanel);
   const [palette, setPalette] = useState(false);
+
+  // Discoverability hint when entering edit mode.
+  useEffect(() => {
+    if (editMode) {
+      useToastStore.getState().push({
+        message: "Edit mode: drag a panel by its header, resize from the bottom-right corner — tiles snap to the grid. Hit + Add Panel to add widgets.",
+        tone: "info",
+      });
+    }
+  }, [editMode]);
 
   const rglLayout: RGLLayout[] = useMemo(
     () =>

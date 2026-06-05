@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Plug, ShieldCheck, MonitorPlay, Loader2, Check, ExternalLink, Plus, Trash2, Power, LogIn } from "lucide-react";
+import { X, Plug, ShieldCheck, MonitorPlay, Loader2, Check, ExternalLink, Plus, Trash2, Power, LogIn, LayoutDashboard, Copy } from "lucide-react";
 import type { Platform } from "@shared/types";
 import { CHAT_PLATFORMS, SourceBadge, platformLabel, platformColor } from "./SourceBadge";
 import { useConnectionsStore } from "@/store/connectionsStore";
@@ -30,6 +30,19 @@ export function ConnectionsManager({ open, onClose }: { open: boolean; onClose: 
   const [adding, setAdding] = useState<Platform | null>(null);
   const [handle, setHandle] = useState("");
   const [name, setName] = useState("");
+  const [dockCopied, setDockCopied] = useState(false);
+
+  const dockUrl = typeof window !== "undefined" ? `${window.location.origin}${window.location.pathname}?dock=1` : "";
+  const copyDock = async () => {
+    try {
+      await navigator.clipboard.writeText(dockUrl);
+      setDockCopied(true);
+      push({ message: "OBS dock URL copied", tone: "ok" });
+      window.setTimeout(() => setDockCopied(false), 2000);
+    } catch {
+      push({ message: dockUrl, tone: "info" });
+    }
+  };
 
   const submitAdd = (p: Platform) => {
     if (!handle.trim()) return;
@@ -216,6 +229,26 @@ export function ConnectionsManager({ open, onClose }: { open: boolean; onClose: 
                   </button>
                 </>
               )}
+            </div>
+
+            {/* ---- OBS dock (use as a plugin) ---- */}
+            <h3 className="mb-2 mt-5 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-muted">
+              <LayoutDashboard size={13} /> Use as an OBS Dock
+            </h3>
+            <div className="rounded-xl border border-white/8 bg-white/[0.02] p-3">
+              <p className="mb-2 text-[11px] leading-relaxed text-muted">
+                Dock the Market Bubble feed right inside OBS — like a plugin. In OBS go to{" "}
+                <span className="font-semibold text-ink">Docks → Custom Browser Docks</span>, give it a name, and paste this URL:
+              </p>
+              <div className="flex items-center gap-1.5">
+                <input readOnly value={dockUrl} className="vc-input flex-1 font-mono text-[11px]" onFocus={(e) => e.target.select()} />
+                <button onClick={copyDock} className="flex items-center gap-1 rounded-md bg-accent/20 px-2.5 py-1.5 text-xs font-bold text-accent hover:bg-accent/30">
+                  {dockCopied ? <Check size={13} /> : <Copy size={13} />} Copy
+                </button>
+              </div>
+              <a href={dockUrl} target="_blank" rel="noreferrer" className="mt-2 inline-flex items-center gap-1 text-[10px] font-semibold text-muted hover:text-accent">
+                <ExternalLink size={11} /> Preview the dock
+              </a>
             </div>
 
             <div className="mt-4 flex items-start gap-2 rounded-lg border border-white/8 bg-white/[0.02] p-2.5 text-[10px] leading-relaxed text-muted">

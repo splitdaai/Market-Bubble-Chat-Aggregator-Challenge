@@ -8,6 +8,7 @@ import { Toaster } from "./components/Toaster";
 import { ParticleLayer } from "./components/Particles";
 import { OverlayLayer } from "./components/OverlayLayer";
 import { OverlayPage } from "./components/OverlayPage";
+import { DockView } from "./components/DockView";
 import { AnalyticsTab } from "./components/analytics/AnalyticsTab";
 import { ConnectionsManager } from "./components/ConnectionsManager";
 import { useViewStore } from "./store/viewStore";
@@ -26,9 +27,11 @@ export default function App() {
     editing: null,
   });
 
-  // Standalone OBS browser-source mode: just the floating viewer badges.
-  const isOverlayRoute = new URLSearchParams(window.location.search).has("overlay");
-  if (isOverlayRoute) return <OverlayPage />;
+  // Standalone OBS routes: floating viewer overlay (browser source) or the
+  // compact dock panel (Custom Browser Dock).
+  const params = new URLSearchParams(window.location.search);
+  if (params.has("overlay")) return <OverlayPage />;
+  if (params.has("dock")) return <DockView />;
 
   return (
     <div className="vc-aurora vc-grid-texture relative min-h-screen">
