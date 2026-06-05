@@ -5,7 +5,7 @@ import { fetchMarkets, breakingFrom, fmtVol, POLY_CATEGORIES, MOCK_MARKETS, type
 import { useOverlayStore } from "@/store/overlayStore";
 import { useToastStore } from "@/store/toastStore";
 
-type View = "trending" | "breaking" | "all" | (typeof POLY_CATEGORIES)[number];
+type View = "trending" | "breaking" | "all" | "other" | (typeof POLY_CATEGORIES)[number];
 
 /**
  * Live Polymarket panel — top trending + breaking quick views plus a category
@@ -27,6 +27,13 @@ export function PolymarketPanel() {
 
   const markets = isError || !data?.length ? MOCK_MARKETS : data;
   const breaking = useMemo(() => breakingFrom(markets), [markets]);
+
+  // Market count per category (so the dropdown shows every category + its size).
+  const counts = useMemo(() => {
+    const c: Record<string, number> = {};
+    for (const m of markets) c[m.category] = (c[m.category] ?? 0) + 1;
+    return c;
+  }, [markets]);
 
   const list = useMemo(() => {
     let rows: PolyMarket[];
@@ -85,10 +92,11 @@ export function PolymarketPanel() {
           title="Browse by category"
         >
           <option value="">Categories…</option>
-          <option value="all">All Markets</option>
+          <option value="all">All Markets ({markets.length})</option>
           {POLY_CATEGORIES.map((c) => (
-            <option key={c} value={c}>{c}</option>
+            <option key={c} value={c}>{c} ({counts[c] ?? 0})</option>
           ))}
+          {(counts.other ?? 0) > 0 && <option value="other">other ({counts.other})</option>}
         </select>
       </div>
 
@@ -111,7 +119,8 @@ export function PolymarketPanel() {
           <div className="grid h-full place-items-center text-[11px] text-muted opacity-70">No markets here</div>
         ) : (
           list.map((m) => {
-            const pct = Math.round(m.prob * 100);
+            const yes = Math.round(m.prob * 100);
+            const no = 100 - yes;
             return (
               <button
                 key={m.id}
@@ -121,16 +130,19 @@ export function PolymarketPanel() {
               >
                 <div className="flex items-start justify-between gap-2">
                   <span className="line-clamp-2 text-[13px] font-bold leading-tight text-ink">{m.question}</span>
-                  <span className="shrink-0 text-base font-black tabular-nums text-accent">{pct}%</span>
+                  <span className="shrink-0 truncate text-[11px] font-semibold text-ink/70" style={{ maxWidth: 90 }}>{m.outcome}</span>
                 </div>
-                <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/8">
-                  <div className="h-full rounded-full bg-accent" style={{ width: `${pct}%` }} />
+                {/* yes / no split bar (green / red, like Polymarket) */}
+                <div className="flex h-2 w-full overflow-hidden rounded-full bg-white/8">
+                  <div className="h-full bg-emerald-500" style={{ width: `${yes}%` }} />
+                  <div className="h-full bg-red-500" style={{ width: `${no}%` }} />
+                </div>
+                <div className="flex items-center justify-between text-[11px] font-bold tabular-nums">
+                  <span className="text-emerald-400">Yes {yes}%</span>
+                  <span className="text-red-400">No {no}%</span>
                 </div>
                 <div className="flex items-center justify-between text-[10px] text-muted">
-                  <span className="flex items-center gap-1.5">
-                    <span className="truncate font-semibold text-ink/80">{m.outcome}</span>
-                    <span className="rounded bg-white/8 px-1 py-0.5 font-bold uppercase tracking-wider">{m.category}</span>
-                  </span>
+                  <span className="rounded bg-white/8 px-1 py-0.5 font-bold uppercase tracking-wider">{m.category}</span>
                   <span className="flex items-center gap-2">
                     <span className="flex items-center gap-0.5 tabular-nums"><TrendingUp size={9} /> {fmtVol(m.volume24h)}</span>
                     <a

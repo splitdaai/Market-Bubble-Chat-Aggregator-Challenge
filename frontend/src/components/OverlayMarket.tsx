@@ -10,47 +10,54 @@ function vol(n: number): string {
 
 /**
  * A Polymarket market card for the on-screen / OBS overlay — question, the
- * favored outcome with its live probability bar, 24h volume and category.
- * Solid-ish dark card so it reads cleanly over any stream.
+ * favored outcome and the Yes/No probability split (green/red, like Polymarket).
+ * Honors both width and height so it can be resized skinny in either direction.
  */
 export function OverlayMarket({ el }: { el: OverlayElement }) {
   const m = el.market;
   if (!m) return null;
-  const pct = Math.round(m.prob * 100);
-  const w = el.w ?? 300;
+  const yes = Math.round(m.prob * 100);
+  const no = 100 - yes;
+  const w = el.w ?? 280;
+  const h = el.h;
+  // Hide the lower meta line when the card is squeezed short.
+  const compact = !!h && h < 96;
 
   return (
-    <div style={{ transform: `scale(${el.scale})`, transformOrigin: "top left", width: w }}>
+    <div style={{ transform: `scale(${el.scale})`, transformOrigin: "top left", width: w, height: h }}>
       <div
-        className="overflow-hidden rounded-xl border"
+        className="flex h-full w-full flex-col justify-center overflow-hidden rounded-xl border px-3 py-2"
         style={{
-          background: "rgba(8,6,16,0.86)",
+          background: "rgba(8,6,16,0.88)",
           borderColor: "color-mix(in srgb, var(--vc-accent) 50%, transparent)",
-          boxShadow: "0 6px 24px rgba(0,0,0,0.5), 0 0 18px color-mix(in srgb, var(--vc-accent) 28%, transparent)",
+          boxShadow: "0 6px 24px rgba(0,0,0,0.5), 0 0 18px color-mix(in srgb, var(--vc-accent) 26%, transparent)",
         }}
       >
-        <div className="flex items-center justify-between px-3 pt-2">
-          <span className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-accent">
+        <div className="flex items-center justify-between">
+          <span className="flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest text-accent">
             <span className="h-1.5 w-1.5 rounded-full bg-accent" /> Polymarket
           </span>
-          {el.showLabel && <span className="rounded-full bg-white/10 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-white/70">{m.category}</span>}
+          {el.showLabel && <span className="truncate text-[9px] font-semibold uppercase tracking-wider text-white/55">{m.outcome}</span>}
         </div>
-        <div className="px-3 pb-1 pt-1">
-          <div className="line-clamp-2 text-[15px] font-extrabold leading-tight text-white">{m.question}</div>
+
+        <div className="line-clamp-2 py-0.5 text-[14px] font-extrabold leading-tight text-white">{m.question}</div>
+
+        {/* yes / no split bar */}
+        <div className="mt-0.5 flex h-2 w-full overflow-hidden rounded-full bg-white/10">
+          <div className="h-full bg-emerald-500" style={{ width: `${yes}%`, boxShadow: "0 0 8px rgba(16,185,129,0.7)" }} />
+          <div className="h-full bg-red-500" style={{ width: `${no}%` }} />
         </div>
-        <div className="px-3 pb-2.5">
-          <div className="mb-1 flex items-baseline justify-between">
-            <span className="truncate text-sm font-bold text-white/90">{m.outcome}</span>
-            <span className="text-xl font-black tabular-nums text-accent">{pct}%</span>
-          </div>
-          <div className="h-2 w-full overflow-hidden rounded-full bg-white/10">
-            <div className="h-full rounded-full" style={{ width: `${pct}%`, background: "var(--vc-accent)", boxShadow: "0 0 10px var(--vc-accent)" }} />
-          </div>
-          <div className="mt-1.5 flex items-center justify-between text-[10px] font-semibold text-white/55">
-            <span>24h vol {vol(m.volume24h)}</span>
-            <span className="uppercase tracking-wider">live</span>
-          </div>
+        <div className="mt-1 flex items-center justify-between text-[13px] font-black tabular-nums">
+          <span className="text-emerald-400">Yes {yes}%</span>
+          <span className="text-red-400">No {no}%</span>
         </div>
+
+        {!compact && (
+          <div className="mt-1 flex items-center justify-between text-[9px] font-semibold text-white/50">
+            <span className="uppercase tracking-wider">{m.category}</span>
+            <span>24h {vol(m.volume24h)}</span>
+          </div>
+        )}
       </div>
     </div>
   );

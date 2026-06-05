@@ -38,7 +38,7 @@ export function OverlayLayer() {
   const [copied, setCopied] = useState(false);
 
   const dragInfo = useRef<{ id: string; dx: number; dy: number } | null>(null);
-  const resizeInfo = useRef<{ id: string; sx: number; sy: number; w: number; h: number } | null>(null);
+  const resizeInfo = useRef<{ id: string; sx: number; sy: number; w: number; h: number; isMarket: boolean } | null>(null);
 
   if (!enabled) return null;
 
@@ -49,13 +49,17 @@ export function OverlayLayer() {
   const onResizeDown = (e: React.PointerEvent, id: string, w: number, h: number) => {
     e.stopPropagation();
     (e.target as HTMLElement).setPointerCapture(e.pointerId);
-    resizeInfo.current = { id, sx: e.clientX, sy: e.clientY, w, h };
+    const isMarket = elements.find((el) => el.id === id)?.source === "market";
+    resizeInfo.current = { id, sx: e.clientX, sy: e.clientY, w, h, isMarket };
   };
   const onPointerMove = (e: React.PointerEvent) => {
     const r = resizeInfo.current;
     if (r) {
-      const nw = Math.max(220, Math.min(640, r.w + (e.clientX - r.sx)));
-      const nh = Math.max(200, Math.min(720, r.h + (e.clientY - r.sy)));
+      // market cards can shrink much skinnier than the chat panel
+      const minW = r.isMarket ? 150 : 220;
+      const minH = r.isMarket ? 60 : 200;
+      const nw = Math.max(minW, Math.min(640, r.w + (e.clientX - r.sx)));
+      const nh = Math.max(minH, Math.min(720, r.h + (e.clientY - r.sy)));
       setSize(r.id, nw, nh);
       return;
     }

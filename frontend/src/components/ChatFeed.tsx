@@ -10,6 +10,7 @@ import { burst } from "./Particles";
 import { accentColor } from "@/lib/theme";
 import { useActivePlatforms } from "@/hooks/useActivePlatforms";
 import { ChevronDown } from "lucide-react";
+import { ChatComposer } from "./ChatComposer";
 
 /**
  * The unified feed. Newest at the bottom, smooth auto-scroll that pauses when
@@ -124,7 +125,7 @@ export function ChatFeed({ panel }: { panel: PanelLayout }) {
         )}
       </div>
 
-      {/* jump-to-live */}
+      {/* jump-to-live (sits just above the composer) */}
       {!pinned && (
         <button
           onClick={() => {
@@ -132,11 +133,14 @@ export function ChatFeed({ panel }: { panel: PanelLayout }) {
             const el = scrollRef.current;
             if (el) el.scrollTop = el.scrollHeight;
           }}
-          className="absolute bottom-3 left-1/2 z-10 flex -translate-x-1/2 items-center gap-1 rounded-full border border-accent/50 bg-black/70 px-3 py-1 text-xs font-semibold text-accent shadow-neon backdrop-blur"
+          className="absolute bottom-16 left-1/2 z-10 flex -translate-x-1/2 items-center gap-1 rounded-full border border-accent/50 bg-black/70 px-3 py-1 text-xs font-semibold text-accent shadow-neon backdrop-blur"
         >
           <ChevronDown size={14} /> Live
         </button>
       )}
+
+      {/* composer — send a message with emojis */}
+      <ChatComposer />
     </div>
   );
 }

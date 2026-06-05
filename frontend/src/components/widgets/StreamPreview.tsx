@@ -1,6 +1,6 @@
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Scissors, Radio, EyeOff, Eye, Monitor } from "lucide-react";
+import { Scissors, Radio, EyeOff, Eye, Monitor, Play, Pause } from "lucide-react";
 import { useStatsStore } from "@/store/statsStore";
 import { useToastStore } from "@/store/toastStore";
 import { useClipsStore } from "@/store/clipsStore";
@@ -35,6 +35,14 @@ export function StreamPreview() {
 
   const [pick, setPick] = useState<string | null>(null); // accountId of focused channel
   const [videoOk, setVideoOk] = useState(true); // falls back to the chart skin if the clip can't load
+  const [playing, setPlaying] = useState(true);
+
+  const togglePlay = () => {
+    const v = videoRef.current;
+    if (!v) return;
+    if (v.paused) v.play().catch(() => {});
+    else v.pause();
+  };
 
   // Drive the <video> muted/volume from the shared audio store (set as
   // properties, not attributes, so they update live).
@@ -130,8 +138,33 @@ export function StreamPreview() {
           loop
           playsInline
           onError={() => setVideoOk(false)}
-          className={`absolute inset-0 h-full w-full object-contain ${videoOk ? "" : "hidden"}`}
+          onPlay={() => setPlaying(true)}
+          onPause={() => setPlaying(false)}
+          onClick={togglePlay}
+          className={`absolute inset-0 h-full w-full cursor-pointer object-contain ${videoOk ? "" : "hidden"}`}
         />
+        {/* play/pause */}
+        {videoOk && (
+          <button
+            onClick={togglePlay}
+            title={playing ? "Pause" : "Play"}
+            className="absolute bottom-2 left-1/2 z-10 flex -translate-x-1/2 items-center gap-1.5 rounded-full border border-white/20 bg-black/60 px-3 py-1 text-[11px] font-bold text-white backdrop-blur transition hover:border-accent/60 hover:text-accent"
+          >
+            {playing ? <Pause size={13} /> : <Play size={13} />} {playing ? "Pause" : "Play"}
+          </button>
+        )}
+        {/* big center play affordance when paused */}
+        {videoOk && !playing && (
+          <button
+            onClick={togglePlay}
+            className="absolute inset-0 z-[5] grid place-items-center bg-black/30"
+            title="Play"
+          >
+            <span className="grid h-14 w-14 place-items-center rounded-full border-2 border-white/70 bg-black/50 text-white">
+              <Play size={26} className="ml-1" />
+            </span>
+          </button>
+        )}
         {!videoOk && (
           <>
             <img src="/logo-white.png" alt="" className="pointer-events-none absolute left-1/2 top-1/2 h-1/2 -translate-x-1/2 -translate-y-1/2 opacity-[0.06]" />

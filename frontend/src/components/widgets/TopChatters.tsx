@@ -4,13 +4,14 @@ import { Trophy, DollarSign, Gift, MessageSquare } from "lucide-react";
 import { useStatsStore } from "@/store/statsStore";
 import { SourceBadge, platformColor } from "../SourceBadge";
 import { compact } from "@/lib/format";
+import { subRevenue } from "@/lib/revenue";
 import type { Platform } from "@shared/types";
 
 type Tab = "chatters" | "donors" | "subs";
 
 const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
   { id: "chatters", label: "Chatters", icon: <MessageSquare size={12} /> },
-  { id: "donors", label: "Donors", icon: <DollarSign size={12} /> },
+  { id: "donors", label: "Revenue", icon: <DollarSign size={12} /> },
   { id: "subs", label: "Subs", icon: <Gift size={12} /> },
 ];
 
@@ -20,6 +21,7 @@ interface Row {
   value: number;
   display: string;
   channel?: string;
+  subCount?: number;
 }
 
 /**
@@ -36,12 +38,17 @@ export function TopChatters() {
       ? snap.topChatters.map((r) => ({ ...r, value: r.count, display: String(r.count) }))
       : tab === "donors"
         ? snap.topDonors.map((r) => ({ ...r, value: r.amount, display: `$${compact(r.amount)}` }))
-        : snap.topSubs.map((r) => ({ ...r, value: r.subs, display: `${r.subs}` }));
+        : snap.topSubs
+            .map((r) => {
+              const rev = subRevenue(r.platform, r.subs);
+              return { name: r.name, platform: r.platform, channel: r.channel, value: rev, display: `$${compact(rev)}`, subCount: r.subs };
+            })
+            .sort((a, b) => b.value - a.value);
 
   const max = Math.max(1, rows[0]?.value ?? 1);
   const summary =
-    tab === "donors" ? `$${compact(snap.totalDonated)} raised`
-    : tab === "subs" ? `${compact(snap.totalSubs)} subs total`
+    tab === "donors" ? `$${compact(snap.totalDonated)} revenue`
+    : tab === "subs" ? `$${compact(snap.totalSubRevenue)} from subs`
     : `${compact(snap.totals.uniqueChatters)} chatters`;
 
   return (
@@ -89,8 +96,9 @@ export function TopChatters() {
             <SourceBadge platform={r.platform} compact />
             {r.channel && <span className="z-10 shrink-0 text-[10px] font-semibold text-muted/80">{r.channel}</span>}
             <span className="z-10 flex-1 truncate text-sm font-semibold text-ink">{r.name}</span>
-            <span className={`z-10 text-xs font-bold tabular-nums ${tab === "donors" ? "text-emerald-400" : "text-accent"}`}>
-              {tab === "subs" ? `${r.display}×` : r.display}
+            <span className={`z-10 flex items-baseline gap-1 text-xs font-bold tabular-nums ${tab === "chatters" ? "text-accent" : "text-emerald-400"}`}>
+              {tab === "subs" && r.subCount != null && <span className="text-[10px] font-semibold text-muted">{r.subCount} sub{r.subCount === 1 ? "" : "s"}</span>}
+              {r.display}
             </span>
           </motion.div>
         ))}

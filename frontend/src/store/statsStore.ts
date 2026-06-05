@@ -3,6 +3,7 @@ import type { ChatMessage, Platform, AggregateStats } from "@shared/types";
 import { scoreMessage } from "@/lib/sentiment";
 import { useConnectionsStore, connectedAccounts } from "@/store/connectionsStore";
 import { accountShare } from "@/lib/accounts";
+import { subRevenue } from "@/lib/revenue";
 
 /**
  * The stats brain.
@@ -121,9 +122,11 @@ export interface StatsSnapshot {
   topChatters: ChatterRow[];
   topDonors: DonorRow[];
   topSubs: SubRow[];
-  /** Total raised this session (USD-equivalent) across all platforms. */
+  /** Total revenue this session (USD-equivalent) across all platforms. */
   totalDonated: number;
   totalSubs: number;
+  /** Dollar value of subs this session, summed with each platform's payout rate. */
+  totalSubRevenue: number;
   /** Per-account raw stats (for the analytics account filter). */
   accounts: AccountStat[];
   velocity: number[]; // combined mpm samples, oldest→newest
@@ -203,6 +206,7 @@ function emptySnapshot(): StatsSnapshot {
     topSubs: [],
     totalDonated: 0,
     totalSubs: 0,
+    totalSubRevenue: 0,
     accounts: [],
     velocity: [],
     clipMoments: [],
@@ -440,6 +444,7 @@ export const useStatsStore = create<StatsState>((set, get) => ({
       .map((c) => ({ name: c.name, platform: c.platform, subs: c.subs, channel: c.channel }));
     const totalDonated = all.reduce((s, c) => s + c.donated, 0);
     const totalSubs = all.reduce((s, c) => s + c.subs, 0);
+    const totalSubRevenue = all.reduce((s, c) => s + subRevenue(c.platform, c.subs), 0);
 
     // ---- per-account stats (analytics filter + per-channel breakdowns) ----
     // Built from every connected account so each channel shows even at 0 msgs;
@@ -505,6 +510,7 @@ export const useStatsStore = create<StatsState>((set, get) => ({
         topSubs,
         totalDonated,
         totalSubs,
+        totalSubRevenue,
         accounts,
         velocity: [...velocityHist],
         clipMoments: [...clipMoments],

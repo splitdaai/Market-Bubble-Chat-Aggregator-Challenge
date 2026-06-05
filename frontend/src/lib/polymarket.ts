@@ -51,8 +51,15 @@ type GammaEvent = {
 
 const num = (v: unknown) => (typeof v === "number" ? v : parseFloat(String(v ?? 0)) || 0);
 
+// Most-specific → most-general, so e.g. an Iran/election market lands in
+// "iran"/"elections" rather than being swallowed by the broad "politics".
+const CATEGORIZE_ORDER: PolyCategory[] = [
+  "iran", "esports", "weather", "mentions", "elections", "crypto", "tech",
+  "geopolitics", "finance", "economy", "sports", "culture", "politics",
+];
+
 function categorize(tags: string[]): PolyCategory | "other" {
-  for (const cat of POLY_CATEGORIES) {
+  for (const cat of CATEGORIZE_ORDER) {
     if (tags.some((t) => CATEGORY_TAGS[cat].includes(t))) return cat;
   }
   return "other";
