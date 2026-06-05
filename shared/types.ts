@@ -1,5 +1,5 @@
 /**
- * VibeChat Aggregator — shared types.
+ * Market Bubble — shared types.
  * The single source of truth for the message/layout/theme contracts that
  * both the backend (normalizers) and frontend (renderers) agree on.
  */

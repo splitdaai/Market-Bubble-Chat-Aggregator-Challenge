@@ -1,189 +1,105 @@
-# ⚡ VibeChat Aggregator
+# 🫧 Market Bubble
 
-> One beautiful, real-time feed for **Twitch + X + Kick**. Crystal-clear source
-> labels, full cross-platform moderation, and an insanely customizable
-> drag/drop/snap visual editor. Built for the $10k Vibe Code Challenge.
+> One beautiful, real-time command center for **Twitch + Kick + X** — a unified
+> live-chat feed with source badges, deep cross-platform stats, live **Polymarket**
+> markets, **USDC/USDT viewer tipping**, past-broadcast playback, and OBS overlays,
+> all in a drag/drop/snap visual dashboard. Built for the **$10k Vibe Code Challenge**.
 
-![mode: demo + live](https://img.shields.io/badge/mode-demo%20%2B%20live-b14dff)
-![stack: React 18 · Vite · TS · Socket.io](https://img.shields.io/badge/stack-React%2018%20·%20Vite%20·%20Socket.io-2dd4ff)
+![mode: demo + live](https://img.shields.io/badge/mode-demo%20%2B%20live-16e6a4)
+![stack: React 18 · Vite · TS · Socket.io](https://img.shields.io/badge/stack-React%2018%20·%20Vite%20·%20Socket.io-34d6ff)
+
+**Live demo:** http://marketbubble-live-preview.s3-website-us-east-1.amazonaws.com
+&nbsp;·&nbsp; runs fully in **demo mode** — no API keys needed to explore everything.
 
 ---
 
-## ✨ What's in here
+## ✨ Features
 
-| Feature | Status |
+| Area | What it does |
 |---|---|
-| **Unified real-time feed** — newest at bottom, pop-in physics, per-platform filters | ✅ |
-| **Source badges** (Twitch purple · X mono · Kick green) on every message | ✅ |
-| **Live Stats dashboard** — combined + per-platform viewers, unique chatters, cumulative watch time, peak, share-of-voice, engagement ratio | ✅ |
-| **Clip Radar** — auto-detects clip-worthy moments from chat-velocity spikes (the thing streamers beg for) | ✅ |
-| **Clips** — capture a moment (chat context + viewer counts), gallery, manual/auto, + native-clip backend seam | ✅ |
-| **Giveaway Bot** — run a giveaway across all 3 platforms at once; pooled entries + animated winner draw | ✅ |
-| **Viewer Overlay** — freely-placeable per-platform viewer badges + standalone OBS browser-source route | ✅ |
-| **Mood Meter** — live cross-platform chat sentiment (spicy → hyped) | ✅ (addable) |
-| **Top Chatters** — cross-platform most-active leaderboard | ✅ |
-| **Visual editor** — drag / drop / resize / snap-to-grid panels, persisted to localStorage | ✅ |
-| **Theme editor** — live color/glow/radius/font with presets | ✅ |
-| **Button editor** — author custom action buttons (Raid, Hype Train, …) with live preview | ✅ |
-| **Cross-platform moderation** — right-click any message → delete / timeout / ban / unban / slow | ✅ (UI + backend proxy) |
-| **DogeFundMe-grade polish** — aurora bg, particle bursts on hype, neon glass, hype meter, confetti milestones | ✅ |
-| **Backend connectors** — Twitch (tmi.js), Kick (public WS), X (filtered stream) → normalize → broadcast | ✅ skeleton, credential-gated |
-
-The frontend runs **fully standalone in demo mode** with a realistic mock
-firehose — no backend or API keys required to see everything working.
+| **Unified feed** | Twitch + Kick + X (+ YouTube when connected) in one stream — newest at bottom, source badges, channel labels (Ansem / Banks / Market Bubble), per-platform filters. Stays pinned to live unless you scroll up. |
+| **Emoji composer** | Send a host message into the feed with a built-in emoji picker. |
+| **Live Stats** | Combined viewers + a per-platform → per-channel breakdown with trend sparklines (toggleable), unique/active chatters, watch hours, msg/min and engagement. |
+| **Polymarket panel** | Live markets from Polymarket's public API — Trending / Breaking + every category, Yes/No odds (green/red), 24h volume. Click to open the real market, or pin it to your OBS overlay. |
+| **Viewer tipping** | Non-custodial **USDC / USDT** tips to wallet-connected viewers (Ethereum, Base, Arbitrum, Optimism, Polygon) — auto-switches the wallet to a supported chain. |
+| **Stream preview** | Center-stage player with play/pause, a seek scrubber, per-channel switcher, and a live clip button. |
+| **Past broadcasts** | A VOD library with real frame-preview thumbnails — click one to play it in the preview. |
+| **Analytics** | Historical KPIs, current-stream snapshot, trend chart, A/B compare, and a streams table — with **sub-revenue in $ per platform**, platform/account filters, and day/week/month/year ranges. |
+| **Leaderboards** | Top Chatters + Subs ($ value per platform), filterable by Day / Week / Month / All-time. |
+| **User list** | Searchable cross-platform viewer list — sort by messages / $ spent / name / recency, filter by channel, default-filtered to wallet-connected (tippable) viewers. Click a name for a Twitch-style profile + message history + moderation. |
+| **Moderation** | Cross-platform timeout (stackable 1m/5m/15m/1h/1d, reduce/remove) + ban, from chat or the user card. |
+| **Giveaway Bot** | Run a giveaway across all platforms at once — pooled entries + animated winner draw. |
+| **Clips & Clip Radar** | Auto-detects clip-worthy chat-velocity spikes; capture clips with chat context (native-clip backend seam). |
+| **OBS** | Three browser-source routes: floating viewer/chat/market **overlay** (`?overlay=1`), a compact **dock** (`?dock=1`), plus a live **OBS WebSocket v5** client to add the source for you. |
+| **Visual editor** | Drag / drop / resize / snap-to-grid every panel; layout persists to localStorage. Theme editor with live CSS-variable theming. |
+| **Demo / Live** | One toggle flips the whole app between a self-contained mock firehose and real backend data. |
 
 ---
 
-## 🗂 Structure
+## 🏗️ Architecture
+
+An npm monorepo with a shared type contract:
 
 ```
-vibechat-aggregator/
-├── frontend/          # React 18 + Vite + TS + Tailwind + Framer Motion
+market-bubble/
+├── shared/types.ts     # single source of truth — message / stats / layout / socket contracts
+├── frontend/           # React 18 + Vite + TS + Tailwind + Zustand + Framer Motion
 │   └── src/
-│       ├── components/   ChatFeed, Message, SourceBadge, EditorCanvas,
-│       │                 ThemeEditor, ButtonEditor, ModMenu, widgets/…
-│       ├── lib/          socket · api · theme · mockData
-│       ├── store/        Zustand: chat · layout · theme · toast
-│       └── hooks/        useChatConnection
-├── backend/           # Node + Express + Socket.io
-│   └── src/
-│       ├── platforms/    twitch · kick · x  (common Connector interface)
-│       ├── sockets/      hub  (fan-out + status + command routing)
-│       ├── moderation.ts route a command to the right platform
-│       └── index.ts
-├── shared/            # types.ts — the Message/Layout/Theme contract
-└── .env.example
+│       ├── components/ # widgets + overlays + modals
+│       ├── store/      # zustand stores (chat, stats, layout, overlay, wallet, …)
+│       ├── lib/        # mock firehose, socket, web3, polymarket, analytics, …
+│       └── hooks/      # useChatConnection (the data pump), …
+└── backend/            # Node + Express + Socket.io (tsx) — connectors, stats aggregator, OAuth, clips
 ```
 
-`shared/types.ts` is the single contract both sides agree on — every connector
-must emit the same normalized `ChatMessage`.
+- **Demo vs live is a single switch.** `lib/socket.ts` either starts the mock firehose (`lib/mockData.ts`) or connects to the backend over Socket.io. The rest of the app consumes the same `stats`/`message`/`accounts` events either way.
+- **The stats engine is cheap-per-message, recompute-per-tick** (`store/statsStore.ts`): `ingest()` touches small accumulators; a ~1.5s `tick()` rebuilds the read-model `snapshot` the UI renders — so re-renders are bounded no matter how fast chat scrolls.
+- **Secrets stay server-side.** The browser only ever sees `VITE_BACKEND_URL`; OAuth client secrets + platform tokens live in the backend. Tipping is non-custodial — every transfer is signed in the user's own wallet.
 
 ---
 
-## 🚀 Run it
+## 🚀 Quick start
 
-### Frontend (demo mode — zero config)
-
+**Frontend (demo — no backend or keys needed):**
 ```bash
 cd frontend
 npm install
 npm run dev          # → http://localhost:5184
 ```
+That's it — the whole dashboard runs on the mock firehose. Toggle **Demo → Live** in the topbar to switch to real data (needs the backend below).
 
-That's it. The mock firehose lights up the whole UI. Hit **Edit** (top-right) to
-drag panels around; the 🎨 icon opens the theme editor.
-
-### Backend (live mode)
-
+**Backend (live data):**
 ```bash
 cd backend
 npm install
-cp ../.env.example .env     # fill in the platforms you want
+cp ../.env.example .env     # fill in the platforms you want (all optional, degrades gracefully)
 npm run dev                 # → http://localhost:4000
 ```
+Then set `VITE_BACKEND_URL=http://localhost:4000` for the frontend and toggle the app to **Live**. Each platform you want to connect needs a developer app registered + its Client ID/Secret in `backend/.env` (see the comments there for the exact callback URLs).
 
-Then point the frontend at it:
-
-```bash
-# frontend/.env
-VITE_BACKEND_URL=http://localhost:4000
-```
-
-The frontend transparently switches from mock to live — the rest of the app
-doesn't know the difference (see `frontend/src/lib/socket.ts`). The moment
-`VITE_BACKEND_URL` is set, **every** mock is bypassed (firehose, warm-start,
-seeded analytics) and all data comes from the backend.
-
-### What "live" actually wires up
-
-| Data | Source when live |
-|---|---|
-| Chat messages → feed, sentiment, donors, subs, clips, user list | backend `message` events (real Twitch/Kick/X chat) |
-| Combined + per-platform **viewer counts**, peak, watch time | backend `stats` (Twitch Helix + Kick API pollers, every 15s) |
-| **Donations / subs** | parsed from real bits/sub/gift events on `message.event` |
-| **Analytics** past streams | backend `history` (persisted to `data/history.json`) |
-| **Moderation** (timeout/ban/…) | proxied to the platform API via the `moderate` event |
-| **Clips** | `clip:create` → Twitch Helix Create Clip → `clip:created` URL |
-
-End a broadcast and roll it into analytics with:
-`curl -X POST localhost:4000/api/session/save -H 'content-type: application/json' -d '{"title":"Fed Day"}'`
+**OBS browser sources** (paste into OBS → Sources → Browser):
+- Overlay: `<demo-url>/?overlay=1`
+- Dock: `<demo-url>/?dock=1`
 
 ---
 
-## 🔌 Platform wiring
+## 🧰 Tech stack
 
-| Platform | Chat | Viewers | Moderate | Clips |
-|---|---|---|---|---|
-| **Twitch** | anon `TWITCH_CHANNEL` | Helix (`TWITCH_CLIENT_ID`/`_SECRET`) | mod OAuth | Helix (`TWITCH_USER_TOKEN` + `TWITCH_BROADCASTER_ID`) |
-| **Kick** | public WS | public channel API | session bearer | — |
-| **X** | App-Only bearer, filtered stream | n/a (broadcast) | n/a | — |
-| **YouTube** | — | Data API v3 (`YOUTUBE_API_KEY` + `YOUTUBE_VIDEO_ID`) | — | — |
+React 18 · Vite · TypeScript (strict) · Tailwind CSS · Zustand · TanStack Query ·
+Framer Motion · react-grid-layout · Socket.io · Express · tmi.js (Twitch) · OBS
+WebSocket v5 · EIP-1193 / ERC-20 (wallet tipping) · Polymarket Gamma API.
 
-See `.env.example` for the full credential list. Missing a platform's config
-just skips it — one dead source never takes the others down, and the dashboard
-shows real numbers for whatever you've wired.
+## ☁️ Deploy
 
----
+The frontend is a static Vite build. `.github/workflows/deploy.yml` builds and
+syncs `frontend/dist/` to S3 on every push to `main` (needs the repo secrets
+`AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY`). Manual: `npm run build` in
+`frontend/` then `aws s3 sync dist/ s3://<bucket>/ --delete`.
 
-## 📊 Stats contract (frontend ⇄ backend handoff)
+## 🔒 Security notes
 
-The frontend computes everything it can **see in the chat firehose** itself —
-unique chatters, active chatters, messages, msg/min, sentiment, top chatters, and
-clip-worthy-moment detection — so those work today on the mock stream with **no
-backend dependency**.
-
-The backend (Codex) only needs to supply what chat *can't* reveal: real
-**viewer counts, peak viewers, cumulative watch time, follows gained**. Emit an
-`AggregateStats` snapshot over the socket `stats` event on a ~2s cadence:
-
-```ts
-// shared/types.ts  — single source of truth
-socket.emit("stats", {
-  sessionStart,                 // epoch ms
-  updatedAt,                    // epoch ms
-  perPlatform: [
-    { platform: "twitch",
-      viewers, peakViewers, watchTimeMinutes, followsGained,  // [BACKEND] required
-      uniqueChatters, activeChatters, messages, messagesPerMin // [DERIVED] optional override
-    },
-    // …kick, x
-  ],
-});
-```
-
-When the `stats` event arrives, the frontend swaps simulated viewer numbers for
-the real ones automatically (`statsStore.applyBackendStats`) and the demo badge
-disappears. Until then it simulates a believable viewer random-walk so the
-dashboard is always alive. Fields marked `[DERIVED]` are computed client-side; send
-them only if the backend has authoritative numbers.
-
-## 🎬 Clips, 🎁 Giveaways, 📺 Overlay
-
-- **Clips** — "Clip Now" (or an auto-fire from Clip Radar) snapshots the
-  surrounding chat + live viewer counts into a clip. The **`clip:create`** socket
-  event is the seam for Codex to cut a *native* platform clip (Twitch/Kick Clips
-  API); when it returns **`clip:created(clipId, url)`** the gallery shows an "Open
-  clip ↗" link. Works fully (chat-side) with no backend.
-- **Giveaway Bot** — set a keyword (`!enter`) + prize, open it, and viewers on
-  **all three platforms enter together**. Entries are pooled and de-duped per
-  user; "Draw Winner" picks one across every platform with a confetti reveal.
-  100% client-side off the unified firehose — no backend needed.
-- **Viewer Overlay** — toggle the 🖥 button to float per-platform (and combined)
-  viewer badges anywhere on screen; drag to position, positions persist. The
-  **"OBS link"** button copies a `?overlay=1` URL that renders just the badges on
-  a **transparent background** — drop it into OBS as a Browser Source for a live,
-  always-current viewer counter on stream.
-
-## 🎨 Design system
-
-Dark cyber/crypto by default — deep blacks, neon purple/green/blue, glassmorphism.
-Every token is a CSS variable on `:root`, so the Theme Editor mutates the live
-look with no rebuild. Tailwind utilities reference the same vars.
-
----
-
-## 🛠 Tech
-
-React 18 · Vite · TypeScript · Tailwind · Framer Motion · Zustand · TanStack
-Query · react-grid-layout (drag/resize/snap) · Socket.io · Express · tmi.js · ws ·
-Lucide icons · custom canvas particles.
+No secrets are committed (`.env*` is gitignored; only `.env.example` is tracked).
+Chat / usernames / market data are rendered as escaped React text (no `innerHTML`).
+Tipping validates the recipient address before signing and never holds keys. The
+backend is a single-operator scaffold — add an auth gate + a non-wildcard
+`CORS_ORIGIN` before exposing it publicly.

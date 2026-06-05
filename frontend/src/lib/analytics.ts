@@ -101,22 +101,21 @@ export function fmtDate(ts: number): string {
   return new Date(ts).toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
 
-/** Accessors for the metric selector — single source of truth for the charts. */
+/** Metric selector definitions for the trend chart — the chart reads values via
+ *  `valOf(session, key)` in AnalyticsTab, so only key/label/fmt are needed. */
 export interface MetricDef {
   key: string;
   label: string;
-  get: (s: StreamSession) => number;
   fmt: (n: number) => string;
-  /** true when lower is worse (default); all our metrics are "up = good". */
 }
 
 export const METRICS: MetricDef[] = [
-  { key: "avgViewers", label: "Avg Viewers", get: (s) => s.avgViewers, fmt: fmtViewers },
-  { key: "peakViewers", label: "Peak Viewers", get: (s) => s.peakViewers, fmt: fmtViewers },
-  { key: "watchTimeMinutes", label: "Watch Hours", get: (s) => s.watchTimeMinutes, fmt: fmtHours },
-  { key: "uniqueChatters", label: "Chatters", get: (s) => s.uniqueChatters, fmt: fmtInt },
-  { key: "messages", label: "Messages", get: (s) => s.messages, fmt: fmtInt },
-  { key: "donated", label: "Donations", get: (s) => s.donated, fmt: fmtMoney },
-  { key: "subs", label: "Sub Revenue", get: (s) => s.subs, fmt: fmtMoney },
-  { key: "followersGained", label: "Followers", get: (s) => s.followersGained, fmt: fmtInt },
+  { key: "avgViewers", label: "Avg Viewers", fmt: fmtViewers },
+  { key: "peakViewers", label: "Peak Viewers", fmt: fmtViewers },
+  { key: "watchTimeMinutes", label: "Watch Hours", fmt: fmtHours },
+  { key: "uniqueChatters", label: "Chatters", fmt: fmtInt },
+  { key: "messages", label: "Messages", fmt: fmtInt },
+  { key: "donated", label: "Donations", fmt: fmtMoney },
+  { key: "subs", label: "Sub Revenue", fmt: fmtMoney },
+  { key: "followersGained", label: "Followers", fmt: fmtInt },
 ];

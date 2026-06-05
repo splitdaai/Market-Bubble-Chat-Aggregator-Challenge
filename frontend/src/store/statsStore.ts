@@ -71,12 +71,6 @@ export interface UserRow {
   channel?: string;
 }
 
-export interface DonorRow {
-  name: string;
-  platform: Platform;
-  amount: number;
-  channel?: string;
-}
 
 export interface SubRow {
   name: string;
@@ -111,8 +105,6 @@ export interface PlatformLive {
   messagesPerMin: number;
   /** Subs contributed on this platform this session (count). */
   subs: number;
-  /** Dollar value of those subs at this platform's payout rate. */
-  subRevenue: number;
   /** Rolling viewer samples for the per-platform sparkline (oldest→newest). */
   history: number[];
 }
@@ -124,7 +116,6 @@ export interface StatsSnapshot {
   totals: PlatformLive;
   sentiment: number; // -1..1
   topChatters: ChatterRow[];
-  topDonors: DonorRow[];
   topSubs: SubRow[];
   /** Total revenue this session (USD-equivalent) across all platforms. */
   totalDonated: number;
@@ -194,7 +185,7 @@ function blankAccum(): Accum {
 function blankLive(): PlatformLive {
   return {
     viewers: 0, peakViewers: 0, watchTimeMinutes: 0, followsGained: 0,
-    uniqueChatters: 0, activeChatters: 0, messages: 0, messagesPerMin: 0, subs: 0, subRevenue: 0, history: [],
+    uniqueChatters: 0, activeChatters: 0, messages: 0, messagesPerMin: 0, subs: 0, history: [],
   };
 }
 
@@ -206,7 +197,6 @@ function emptySnapshot(): StatsSnapshot {
     totals: blankLive(),
     sentiment: 0,
     topChatters: [],
-    topDonors: [],
     topSubs: [],
     totalDonated: 0,
     totalSubs: 0,
@@ -409,7 +399,6 @@ export const useStatsStore = create<StatsState>((set, get) => ({
         messages: a.messages,
         messagesPerMin: mpm,
         subs: subsCount,
-        subRevenue: subRevenue(p, subsCount),
         history: [...viewersHist[p]],
       };
     }
@@ -440,11 +429,6 @@ export const useStatsStore = create<StatsState>((set, get) => ({
       .sort((x, y) => y.count - x.count)
       .slice(0, 8)
       .map((c) => ({ name: c.name, platform: c.platform, count: c.count, channel: c.channel }));
-    const topDonors = all
-      .filter((c) => c.donated > 0)
-      .sort((x, y) => y.donated - x.donated)
-      .slice(0, 8)
-      .map((c) => ({ name: c.name, platform: c.platform, amount: c.donated, channel: c.channel }));
     const topSubs = all
       .filter((c) => c.subs > 0)
       .sort((x, y) => y.subs - x.subs)
@@ -494,7 +478,6 @@ export const useStatsStore = create<StatsState>((set, get) => ({
       acc.messages += v.messages;
       acc.messagesPerMin += v.messagesPerMin;
       acc.subs += v.subs;
-      acc.subRevenue += v.subRevenue;
       return acc;
     }, blankLive());
 
@@ -516,7 +499,6 @@ export const useStatsStore = create<StatsState>((set, get) => ({
         totals,
         sentiment,
         topChatters,
-        topDonors,
         topSubs,
         totalDonated,
         totalSubs,

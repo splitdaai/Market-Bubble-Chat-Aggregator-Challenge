@@ -65,28 +65,6 @@ export async function getCurrentAccount(): Promise<{ address: string; chainId: n
   return { address: accounts[0], chainId: parseInt(chainHex, 16) };
 }
 
-/** Convert a decimal token amount (e.g. "0.01") to a wei hex string. */
-export function toWeiHex(amount: string): string {
-  const [whole = "0", fracRaw = ""] = amount.trim().split(".");
-  const frac = (fracRaw + "0".repeat(18)).slice(0, 18);
-  const wei = BigInt(whole || "0") * 10n ** 18n + BigInt(frac || "0");
-  return "0x" + wei.toString(16);
-}
-
-/**
- * Send a native-token tip from the connected wallet to `to`. The wallet popup
- * asks the human to confirm — the app never auto-sends. Returns the tx hash.
- */
-export async function sendTip(from: string, to: string, amount: string): Promise<string> {
-  if (!isAddress(to)) throw new Error("Invalid recipient address.");
-  const p = getProvider();
-  const hash = (await p.request({
-    method: "eth_sendTransaction",
-    params: [{ from, to, value: toWeiHex(amount) }],
-  })) as string;
-  return hash;
-}
-
 /* ------------------------------ stablecoins -------------------------------- */
 
 export type Stable = "USDC" | "USDT";

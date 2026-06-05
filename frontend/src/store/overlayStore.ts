@@ -25,7 +25,6 @@ interface OverlayState {
   toggleEnabled: () => void;
   toggleSource: (source: OverlaySource) => void;
   move: (id: string, x: number, y: number) => void;
-  setScale: (id: string, scale: number) => void;
   setSize: (id: string, w: number, h: number) => void;
   /** Pin a Polymarket market to the overlay (enables it if off). */
   addMarket: (market: OverlayMarketData) => void;
@@ -50,9 +49,6 @@ export const useOverlayStore = create<OverlayState>()(
 
       move: (id, x, y) =>
         set((s) => ({ elements: s.elements.map((e) => (e.id === id ? { ...e, x, y } : e)) })),
-
-      setScale: (id, scale) =>
-        set((s) => ({ elements: s.elements.map((e) => (e.id === id ? { ...e, scale } : e)) })),
 
       setSize: (id, w, h) =>
         set((s) => ({ elements: s.elements.map((e) => (e.id === id ? { ...e, w, h } : e)) })),
