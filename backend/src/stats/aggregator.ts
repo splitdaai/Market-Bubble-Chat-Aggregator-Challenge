@@ -1,6 +1,6 @@
 import type { AggregateStats, ChatMessage, Platform, PlatformStats, StreamSession } from "../../../shared/types.ts";
 
-const PLATFORMS: Platform[] = ["twitch", "kick", "x"];
+const PLATFORMS: Platform[] = ["twitch", "kick", "x", "youtube", "pumpfun"];
 const ACTIVE_WINDOW = 5 * 60_000;
 const VELOCITY_WINDOW = 60_000;
 
@@ -29,7 +29,7 @@ function blank(): PState {
 export class StatsAggregator {
   private start = Date.now();
   private last = Date.now();
-  private state: Record<Platform, PState> = { twitch: blank(), kick: blank(), x: blank() };
+  private state: Record<Platform, PState> = { twitch: blank(), kick: blank(), x: blank(), youtube: blank(), pumpfun: blank() };
 
   /** Feed every normalized chat message here. */
   ingest(m: ChatMessage) {

@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Plug, ShieldCheck, MonitorPlay, Loader2, Check, ExternalLink, Plus, Trash2, Power } from "lucide-react";
+import { X, Plug, ShieldCheck, MonitorPlay, Loader2, Check, ExternalLink, Plus, Trash2, Power, LogIn } from "lucide-react";
 import type { Platform } from "@shared/types";
 import { CHAT_PLATFORMS, SourceBadge, platformLabel, platformColor } from "./SourceBadge";
 import { useConnectionsStore } from "@/store/connectionsStore";
@@ -9,6 +9,8 @@ import { connectObs, addOverlaySource, type ObsClient } from "@/lib/obs";
 
 // Held at module scope so the connection survives the modal closing/reopening.
 let obsClient: ObsClient | null = null;
+
+const BACKEND = import.meta.env.VITE_BACKEND_URL as string | undefined;
 
 export function ConnectionsManager({ open, onClose }: { open: boolean; onClose: () => void }) {
   const accounts = useConnectionsStore((s) => s.accounts);
@@ -32,9 +34,27 @@ export function ConnectionsManager({ open, onClose }: { open: boolean; onClose: 
   const submitAdd = (p: Platform) => {
     if (!handle.trim()) return;
     addAccount(p, handle, name || handle);
-    push({ message: `Added ${name || handle} on ${platformLabel(p)} — connecting via OAuth…`, tone: "info" });
+    push({ message: `Added ${name || handle} on ${platformLabel(p)} (demo)`, tone: "info" });
     setHandle(""); setName(""); setAdding(null);
   };
+
+  // Launch the real OAuth flow in a popup (live mode + configured backend).
+  const connectOAuth = (p: Platform) => {
+    if (!BACKEND) {
+      push({ message: "OAuth needs the backend — set VITE_BACKEND_URL and run the server (see README)", tone: "info" });
+      return;
+    }
+    window.open(`${BACKEND}/auth/${p}/start`, "mb-oauth", "width=620,height=780");
+  };
+
+  // Toast when an OAuth popup reports success (the account list updates via socket).
+  useEffect(() => {
+    const onMsg = (e: MessageEvent) => {
+      if (e.data?.type === "mb-auth") push({ message: e.data.handle ? `Connected ${e.data.handle}` : "Account connected", tone: "ok" });
+    };
+    window.addEventListener("message", onMsg);
+    return () => window.removeEventListener("message", onMsg);
+  }, [push]);
 
   const connectObsNow = async () => {
     setObsState({ obsBusy: true, obsError: undefined });
@@ -95,13 +115,26 @@ export function ConnectionsManager({ open, onClose }: { open: boolean; onClose: 
                         <SourceBadge platform={p} />
                         <span className="text-[10px] text-muted">{list.filter((a) => a.connected).length}/{list.length} live</span>
                       </div>
-                      <button
-                        onClick={() => { setAdding(adding === p ? null : p); setHandle(""); setName(""); }}
-                        className="flex items-center gap-1 rounded-md border px-2 py-1 text-[10px] font-bold transition"
-                        style={{ borderColor: `color-mix(in srgb, ${platformColor(p)} 50%, transparent)`, color: platformColor(p) }}
-                      >
-                        <Plus size={11} /> {p === "pumpfun" ? "Add Wallet" : "Add Channel"}
-                      </button>
+                      <div className="flex items-center gap-1.5">
+                        {p !== "pumpfun" && (
+                          <button
+                            onClick={() => connectOAuth(p)}
+                            className="flex items-center gap-1 rounded-md px-2 py-1 text-[10px] font-bold text-white transition hover:opacity-90"
+                            style={{ background: `color-mix(in srgb, ${platformColor(p)} 80%, #000)` }}
+                            title={`Connect a ${platformLabel(p)} account via OAuth`}
+                          >
+                            <LogIn size={11} /> Connect
+                          </button>
+                        )}
+                        <button
+                          onClick={() => { setAdding(adding === p ? null : p); setHandle(""); setName(""); }}
+                          className="flex items-center gap-1 rounded-md border px-2 py-1 text-[10px] font-bold transition"
+                          style={{ borderColor: `color-mix(in srgb, ${platformColor(p)} 50%, transparent)`, color: platformColor(p) }}
+                          title="Add a channel manually (demo)"
+                        >
+                          <Plus size={11} /> {p === "pumpfun" ? "Connect Wallet" : "Add"}
+                        </button>
+                      </div>
                     </div>
 
                     {/* account rows */}

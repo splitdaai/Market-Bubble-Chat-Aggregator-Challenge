@@ -39,30 +39,33 @@ export interface Transport {
   disconnect(): void;
 }
 
-export function connect(handlers: {
-  onMessage: (m: ChatMessage) => void;
-  onStatus: (s: ConnectionStatus[]) => void;
-}): { isMock: boolean; disconnect: () => void; raw: Sock | null } {
-  if (BACKEND_URL) {
-    socket = io(BACKEND_URL, { transports: ["websocket"] });
-    socket.on("message", handlers.onMessage);
-    socket.on("status", handlers.onStatus);
-    socket.on("connect", () => handlers.onStatus(MOCK_STATUS.map((s) => ({ ...s }))));
-    return {
-      isMock: false,
-      disconnect: () => socket?.disconnect(),
-      raw: socket,
-    };
+export function connect(
+  handlers: {
+    onMessage: (m: ChatMessage) => void;
+    onStatus: (s: ConnectionStatus[]) => void;
+  },
+  demo: boolean,
+): { isMock: boolean; disconnect: () => void; raw: Sock | null } {
+  socket = null;
+  stopMock = null;
+
+  if (!demo) {
+    // --- LIVE: take everything from the real backend (empty if none configured) ---
+    if (BACKEND_URL) {
+      socket = io(BACKEND_URL, { transports: ["websocket"] });
+      socket.on("message", handlers.onMessage);
+      socket.on("status", handlers.onStatus);
+      return { isMock: false, disconnect: () => socket?.disconnect(), raw: socket };
+    }
+    // No backend wired — live but idle (no fake data).
+    handlers.onStatus([]);
+    return { isMock: false, disconnect: () => {}, raw: null };
   }
 
-  // --- mock mode ---
+  // --- DEMO: mock firehose ---
   handlers.onStatus(MOCK_STATUS);
   stopMock = startMockStream(handlers.onMessage);
-  return {
-    isMock: true,
-    disconnect: () => stopMock?.(),
-    raw: null,
-  };
+  return { isMock: true, disconnect: () => stopMock?.(), raw: null };
 }
 
 export function getSocket(): Sock | null {

@@ -5,6 +5,8 @@ import { useStatsStore } from "@/store/statsStore";
 import { useGiveawayStore } from "@/store/giveawayStore";
 import { useClipsStore } from "@/store/clipsStore";
 import { useAnalyticsStore } from "@/store/analyticsStore";
+import { useModeStore } from "@/store/modeStore";
+import { useConnectionsStore } from "@/store/connectionsStore";
 
 /**
  * Boots the transport (real Socket.io if VITE_BACKEND_URL is set, else the mock
@@ -16,12 +18,17 @@ export function useChatConnection() {
   const addMessage = useChatStore((s) => s.addMessage);
   const setStatuses = useChatStore((s) => s.setStatuses);
   const setMock = useChatStore((s) => s.setMock);
+  const demo = useModeStore((s) => s.demo);
 
   useEffect(() => {
     const ingest = useStatsStore.getState().ingest;
     const tick = useStatsStore.getState().tick;
     const applyBackendStats = useStatsStore.getState().applyBackendStats;
     const giveawayIngest = useGiveawayStore.getState().ingest;
+
+    // Switching mode wipes any stale data so demo numbers never leak into live.
+    useStatsStore.getState().reset();
+    useChatStore.getState().clear();
 
     const conn = connect({
       onMessage: (m) => {
@@ -30,7 +37,7 @@ export function useChatConnection() {
         giveawayIngest(m);
       },
       onStatus: setStatuses,
-    });
+    }, demo);
     setMock(conn.isMock);
     useStatsStore.getState().setMock(conn.isMock);
     // Demo mode: start mid-broadcast so stats/leaderboards/analytics look live
@@ -46,6 +53,9 @@ export function useChatConnection() {
     // Past streams for the analytics tab arrive from the backend on connect.
     conn.raw?.on("history", (sessions) => useAnalyticsStore.getState().setSessions(sessions));
 
+    // OAuth-authed accounts (live mode) replace the local demo account list.
+    conn.raw?.on("accounts", (accs) => { if (accs.length) useConnectionsStore.getState().setAccounts(accs); });
+
     // Drive the stats read-model on a steady cadence.
     const ticker = window.setInterval(tick, 1500);
 
@@ -54,5 +64,5 @@ export function useChatConnection() {
       window.clearInterval(ticker);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [demo]);
 }

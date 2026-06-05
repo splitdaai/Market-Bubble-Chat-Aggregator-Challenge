@@ -1,0 +1,1 @@
+{"root":["./src/auth.ts","./src/clips.ts","./src/index.ts","./src/moderation.ts","./src/history/store.ts","./src/platforms/kick.ts","./src/platforms/twitch.ts","./src/platforms/types.ts","./src/platforms/x.ts","./src/sockets/hub.ts","./src/stats/aggregator.ts","./src/stats/viewers.ts","../shared/types.ts"],"errors":true,"version":"5.9.3"}

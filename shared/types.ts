@@ -354,6 +354,8 @@ export interface ServerToClientEvents {
   "clip:created": (clipId: string, externalUrl: string) => void;
   /** [BACKEND] Past stream sessions for the analytics tab (sent on connect). */
   history: (sessions: StreamSession[]) => void;
+  /** [BACKEND] Connected accounts after OAuth (live mode), pushed on change. */
+  accounts: (accounts: Account[]) => void;
 }
 
 export interface ClientToServerEvents {

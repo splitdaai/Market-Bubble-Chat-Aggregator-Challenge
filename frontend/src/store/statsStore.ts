@@ -128,6 +128,8 @@ interface StatsState {
   setMock: (v: boolean) => void;
   /** Demo only: pretend the stream has already been running for a while. */
   warmStart: () => void;
+  /** Wipe all accumulators (used when toggling demo/live). */
+  reset: () => void;
   /** Snapshot of every chatter this session (for the user-list panel). */
   listUsers: () => UserRow[];
 }
@@ -239,6 +241,20 @@ export const useStatsStore = create<StatsState>((set, get) => ({
   },
 
   setMock: (v) => set({ isMock: v }),
+
+  reset: () => {
+    start = Date.now();
+    lastTick = start;
+    warmed = false;
+    lastClip = 0;
+    chatters.clear();
+    byAccount.clear();
+    sentimentBuf = [];
+    velocityHist = [];
+    clipMoments = [];
+    for (const p of PLATFORMS) accum[p] = blankAccum();
+    set({ snapshot: emptySnapshot() });
+  },
 
   listUsers: () => [...chatters.values()],
 

@@ -12,9 +12,11 @@ import { bindHub } from "./sockets/hub.ts";
 import { StatsAggregator } from "./stats/aggregator.ts";
 import { HistoryStore } from "./history/store.ts";
 import { twitchViewers, kickViewers, youtubeViewers } from "./stats/viewers.ts";
+import { mountAuth, getAccounts } from "./auth.ts";
 
 const PORT = Number(process.env.PORT ?? 4000);
 const ORIGIN = process.env.CORS_ORIGIN ?? "*";
+const PUBLIC_URL = process.env.PUBLIC_URL ?? `http://localhost:${PORT}`;
 
 const app = express();
 app.use(cors({ origin: ORIGIN }));
@@ -72,6 +74,10 @@ function startViewerPollers() {
 async function main() {
   const connectors = buildConnectors();
   bindHub(io, connectors, aggregator, history);
+
+  // OAuth connect flow — pushes the authed account list to all clients on change.
+  mountAuth(app, PUBLIC_URL, () => io.emit("accounts", getAccounts()));
+  io.on("connection", (socket) => socket.emit("accounts", getAccounts()));
 
   // Save the current session into history (call when a stream ends).
   app.post("/api/session/save", (req, res) => {

@@ -1,6 +1,7 @@
 import { Eye } from "lucide-react";
 import { useChatStore } from "@/store/chatStore";
 import { useStatsStore } from "@/store/statsStore";
+import { useModeStore } from "@/store/modeStore";
 import { SourceBadge } from "../SourceBadge";
 import { useActivePlatforms } from "@/hooks/useActivePlatforms";
 import { compact } from "@/lib/format";
@@ -8,8 +9,9 @@ import { compact } from "@/lib/format";
 /** Per-platform connection health pills, each showing live viewership. */
 export function ConnectionStatusWidget() {
   const statuses = useChatStore((s) => s.statuses);
-  const isMock = useChatStore((s) => s.isMock);
   const perPlatform = useStatsStore((s) => s.snapshot.perPlatform);
+  const demo = useModeStore((s) => s.demo);
+  const toggleDemo = useModeStore((s) => s.toggle);
   const ALL = useActivePlatforms();
   const byPlatform = new Map(statuses.map((s) => [s.platform, s]));
 
@@ -17,11 +19,16 @@ export function ConnectionStatusWidget() {
     <div className="flex h-full flex-col p-3">
       <div className="mb-2 flex items-center justify-between">
         <span className="text-[11px] font-bold uppercase tracking-widest text-muted">Connections</span>
-        {isMock && (
-          <span className="rounded-full bg-amber-400/15 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-amber-300">
-            Demo
-          </span>
-        )}
+        <button
+          onClick={toggleDemo}
+          title={demo ? "Demo data is ON — click to go live (use real data only)" : "Live mode — click for demo data"}
+          className={`flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider transition ${
+            demo ? "bg-amber-400/15 text-amber-300 hover:bg-amber-400/25" : "bg-emerald-400/15 text-emerald-300 hover:bg-emerald-400/25"
+          }`}
+        >
+          <span className={`h-1.5 w-1.5 rounded-full ${demo ? "bg-amber-400" : "bg-emerald-400"}`} />
+          {demo ? "Demo" : "Live"}
+        </button>
       </div>
       <div className="flex flex-1 flex-col justify-center gap-2">
         {ALL.map((p) => {

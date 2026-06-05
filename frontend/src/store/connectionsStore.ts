@@ -27,6 +27,8 @@ interface ConnectionsState {
   addAccount: (platform: Platform, handle: string, displayName: string) => void;
   removeAccount: (id: string) => void;
   toggleAccount: (id: string) => void;
+  /** Replace accounts with the backend-provided (OAuth-authed) list in live mode. */
+  setAccounts: (accounts: Account[]) => void;
   setObsConfig: (patch: Partial<{ host: string; port: number }>) => void;
   setObsState: (patch: Partial<Pick<ConnectionsState, "obsConnected" | "obsVersion" | "obsError" | "obsBusy">>) => void;
 }
@@ -53,6 +55,7 @@ export const useConnectionsStore = create<ConnectionsState>()(
       removeAccount: (id) => set((s) => ({ accounts: s.accounts.filter((a) => a.id !== id) })),
       toggleAccount: (id) =>
         set((s) => ({ accounts: s.accounts.map((a) => (a.id === id ? { ...a, connected: !a.connected } : a)) })),
+      setAccounts: (accounts) => set({ accounts }),
       setObsConfig: (patch) => set((s) => ({ obs: { ...s.obs, ...patch } })),
       setObsState: (patch) => set(patch),
     }),
