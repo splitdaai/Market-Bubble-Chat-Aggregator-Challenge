@@ -13,6 +13,7 @@ import {
 import { TrendChart, Sparkline, DeltaBadge } from "./charts";
 import { SourceBadge, platformColor, platformLabel } from "../SourceBadge";
 import { useActivePlatforms } from "@/hooks/useActivePlatforms";
+import { elapsed } from "@/lib/format";
 
 const pk = (s: StreamSession, p: Platform) => s.perPlatform.find((x) => x.platform === p)!;
 
@@ -168,6 +169,9 @@ export function AnalyticsTab() {
         </div>
       </div>
 
+      {/* current / in-progress stream — live snapshot */}
+      <CurrentStreamCard live={live} prev={prev} snap={snap} plat={plat} account={account} pace={pace} />
+
       {/* KPI cards */}
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
         {KPIS.map((k) => (
@@ -217,6 +221,52 @@ export function AnalyticsTab() {
       {/* streams table */}
       <StreamsTable all={all} focusId={focusId} setFocusId={setFocusId} plat={plat} account={account} />
     </div>
+  );
+}
+
+/* ----------------------------- current stream card --------------------------- */
+
+function CurrentStreamCard({
+  live, prev, snap, plat, account, pace,
+}: {
+  live: StreamSession; prev: StreamSession; snap: ReturnType<typeof useStatsStore.getState>["snapshot"];
+  plat: Plat; account: string | null; pace: boolean;
+}) {
+  const STATS = [
+    { label: "Avg Viewers", field: "avgViewers", fmt: fmtViewers },
+    { label: "Peak", field: "peakViewers", fmt: fmtViewers },
+    { label: "Chatters", field: "uniqueChatters", fmt: fmtInt },
+    { label: "Watch", field: "watchTimeMinutes", fmt: fmtHours },
+    { label: "Raised", field: "donated", fmt: fmtMoney },
+    { label: "Subs", field: "subs", fmt: fmtInt },
+  ];
+  return (
+    <section
+      className="vc-glass mb-3 overflow-hidden p-4"
+      style={{ borderColor: "color-mix(in srgb, var(--vc-accent) 35%, transparent)" }}
+    >
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <span className="flex items-center gap-1.5 rounded-full bg-red-500/15 px-2 py-0.5 text-[11px] font-black uppercase tracking-wider text-red-400">
+            <span className="h-1.5 w-1.5 animate-ping rounded-full bg-red-500" /> Live
+          </span>
+          <h3 className="text-sm font-bold uppercase tracking-widest text-ink">Current Stream</h3>
+          <span className="text-[11px] text-muted">· {elapsed(snap.elapsedMs)} elapsed · counting {pace ? "on pace" : "so far"}</span>
+        </div>
+        <Sparkline data={snap.totals.history} width={120} height={28} />
+      </div>
+      <div className="grid grid-cols-3 gap-2 md:grid-cols-6">
+        {STATS.map((s) => (
+          <div key={s.label} className="rounded-lg border border-white/8 bg-white/[0.02] p-2.5">
+            <div className="text-[10px] font-semibold uppercase tracking-wider text-muted">{s.label}</div>
+            <div className="mt-0.5 flex items-center gap-1.5">
+              <span className="text-xl font-extrabold leading-none text-ink">{s.fmt(fv(live, s.field, plat, account))}</span>
+              <DeltaBadge curr={fv(live, s.field, plat, account)} prev={fv(prev, s.field, plat, account)} />
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
   );
 }
 

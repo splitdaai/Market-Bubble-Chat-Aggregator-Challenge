@@ -1,29 +1,56 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
-import { X, Wallet, Clock, MessageSquare, DollarSign, Gift, Ban, TimerReset } from "lucide-react";
+import { X, Wallet, Clock, MessageSquare, DollarSign, Gift, Ban, TimerReset, Plus, Minus, ShieldOff } from "lucide-react";
 import { useChatStore } from "@/store/chatStore";
 import { useStatsStore } from "@/store/statsStore";
 import { useModeStore } from "@/store/modeStore";
 import { useWalletStore } from "@/store/walletStore";
 import { useUserCardStore } from "@/store/userCardStore";
 import { useToastStore } from "@/store/toastStore";
+import { useModerationStore, fmtDuration, TIMEOUT_PRESETS } from "@/store/moderationStore";
 import { SourceBadge, platformColor, platformLabel } from "./SourceBadge";
 import { viewerWallet } from "@/lib/viewerWallets";
+import { avatarUrl } from "@/lib/avatar";
 import { shortAddr } from "@/lib/web3";
 import { moderate } from "@/lib/api";
 import { compact } from "@/lib/format";
 import { TipModal } from "./TipModal";
-import type { ModerationAction } from "@shared/types";
+import type { Platform } from "@shared/types";
 
 function fmtTime(ts: number): string {
   const d = new Date(ts);
   return `${d.getHours().toString().padStart(2, "0")}:${d.getMinutes().toString().padStart(2, "0")}`;
 }
 
+/** Avatar — real X PFP via unavatar for X users, else a colored initial. */
+function Avatar({ name, platform, color }: { name: string; platform: Platform; color: string }) {
+  const url = avatarUrl(name, platform);
+  const [err, setErr] = useState(false);
+  if (url && !err) {
+    return (
+      <img
+        src={url}
+        alt={name}
+        onError={() => setErr(true)}
+        className="h-12 w-12 rounded-full object-cover"
+        style={{ border: `2px solid ${color}`, background: "#1a1622" }}
+      />
+    );
+  }
+  return (
+    <div
+      className="grid h-12 w-12 place-items-center rounded-full text-lg font-extrabold text-white"
+      style={{ background: `color-mix(in srgb, ${color} 35%, #1a1622)`, border: `2px solid ${color}` }}
+    >
+      {name.replace(/^@/, "").slice(0, 1).toUpperCase()}
+    </div>
+  );
+}
+
 /**
  * Twitch-style viewer profile: click any username to see their full message
- * history, totals, moderation actions and — if they've linked an EVM wallet —
- * a one-tap tip button.
+ * history, totals, stacking-timeout moderation and — if they've linked an EVM
+ * wallet — a one-tap tip button.
  */
 export function UserCard() {
   const open = useUserCardStore((s) => s.open);
@@ -33,7 +60,19 @@ export function UserCard() {
   const demo = useModeStore((s) => s.demo);
   const tipEnabled = useWalletStore((s) => s.tipEnabled);
   const push = useToastStore((s) => s.push);
+
+  const timeouts = useModerationStore((s) => s.timeouts);
+  const banned = useModerationStore((s) => s.banned);
+  const addTimeout = useModerationStore((s) => s.addTimeout);
+  const reduceTimeout = useModerationStore((s) => s.reduceTimeout);
+  const clearTimeout = useModerationStore((s) => s.clearTimeout);
+  const setBanned = useModerationStore((s) => s.setBanned);
+
   const [tipping, setTipping] = useState(false);
+  const [moMode, setMoMode] = useState<"none" | "add" | "reduce">("none");
+
+  // Reset the moderation sub-panel whenever a different viewer's card opens.
+  useEffect(() => { setMoMode("none"); setTipping(false); }, [open?.name, open?.platform]);
 
   const userMessages = useMemo(
     () =>
@@ -52,10 +91,38 @@ export function UserCard() {
 
   const wallet = viewerWallet(open.name, demo);
   const color = platformColor(open.platform);
+  const key = `${open.platform}:${open.name.toLowerCase()}`;
+  const activeTimeout = timeouts[key];
+  const isBanned = !!banned[key];
 
-  const handleMod = async (action: ModerationAction, label: string) => {
-    const res = await moderate({ platform: open.platform, username: open.name, action });
-    push({ message: res.ok ? `${label} · ${open.name}` : `Failed: ${res.error}`, tone: res.ok ? "ok" : "error" });
+  const handleStack = async (seconds: number) => {
+    const total = addTimeout(open.platform, open.name, seconds);
+    await moderate({ platform: open.platform, username: open.name, action: { kind: "timeout", seconds: total } });
+    push({ message: `Timed out ${open.name} · ${fmtDuration(total)} total`, tone: "ok" });
+  };
+  const handleReduce = async (seconds: number) => {
+    const total = reduceTimeout(open.platform, open.name, seconds);
+    if (total > 0) {
+      await moderate({ platform: open.platform, username: open.name, action: { kind: "timeout", seconds: total } });
+      push({ message: `Reduced ${open.name} to ${fmtDuration(total)}`, tone: "ok" });
+    } else {
+      await moderate({ platform: open.platform, username: open.name, action: { kind: "unban" } });
+      push({ message: `Timeout removed for ${open.name}`, tone: "ok" });
+      setMoMode("none");
+    }
+  };
+  const handleRemoveTimeout = async () => {
+    clearTimeout(open.platform, open.name);
+    await moderate({ platform: open.platform, username: open.name, action: { kind: "unban" } });
+    push({ message: `Timeout removed for ${open.name}`, tone: "ok" });
+    setMoMode("none");
+  };
+  const handleBanToggle = async () => {
+    const next = !isBanned;
+    setBanned(open.platform, open.name, next);
+    if (next) clearTimeout(open.platform, open.name);
+    await moderate({ platform: open.platform, username: open.name, action: { kind: next ? "ban" : "unban" } });
+    push({ message: next ? `Banned ${open.name}` : `Unbanned ${open.name}`, tone: next ? "error" : "ok" });
   };
 
   return (
@@ -64,25 +131,26 @@ export function UserCard() {
         initial={{ opacity: 0, scale: 0.95, y: 10 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         onClick={(e) => e.stopPropagation()}
-        className="vc-glass flex max-h-[80vh] w-full max-w-md flex-col overflow-hidden"
+        className="vc-glass flex max-h-[82vh] w-full max-w-md flex-col overflow-hidden"
       >
         {/* header */}
         <div className="flex items-start justify-between border-b border-white/10 p-4" style={{ background: `linear-gradient(180deg, color-mix(in srgb, ${color} 12%, transparent), transparent)` }}>
           <div className="flex items-center gap-3">
-            <div
-              className="grid h-12 w-12 place-items-center rounded-full text-lg font-extrabold text-white"
-              style={{ background: `color-mix(in srgb, ${color} 35%, #1a1622)`, border: `2px solid ${color}` }}
-            >
-              {open.name.replace(/^@/, "").slice(0, 1).toUpperCase()}
-            </div>
+            <Avatar name={open.name} platform={open.platform} color={color} />
             <div>
               <div className="text-lg font-extrabold text-ink">{open.name}</div>
-              <div className="mt-0.5 flex items-center gap-1.5">
+              <div className="mt-0.5 flex flex-wrap items-center gap-1.5">
                 <SourceBadge platform={open.platform} compact />
                 <span className="text-[11px] text-muted">{platformLabel(open.platform)}</span>
                 {wallet && (
                   <span className="flex items-center gap-1 rounded-full bg-emerald-400/15 px-1.5 py-0.5 text-[10px] font-bold text-emerald-300" title="Wallet-connected viewer">
                     <Wallet size={10} /> {shortAddr(wallet)}
+                  </span>
+                )}
+                {isBanned && <span className="rounded-full bg-red-500/20 px-1.5 py-0.5 text-[10px] font-bold text-red-300">Banned</span>}
+                {!isBanned && activeTimeout && (
+                  <span className="flex items-center gap-1 rounded-full bg-amber-400/15 px-1.5 py-0.5 text-[10px] font-bold text-amber-300">
+                    <TimerReset size={10} /> {fmtDuration(activeTimeout.seconds)}
                   </span>
                 )}
               </div>
@@ -99,26 +167,95 @@ export function UserCard() {
           <Stat icon={<Clock size={13} />} label="last" value={row ? fmtTime(row.last) : "—"} />
         </div>
 
-        {/* actions */}
-        <div className="flex items-center gap-2 border-b border-white/10 p-3">
-          {wallet && tipEnabled ? (
+        {/* tip */}
+        {wallet && tipEnabled && (
+          <div className="border-b border-white/10 p-3">
             <button
               onClick={() => setTipping(true)}
-              className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-accent/50 bg-accent/20 py-2 text-sm font-bold text-accent shadow-neon transition hover:bg-accent/30"
+              className="flex w-full items-center justify-center gap-2 rounded-xl border border-accent/50 bg-accent/20 py-2 text-sm font-bold text-accent shadow-neon transition hover:bg-accent/30"
             >
               <Wallet size={15} /> Send Tip
             </button>
-          ) : (
-            <div className="flex-1 text-center text-[11px] text-muted opacity-70">
-              {wallet ? "Tipping is turned off in Connections" : "Viewer hasn't linked a wallet"}
+          </div>
+        )}
+
+        {/* moderation */}
+        <div className="border-b border-white/10 p-3">
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setMoMode(moMode === "add" ? "none" : "add")}
+              disabled={isBanned}
+              className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg border py-2 text-sm font-bold transition disabled:opacity-40 ${
+                moMode === "add" ? "border-amber-400/60 bg-amber-400/15 text-amber-300" : "border-white/12 text-muted hover:border-amber-400/50 hover:text-amber-300"
+              }`}
+            >
+              <TimerReset size={15} /> Timeout
+            </button>
+            <button
+              onClick={handleBanToggle}
+              className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg border py-2 text-sm font-bold transition ${
+                isBanned ? "border-emerald-400/50 bg-emerald-400/10 text-emerald-300" : "border-white/12 text-muted hover:border-red-400/50 hover:text-red-300"
+              }`}
+            >
+              {isBanned ? <><ShieldOff size={15} /> Unban</> : <><Ban size={15} /> Ban</>}
+            </button>
+          </div>
+
+          {/* add/stack durations */}
+          {moMode === "add" && !isBanned && (
+            <div className="mt-2">
+              <div className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-muted">Add time (clicks stack)</div>
+              <div className="grid grid-cols-5 gap-1.5">
+                {TIMEOUT_PRESETS.map((p) => (
+                  <button
+                    key={p.label}
+                    onClick={() => handleStack(p.seconds)}
+                    className="flex items-center justify-center gap-0.5 rounded-lg border border-white/12 py-1.5 text-xs font-bold text-amber-200 transition hover:border-amber-400/60 hover:bg-amber-400/10"
+                  >
+                    <Plus size={10} />{p.label}
+                  </button>
+                ))}
+              </div>
             </div>
           )}
-          <button onClick={() => handleMod({ kind: "timeout", seconds: 600 }, "Timed out 10m")} title="Timeout 10m" className="rounded-lg border border-white/12 p-2 text-muted transition hover:border-amber-400/50 hover:text-amber-300">
-            <TimerReset size={16} />
-          </button>
-          <button onClick={() => handleMod({ kind: "ban" }, "Banned")} title="Ban" className="rounded-lg border border-white/12 p-2 text-muted transition hover:border-red-400/50 hover:text-red-300">
-            <Ban size={16} />
-          </button>
+
+          {/* active timeout: reduce / remove */}
+          {activeTimeout && !isBanned && (
+            <div className="mt-2 rounded-lg border border-amber-400/20 bg-amber-400/[0.06] p-2">
+              <div className="flex items-center justify-between">
+                <span className="flex items-center gap-1.5 text-xs font-bold text-amber-200">
+                  <TimerReset size={13} /> Timed out · {fmtDuration(activeTimeout.seconds)}
+                </span>
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => setMoMode(moMode === "reduce" ? "none" : "reduce")}
+                    className={`rounded-md border px-2 py-1 text-[11px] font-bold transition ${moMode === "reduce" ? "border-accent/60 bg-accent/15 text-accent" : "border-white/12 text-muted hover:text-ink"}`}
+                  >
+                    Reduce
+                  </button>
+                  <button
+                    onClick={handleRemoveTimeout}
+                    className="rounded-md border border-white/12 px-2 py-1 text-[11px] font-bold text-muted transition hover:border-emerald-400/50 hover:text-emerald-300"
+                  >
+                    Remove
+                  </button>
+                </div>
+              </div>
+              {moMode === "reduce" && (
+                <div className="mt-2 grid grid-cols-5 gap-1.5">
+                  {TIMEOUT_PRESETS.map((p) => (
+                    <button
+                      key={p.label}
+                      onClick={() => handleReduce(p.seconds)}
+                      className="flex items-center justify-center gap-0.5 rounded-lg border border-white/12 py-1.5 text-xs font-bold text-sky-200 transition hover:border-sky-400/60 hover:bg-sky-400/10"
+                    >
+                      <Minus size={10} />{p.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* message history */}

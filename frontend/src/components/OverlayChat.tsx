@@ -24,40 +24,35 @@ export function OverlayChat({ el }: { el: OverlayElement }) {
 
   const w = el.w ?? 320;
   const h = el.h ?? 380;
+  // Strong text shadow keeps chat legible over any stream — no panel, no blur.
+  const shadow = "0 1px 3px rgba(0,0,0,0.95), 0 0 6px rgba(0,0,0,0.85), 0 0 2px rgba(0,0,0,1)";
 
   return (
     <div style={{ transform: `scale(${el.scale})`, transformOrigin: "top left", width: w, height: h }}>
-      <div
-        className="flex h-full w-full flex-col overflow-hidden rounded-2xl border backdrop-blur-md"
-        style={{
-          background: "rgba(8,6,16,0.62)",
-          borderColor: "color-mix(in srgb, var(--vc-accent) 40%, transparent)",
-          boxShadow: "0 0 22px color-mix(in srgb, var(--vc-accent) 28%, transparent)",
-        }}
-      >
+      <div className="flex h-full w-full flex-col overflow-hidden">
         {el.showLabel && (
-          <div className="flex shrink-0 items-center gap-1.5 border-b border-white/10 px-3 py-1.5">
-            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-red-500" />
-            <span className="text-[10px] font-bold uppercase tracking-widest text-accent">Live Chat</span>
+          <div className="flex shrink-0 items-center gap-1.5 px-1 pb-1.5">
+            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-red-500" style={{ boxShadow: "0 0 4px rgba(0,0,0,0.9)" }} />
+            <span className="text-[10px] font-black uppercase tracking-widest text-accent" style={{ textShadow: shadow }}>Live Chat</span>
           </div>
         )}
-        <div ref={scrollRef} className="vc-scroll flex flex-1 flex-col gap-1 overflow-y-auto px-2.5 py-2">
+        <div ref={scrollRef} className="flex flex-1 flex-col gap-1 overflow-y-auto px-1 py-0.5 [&::-webkit-scrollbar]:hidden" style={{ scrollbarWidth: "none" }}>
           {visible.map((m) => (
-            <div key={m.id} className="flex items-start gap-1.5 text-[13px] leading-snug">
+            <div key={m.id} className="flex items-start gap-1.5 text-[13px] font-semibold leading-snug" style={{ textShadow: shadow }}>
               <span className="mt-0.5 shrink-0">
                 <SourceBadge platform={m.platform} compact />
               </span>
               <span className="min-w-0">
-                <span className="font-bold" style={{ color: m.color || "var(--vc-accent)" }}>
+                <span className="font-extrabold" style={{ color: m.color || "var(--vc-accent)" }}>
                   {m.username}
                 </span>
-                <span className="mx-1 text-white/40">·</span>
-                <span className="break-words text-white/90">{m.message}</span>
+                <span className="mx-1 text-white/60">·</span>
+                <span className="break-words text-white">{m.message}</span>
               </span>
             </div>
           ))}
           {visible.length === 0 && (
-            <div className="grid h-full place-items-center text-xs text-white/40">Waiting for messages…</div>
+            <div className="grid h-full place-items-center text-xs font-semibold text-white/70" style={{ textShadow: shadow }}>Waiting for messages…</div>
           )}
         </div>
       </div>

@@ -1,14 +1,17 @@
-import { useState } from "react";
 import { Eye } from "lucide-react";
 import { useChatStore } from "@/store/chatStore";
 import { useStatsStore } from "@/store/statsStore";
 import { useModeStore } from "@/store/modeStore";
 import { SourceBadge, platformColor } from "../SourceBadge";
+import { Sparkline } from "../Sparkline";
 import { useActivePlatforms } from "@/hooks/useActivePlatforms";
-import { byStreamer } from "@/lib/streamers";
 import { compact } from "@/lib/format";
 
-/** Connection health + viewership, grouped by platform or by channel. */
+/**
+ * Connection health + viewership. Each platform shows its total (viewers, trend,
+ * latency, live dot) and nests every channel (Ansem / Banks / Market Bubble)
+ * with its own viewer count + trend sparkline.
+ */
 export function ConnectionStatusWidget() {
   const statuses = useChatStore((s) => s.statuses);
   const perPlatform = useStatsStore((s) => s.snapshot.perPlatform);
@@ -17,8 +20,6 @@ export function ConnectionStatusWidget() {
   const toggleDemo = useModeStore((s) => s.toggle);
   const ALL = useActivePlatforms();
   const byPlatform = new Map(statuses.map((s) => [s.platform, s]));
-  const [mode, setMode] = useState<"platform" | "channel">("platform");
-  const streamers = byStreamer(accounts);
 
   return (
     <div className="flex h-full flex-col p-3">
@@ -36,58 +37,47 @@ export function ConnectionStatusWidget() {
         </button>
       </div>
 
-      {/* group toggle */}
-      <div className="mb-2 flex gap-1 rounded-lg bg-white/[0.03] p-0.5">
-        {(["platform", "channel"] as const).map((m) => (
-          <button
-            key={m}
-            onClick={() => setMode(m)}
-            className={`flex-1 rounded-md py-0.5 text-[10px] font-bold capitalize transition ${mode === m ? "bg-accent/20 text-accent" : "text-muted hover:text-ink"}`}
-          >
-            {m === "platform" ? "Platforms" : "Channels"}
-          </button>
-        ))}
-      </div>
-
-      <div className="vc-scroll flex flex-1 flex-col justify-center gap-2 overflow-y-auto">
-        {mode === "platform"
-          ? ALL.map((p) => {
-              const s = byPlatform.get(p);
-              const ok = s?.connected ?? false;
-              return (
-                <div key={p} className="flex items-center justify-between rounded-lg border border-white/8 bg-white/[0.02] px-2.5 py-1.5">
-                  <div className="flex items-center gap-2">
-                    <SourceBadge platform={p} />
-                    <span className="flex items-center gap-1 text-xs font-bold tabular-nums text-ink" title="Live viewers">
-                      <Eye size={12} className="text-muted" /> {compact(perPlatform[p].viewers)}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-[10px] tabular-nums text-muted">{s?.latencyMs ? `${s.latencyMs}ms` : "—"}</span>
-                    <span className={`relative h-2 w-2 rounded-full ${ok ? "bg-emerald-400" : "bg-red-400"}`} title={ok ? "Connected" : "Disconnected"}>
-                      {ok && <span className="absolute inset-0 animate-ping rounded-full bg-emerald-400/60" />}
-                    </span>
-                  </div>
+      <div className="vc-scroll flex flex-1 flex-col gap-1.5 overflow-y-auto pr-0.5">
+        {ALL.map((p) => {
+          const s = byPlatform.get(p);
+          const ok = s?.connected ?? false;
+          const channels = accounts.filter((a) => a.platform === p);
+          return (
+            <div key={p} className="rounded-lg border border-white/8 bg-white/[0.02]">
+              {/* platform total */}
+              <div className="flex items-center justify-between px-2.5 py-1.5">
+                <div className="flex items-center gap-2">
+                  <SourceBadge platform={p} />
+                  <span className="flex items-center gap-1 text-xs font-bold tabular-nums text-ink" title="Live viewers">
+                    <Eye size={12} className="text-muted" /> {compact(perPlatform[p].viewers)}
+                  </span>
+                  <Sparkline data={perPlatform[p].history} color={platformColor(p)} width={46} height={16} />
                 </div>
-              );
-            })
-          : streamers.map((st) => (
-              <div key={st.name} className="rounded-lg border border-white/8 bg-white/[0.02] px-2.5 py-1.5">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-bold text-ink">{st.name}</span>
-                  <div className="flex items-center gap-2">
-                    <span className="flex items-center gap-1 text-xs font-bold tabular-nums text-ink"><Eye size={12} className="text-muted" /> {compact(st.viewers)}</span>
-                    <span className="relative h-2 w-2 rounded-full bg-emerald-400"><span className="absolute inset-0 animate-ping rounded-full bg-emerald-400/60" /></span>
-                  </div>
-                </div>
-                <div className="mt-1 flex items-center gap-1">
-                  {st.platforms.map((p) => (
-                    <span key={p} className="h-1.5 w-4 rounded-full" style={{ background: platformColor(p) }} title={p} />
-                  ))}
-                  <span className="ml-1 text-[9px] text-muted">{st.platforms.length} platform{st.platforms.length === 1 ? "" : "s"}</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] tabular-nums text-muted">{s?.latencyMs ? `${s.latencyMs}ms` : "—"}</span>
+                  <span className={`relative h-2 w-2 rounded-full ${ok ? "bg-emerald-400" : "bg-red-400"}`} title={ok ? "Connected" : "Disconnected"}>
+                    {ok && <span className="absolute inset-0 animate-ping rounded-full bg-emerald-400/60" />}
+                  </span>
                 </div>
               </div>
-            ))}
+              {/* nested channels */}
+              {channels.length > 0 && (
+                <div className="border-t border-white/5">
+                  {channels.map((c) => (
+                    <div key={c.accountId} className="flex items-center justify-between px-2.5 py-0.5 pl-4">
+                      <div className="flex items-center gap-2">
+                        <span className="h-2.5 w-px shrink-0 bg-white/15" />
+                        <span className="max-w-[90px] truncate text-[11px] font-semibold text-muted">{c.displayName}</span>
+                        <span className="flex items-center gap-0.5 text-[11px] tabular-nums text-ink/80"><Eye size={9} className="text-muted opacity-60" /> {compact(c.viewers)}</span>
+                      </div>
+                      <Sparkline data={c.history} width={40} height={13} />
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })}
       </div>
     </div>
   );

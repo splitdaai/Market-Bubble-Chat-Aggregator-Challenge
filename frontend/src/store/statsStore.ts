@@ -89,6 +89,8 @@ export interface AccountStat {
   uniqueChatters: number;
   donated: number;
   subs: number;
+  /** Rolling viewer samples for the per-channel sparkline (oldest→newest). */
+  history: number[];
 }
 
 export interface PlatformLive {
@@ -100,6 +102,8 @@ export interface PlatformLive {
   activeChatters: number;
   messages: number;
   messagesPerMin: number;
+  /** Rolling viewer samples for the per-platform sparkline (oldest→newest). */
+  history: number[];
 }
 
 export interface StatsSnapshot {
@@ -157,6 +161,11 @@ let lastTick = start;
 let lastClip = 0;
 let warmed = false;
 
+/** Rolling viewer samples that drive the per-platform + per-channel sparklines. */
+const SPARK_SAMPLES = 32;
+let viewersHist: Record<Platform, number[]> = { twitch: [], kick: [], x: [], youtube: [], pumpfun: [] };
+const accountHist = new Map<string, number[]>();
+
 function blankAccum(): Accum {
   return {
     messages: 0,
@@ -172,7 +181,7 @@ function blankAccum(): Accum {
 function blankLive(): PlatformLive {
   return {
     viewers: 0, peakViewers: 0, watchTimeMinutes: 0, followsGained: 0,
-    uniqueChatters: 0, activeChatters: 0, messages: 0, messagesPerMin: 0,
+    uniqueChatters: 0, activeChatters: 0, messages: 0, messagesPerMin: 0, history: [],
   };
 }
 
@@ -256,6 +265,8 @@ export const useStatsStore = create<StatsState>((set, get) => ({
     sentimentBuf = [];
     velocityHist = [];
     clipMoments = [];
+    viewersHist = { twitch: [], kick: [], x: [], youtube: [], pumpfun: [] };
+    accountHist.clear();
     for (const p of PLATFORMS) accum[p] = blankAccum();
     set({ snapshot: emptySnapshot() });
   },
@@ -288,6 +299,12 @@ export const useStatsStore = create<StatsState>((set, get) => ({
       a.watchTimeMinutes = base * elapsedMin * 0.96; // avg ≈ base
       a.messages = Math.round(base * 1.4);
       a.followsGained = Math.round(base * 0.05);
+
+      // Seed a believable upward-drifting sparkline so trends read from frame one.
+      viewersHist[p] = Array.from({ length: SPARK_SAMPLES }, (_, i) => {
+        const t = i / (SPARK_SAMPLES - 1);
+        return Math.round(base * (0.78 + 0.22 * t) + (Math.random() - 0.5) * base * 0.05);
+      });
 
       const platAccounts = accountsList.filter((acc) => acc.platform === p);
 
@@ -360,6 +377,11 @@ export const useStatsStore = create<StatsState>((set, get) => ({
         if (now - c.last < ACTIVE_WINDOW) active += 1;
       }
 
+      // roll the per-platform viewer sparkline
+      const ph = viewersHist[p];
+      ph.push(a.viewers);
+      if (ph.length > SPARK_SAMPLES) viewersHist[p] = ph.slice(-SPARK_SAMPLES);
+
       perPlatform[p] = {
         viewers: a.viewers,
         peakViewers: a.peakViewers,
@@ -369,6 +391,7 @@ export const useStatsStore = create<StatsState>((set, get) => ({
         activeChatters: active,
         messages: a.messages,
         messagesPerMin: mpm,
+        history: [...viewersHist[p]],
       };
     }
 
@@ -419,16 +442,23 @@ export const useStatsStore = create<StatsState>((set, get) => ({
       const b = byAccount.get(acc.id);
       const pv = perPlatform[acc.platform];
       const share = accountShare(acc, conns);
+      const viewers = Math.round(pv.viewers * share);
+      // roll this channel's viewer sparkline
+      const ah = accountHist.get(acc.id) ?? [];
+      ah.push(viewers);
+      if (ah.length > SPARK_SAMPLES) ah.splice(0, ah.length - SPARK_SAMPLES);
+      accountHist.set(acc.id, ah);
       return {
         accountId: acc.id,
         displayName: acc.displayName,
         platform: acc.platform,
-        viewers: Math.round(pv.viewers * share),
+        viewers,
         watchTimeMinutes: Math.round(pv.watchTimeMinutes * share),
         messages: b?.messages ?? 0,
         uniqueChatters: b?.chatters.size ?? 0,
         donated: b?.donated ?? 0,
         subs: b?.subs ?? 0,
+        history: [...ah],
       };
     });
 
@@ -445,6 +475,16 @@ export const useStatsStore = create<StatsState>((set, get) => ({
       acc.messagesPerMin += v.messagesPerMin;
       return acc;
     }, blankLive());
+
+    // combined viewer sparkline = sum of the aligned per-platform histories
+    const histLen = Math.max(0, ...PLATFORMS.map((p) => viewersHist[p].length));
+    totals.history = Array.from({ length: histLen }, (_, i) =>
+      PLATFORMS.reduce((s, p) => {
+        const h = viewersHist[p];
+        const v = h[h.length - histLen + i];
+        return s + (typeof v === "number" ? v : 0);
+      }, 0),
+    );
 
     set({
       snapshot: {

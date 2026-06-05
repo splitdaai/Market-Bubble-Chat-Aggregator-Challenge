@@ -1,21 +1,19 @@
-import { useState } from "react";
 import { motion } from "framer-motion";
 import { Eye, Users, Clock, TrendingUp, Zap } from "lucide-react";
 import { useStatsStore } from "@/store/statsStore";
 import { platformColor, platformLabel } from "../SourceBadge";
+import { Sparkline } from "../Sparkline";
 import { useActivePlatforms } from "@/hooks/useActivePlatforms";
-import { byStreamer } from "@/lib/streamers";
 import { compact, watchTime, elapsed } from "@/lib/format";
 
 /**
- * The headline live-stats panel: aggregate viewers + a per-platform OR
- * per-channel breakdown of viewers, unique chatters, watch time and engagement.
+ * The headline live-stats panel: combined viewers up top, then a hierarchical
+ * breakdown — each platform's total with a viewer-trend sparkline, and nested
+ * under it every channel (Ansem / Banks / Market Bubble) with its own trend.
  */
 export function StatsWidget() {
   const snap = useStatsStore((s) => s.snapshot);
   const ALL = useActivePlatforms();
-  const [mode, setMode] = useState<"platform" | "channel">("platform");
-  const streamers = byStreamer(snap.accounts);
   const t = snap.totals;
   const totalViewers = Math.max(1, t.viewers);
 
@@ -47,6 +45,7 @@ export function StatsWidget() {
           <span className="flex items-center gap-1 text-xs font-semibold text-emerald-400">
             <TrendingUp size={12} /> peak {compact(t.peakViewers)}
           </span>
+          <span className="ml-auto"><Sparkline data={t.history} width={70} height={22} /></span>
         </div>
         {/* share of voice */}
         <div className="mt-2 flex h-2 w-full overflow-hidden rounded-full bg-white/5">
@@ -67,56 +66,47 @@ export function StatsWidget() {
         <MiniStat icon={<Zap size={13} />} label="Chat" value={String(t.messagesPerMin)} sub="msg/min" />
       </div>
 
-      {/* group toggle */}
-      <div className="flex gap-1 rounded-lg bg-white/[0.03] p-0.5">
-        {(["platform", "channel"] as const).map((m) => (
-          <button
-            key={m}
-            onClick={() => setMode(m)}
-            className={`flex-1 rounded-md py-0.5 text-[10px] font-bold transition ${mode === m ? "bg-accent/20 text-accent" : "text-muted hover:text-ink"}`}
-          >
-            {m === "platform" ? "By platform" : "By channel"}
-          </button>
-        ))}
-      </div>
-
-      {/* breakdown rows — single line so everything fits with no scroll */}
-      <div className="flex min-h-0 flex-1 flex-col justify-between gap-1">
-        {mode === "platform"
-          ? ALL.map((p) => {
-              const s = snap.perPlatform[p];
-              const wt = watchTime(s.watchTimeMinutes);
-              const engagement = s.viewers > 0 ? (s.activeChatters / s.viewers) * 100 : 0;
-              return (
-                <div key={p} className="flex items-center gap-2 rounded-md border border-white/8 bg-white/[0.02] px-2 py-1">
-                  <span className="w-16 shrink-0 text-[11px] font-bold" style={{ color: platformColor(p) }}>{platformLabel(p)}</span>
-                  <span className="flex items-center gap-0.5 text-[11px] font-semibold text-ink"><Eye size={10} className="text-muted" /> {compact(s.viewers)}</span>
-                  <span className="ml-auto flex items-center gap-2 text-[9px] tabular-nums text-muted">
-                    <span title="unique chatters">{compact(s.uniqueChatters)}<span className="opacity-50"> chat</span></span>
-                    <span title="watch time">{wt.value}{wt.unit === "min" ? "m" : "h"}</span>
-                    <span title="engagement">{engagement.toFixed(1)}%</span>
-                  </span>
+      {/* hierarchical breakdown: platform total → its channels, each with a trend */}
+      <div className="vc-scroll flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto pr-0.5">
+        {ALL.map((p) => {
+          const s = snap.perPlatform[p];
+          const wt = watchTime(s.watchTimeMinutes);
+          const engagement = s.viewers > 0 ? (s.activeChatters / s.viewers) * 100 : 0;
+          const channels = snap.accounts.filter((a) => a.platform === p);
+          return (
+            <div key={p} className="rounded-md border border-white/8 bg-white/[0.02]">
+              {/* platform total */}
+              <div className="flex items-center gap-2 px-2 py-1">
+                <span className="w-16 shrink-0 text-[11px] font-bold" style={{ color: platformColor(p) }}>{platformLabel(p)}</span>
+                <span className="flex items-center gap-0.5 text-[11px] font-semibold text-ink"><Eye size={10} className="text-muted" /> {compact(s.viewers)}</span>
+                <Sparkline data={s.history} color={platformColor(p)} width={48} height={16} />
+                <span className="ml-auto flex items-center gap-2 text-[9px] tabular-nums text-muted">
+                  <span title="unique chatters">{compact(s.uniqueChatters)}<span className="opacity-50"> chat</span></span>
+                  <span title="watch time">{wt.value}{wt.unit === "min" ? "m" : "h"}</span>
+                  <span title="engagement">{engagement.toFixed(1)}%</span>
+                </span>
+              </div>
+              {/* nested channels */}
+              {channels.length > 0 && (
+                <div className="border-t border-white/5">
+                  {channels.map((c) => (
+                    <div key={c.accountId} className="flex items-center gap-2 px-2 py-0.5 pl-3">
+                      <span className="h-2.5 w-px shrink-0 bg-white/15" />
+                      <span className="max-w-[80px] shrink-0 truncate text-[10px] font-semibold text-muted">{c.displayName}</span>
+                      <span className="flex items-center gap-0.5 text-[10px] tabular-nums text-ink/80"><Eye size={9} className="text-muted opacity-60" /> {compact(c.viewers)}</span>
+                      <Sparkline data={c.history} width={36} height={12} />
+                      <span className="ml-auto flex items-center gap-2 text-[9px] tabular-nums text-muted opacity-80">
+                        <span title="unique chatters">{compact(c.uniqueChatters)}</span>
+                        {c.donated > 0 && <span className="text-emerald-400" title="raised">${compact(c.donated)}</span>}
+                        {c.subs > 0 && <span title="subs">{compact(c.subs)}s</span>}
+                      </span>
+                    </div>
+                  ))}
                 </div>
-              );
-            })
-          : streamers.map((st) => {
-              const wt = watchTime(st.watchTimeMinutes);
-              return (
-                <div key={st.name} className="flex items-center gap-2 rounded-md border border-white/8 bg-white/[0.02] px-2 py-1">
-                  <span className="max-w-[78px] shrink-0 truncate text-[11px] font-bold text-ink">{st.name}</span>
-                  <span className="flex shrink-0 gap-0.5">
-                    {st.platforms.map((p) => <span key={p} className="h-1.5 w-2 rounded-full" style={{ background: platformColor(p) }} title={p} />)}
-                  </span>
-                  <span className="flex items-center gap-0.5 text-[11px] font-semibold text-ink"><Eye size={10} className="text-muted" /> {compact(st.viewers)}</span>
-                  <span className="ml-auto flex items-center gap-2 text-[9px] tabular-nums text-muted">
-                    <span title="unique chatters">{compact(st.uniqueChatters)}</span>
-                    <span title="watch time">{wt.value}{wt.unit === "min" ? "m" : "h"}</span>
-                    <span className="text-emerald-400" title="raised">${compact(st.donated)}</span>
-                    <span title="subs">{compact(st.subs)} sub</span>
-                  </span>
-                </div>
-              );
-            })}
+              )}
+            </div>
+          );
+        })}
       </div>
     </div>
   );
