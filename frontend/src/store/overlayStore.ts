@@ -13,6 +13,9 @@ const DEFAULTS: OverlayElement[] = [
   { id: "ov-twitch", source: "twitch", x: 40, y: 160, scale: 1, showLabel: true, visible: false },
   { id: "ov-kick", source: "kick", x: 40, y: 220, scale: 1, showLabel: true, visible: false },
   { id: "ov-x", source: "x", x: 40, y: 280, scale: 1, showLabel: true, visible: false },
+  { id: "ov-youtube", source: "youtube", x: 40, y: 340, scale: 1, showLabel: true, visible: false },
+  { id: "ov-pumpfun", source: "pumpfun", x: 40, y: 400, scale: 1, showLabel: true, visible: false },
+  { id: "ov-chat", source: "chat", x: 40, y: 480, scale: 1, showLabel: true, visible: false, w: 320, h: 380 },
 ];
 
 interface OverlayState {
@@ -24,6 +27,7 @@ interface OverlayState {
   toggleSource: (source: OverlaySource) => void;
   move: (id: string, x: number, y: number) => void;
   setScale: (id: string, scale: number) => void;
+  setSize: (id: string, w: number, h: number) => void;
   reset: () => void;
 }
 
@@ -47,8 +51,11 @@ export const useOverlayStore = create<OverlayState>()(
       setScale: (id, scale) =>
         set((s) => ({ elements: s.elements.map((e) => (e.id === id ? { ...e, scale } : e)) })),
 
+      setSize: (id, w, h) =>
+        set((s) => ({ elements: s.elements.map((e) => (e.id === id ? { ...e, w, h } : e)) })),
+
       reset: () => set({ elements: DEFAULTS }),
     }),
-    { name: "vibechat-overlay" },
+    { name: "vibechat-overlay-v2" },
   ),
 );

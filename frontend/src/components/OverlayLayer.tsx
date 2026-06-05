@@ -4,11 +4,20 @@ import { Move, Copy, Check, X as XIcon, Monitor } from "lucide-react";
 import { useOverlayStore } from "@/store/overlayStore";
 import { useToastStore } from "@/store/toastStore";
 import { OverlayChip } from "./OverlayChip";
+import { OverlayChat } from "./OverlayChat";
 import type { OverlaySource } from "@shared/types";
 import { useState } from "react";
 
-const SOURCES: OverlaySource[] = ["combined", "twitch", "kick", "x"];
-const SOURCE_LABEL: Record<OverlaySource, string> = { combined: "Total", twitch: "Twitch", kick: "Kick", x: "X" };
+const SOURCES: OverlaySource[] = ["combined", "twitch", "kick", "x", "youtube", "pumpfun", "chat"];
+const SOURCE_LABEL: Record<OverlaySource, string> = {
+  combined: "Total",
+  twitch: "Twitch",
+  kick: "Kick",
+  x: "X",
+  youtube: "YouTube",
+  pumpfun: "pump.fun",
+  chat: "Chat",
+};
 
 /**
  * The in-app overlay editor. When enabled, viewer-count badges float over the
@@ -19,12 +28,14 @@ export function OverlayLayer() {
   const enabled = useOverlayStore((s) => s.enabled);
   const elements = useOverlayStore((s) => s.elements);
   const move = useOverlayStore((s) => s.move);
+  const setSize = useOverlayStore((s) => s.setSize);
   const toggleSource = useOverlayStore((s) => s.toggleSource);
   const setEnabled = useOverlayStore((s) => s.setEnabled);
   const push = useToastStore((s) => s.push);
   const [copied, setCopied] = useState(false);
 
   const dragInfo = useRef<{ id: string; dx: number; dy: number } | null>(null);
+  const resizeInfo = useRef<{ id: string; sx: number; sy: number; w: number; h: number } | null>(null);
 
   if (!enabled) return null;
 
@@ -32,14 +43,26 @@ export function OverlayLayer() {
     (e.target as HTMLElement).setPointerCapture(e.pointerId);
     dragInfo.current = { id, dx: e.clientX - x, dy: e.clientY - y };
   };
+  const onResizeDown = (e: React.PointerEvent, id: string, w: number, h: number) => {
+    e.stopPropagation();
+    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+    resizeInfo.current = { id, sx: e.clientX, sy: e.clientY, w, h };
+  };
   const onPointerMove = (e: React.PointerEvent) => {
+    const r = resizeInfo.current;
+    if (r) {
+      const nw = Math.max(220, Math.min(640, r.w + (e.clientX - r.sx)));
+      const nh = Math.max(200, Math.min(720, r.h + (e.clientY - r.sy)));
+      setSize(r.id, nw, nh);
+      return;
+    }
     const d = dragInfo.current;
     if (!d) return;
     const nx = Math.max(0, Math.min(window.innerWidth - 60, e.clientX - d.dx));
     const ny = Math.max(0, Math.min(window.innerHeight - 30, e.clientY - d.dy));
     move(d.id, nx, ny);
   };
-  const onPointerUp = () => { dragInfo.current = null; };
+  const onPointerUp = () => { dragInfo.current = null; resizeInfo.current = null; };
 
   const copyObsLink = async () => {
     const url = `${window.location.origin}${window.location.pathname}?overlay=1`;
@@ -55,7 +78,7 @@ export function OverlayLayer() {
 
   return (
     <div className="fixed inset-0 z-[140]" onPointerMove={onPointerMove} onPointerUp={onPointerUp}>
-      {/* draggable chips */}
+      {/* draggable chips + chat panel */}
       {elements.filter((el) => el.visible).map((el) => (
         <div
           key={el.id}
@@ -67,7 +90,14 @@ export function OverlayLayer() {
             <span className="pointer-events-none absolute -left-1 -top-5 flex items-center gap-0.5 text-[9px] font-bold uppercase tracking-wider text-accent opacity-80">
               <Move size={9} /> drag
             </span>
-            <OverlayChip el={el} />
+            {el.source === "chat" ? <OverlayChat el={el} /> : <OverlayChip el={el} />}
+            {el.source === "chat" && (
+              <div
+                onPointerDown={(e) => onResizeDown(e, el.id, el.w ?? 320, el.h ?? 380)}
+                title="Drag to resize"
+                className="absolute -bottom-1 -right-1 h-4 w-4 cursor-nwse-resize rounded-sm border border-accent/70 bg-black/70"
+              />
+            )}
           </div>
         </div>
       ))}

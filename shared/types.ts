@@ -313,9 +313,19 @@ export interface GiveawayConfig {
 
 /* ----------------------------------- Overlay --------------------------------- */
 
-export type OverlaySource = "twitch" | "kick" | "x" | "combined";
+export type OverlaySource =
+  | "twitch"
+  | "kick"
+  | "x"
+  | "youtube"
+  | "pumpfun"
+  | "combined"
+  | "chat";
 
-/** A free-positioned viewer-count badge for the on-screen / OBS overlay. */
+/**
+ * A free-positioned overlay element. Most sources render a viewer-count badge;
+ * the `chat` source renders a live unified-chat panel (sized by `w`/`h`).
+ */
 export interface OverlayElement {
   id: string;
   source: OverlaySource;
@@ -325,6 +335,9 @@ export interface OverlayElement {
   scale: number;
   showLabel: boolean;
   visible: boolean;
+  /** Panel size in px — only used by the `chat` source. */
+  w?: number;
+  h?: number;
 }
 
 /* -------------------------- Custom action buttons ---------------------------- */
