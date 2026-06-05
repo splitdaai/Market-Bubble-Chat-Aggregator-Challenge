@@ -237,7 +237,8 @@ export type WidgetKind =
   | "clips"
   | "user-list"
   | "stream-preview"
-  | "ops";
+  | "ops"
+  | "polymarket";
 
 export interface Layout {
   version: 1;
@@ -322,11 +323,24 @@ export type OverlaySource =
   | "youtube"
   | "pumpfun"
   | "combined"
-  | "chat";
+  | "chat"
+  | "market";
+
+/** A Polymarket market pinned to the overlay. */
+export interface OverlayMarketData {
+  id: string;
+  question: string;
+  outcome: string;
+  /** Probability 0..1 of `outcome`. */
+  prob: number;
+  volume24h: number;
+  category: string;
+}
 
 /**
  * A free-positioned overlay element. Most sources render a viewer-count badge;
- * the `chat` source renders a live unified-chat panel (sized by `w`/`h`).
+ * `chat` renders a live unified-chat panel and `market` a Polymarket card
+ * (both sized by `w`/`h`).
  */
 export interface OverlayElement {
   id: string;
@@ -337,9 +351,11 @@ export interface OverlayElement {
   scale: number;
   showLabel: boolean;
   visible: boolean;
-  /** Panel size in px — only used by the `chat` source. */
+  /** Panel size in px — used by `chat` and `market`. */
   w?: number;
   h?: number;
+  /** Market payload — only set when source === "market". */
+  market?: OverlayMarketData;
 }
 
 /* -------------------------- Custom action buttons ---------------------------- */

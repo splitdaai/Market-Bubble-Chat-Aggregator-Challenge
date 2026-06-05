@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import GridLayout, { WidthProvider, type Layout as RGLLayout } from "react-grid-layout";
 import { useToastStore } from "@/store/toastStore";
-import { GripVertical, X, Plus, MessageSquare, Activity, BarChart3, Flame, Zap, Smile, Scissors, Trophy, Gift, Film, Users, Monitor, LayoutGrid } from "lucide-react";
+import { GripVertical, X, Plus, MessageSquare, Activity, BarChart3, Flame, Zap, Smile, Scissors, Trophy, Gift, Film, Users, Monitor, LayoutGrid, TrendingUp } from "lucide-react";
 import { useLayoutStore } from "@/store/layoutStore";
 import type { PanelLayout, WidgetKind, ActionButton } from "@shared/types";
 import { ChatFeed } from "./ChatFeed";
@@ -17,6 +17,7 @@ import { Clips } from "./widgets/Clips";
 import { UserList } from "./widgets/UserList";
 import { StreamPreview } from "./widgets/StreamPreview";
 import { OpsPanel } from "./widgets/OpsPanel";
+import { PolymarketPanel } from "./widgets/PolymarketPanel";
 
 const Grid = WidthProvider(GridLayout);
 
@@ -34,6 +35,7 @@ const WIDGET_META: Record<WidgetKind, { label: string; icon: React.ReactNode }> 
   "user-list": { label: "Users", icon: <Users size={15} /> },
   "stream-preview": { label: "Stream Preview", icon: <Monitor size={15} /> },
   ops: { label: "Ops Panel", icon: <LayoutGrid size={15} /> },
+  polymarket: { label: "Polymarket", icon: <TrendingUp size={15} /> },
 };
 
 function renderWidget(panel: PanelLayout, onEditButton: (b?: ActionButton) => void) {
@@ -51,6 +53,7 @@ function renderWidget(panel: PanelLayout, onEditButton: (b?: ActionButton) => vo
     case "user-list": return <UserList />;
     case "stream-preview": return <StreamPreview />;
     case "ops": return <OpsPanel />;
+    case "polymarket": return <PolymarketPanel />;
   }
 }
 

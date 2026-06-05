@@ -1,10 +1,11 @@
 import { useRef } from "react";
 import { motion } from "framer-motion";
-import { Move, Copy, Check, X as XIcon, Monitor } from "lucide-react";
+import { Move, Copy, Check, X as XIcon, Monitor, Trash2 } from "lucide-react";
 import { useOverlayStore } from "@/store/overlayStore";
 import { useToastStore } from "@/store/toastStore";
 import { OverlayChip } from "./OverlayChip";
 import { OverlayChat } from "./OverlayChat";
+import { OverlayMarket } from "./OverlayMarket";
 import type { OverlaySource } from "@shared/types";
 import { useState } from "react";
 
@@ -17,6 +18,7 @@ const SOURCE_LABEL: Record<OverlaySource, string> = {
   youtube: "YouTube",
   pumpfun: "pump.fun",
   chat: "Chat",
+  market: "Market",
 };
 
 /**
@@ -31,6 +33,7 @@ export function OverlayLayer() {
   const setSize = useOverlayStore((s) => s.setSize);
   const toggleSource = useOverlayStore((s) => s.toggleSource);
   const setEnabled = useOverlayStore((s) => s.setEnabled);
+  const removeElement = useOverlayStore((s) => s.removeElement);
   const push = useToastStore((s) => s.push);
   const [copied, setCopied] = useState(false);
 
@@ -92,8 +95,19 @@ export function OverlayLayer() {
             <span className="pointer-events-none absolute -left-1 -top-5 flex items-center gap-0.5 text-[9px] font-bold uppercase tracking-wider text-accent opacity-80">
               <Move size={9} /> drag
             </span>
-            {el.source === "chat" ? <OverlayChat el={el} /> : <OverlayChip el={el} />}
-            {el.source === "chat" && (
+            {/* dynamic market cards get a remove button */}
+            {el.source === "market" && (
+              <button
+                onPointerDown={(e) => e.stopPropagation()}
+                onClick={() => removeElement(el.id)}
+                title="Remove from overlay"
+                className="absolute -right-2 -top-2 z-10 grid h-5 w-5 place-items-center rounded-full border border-red-400/60 bg-black/80 text-red-300 transition hover:bg-red-500/30"
+              >
+                <Trash2 size={11} />
+              </button>
+            )}
+            {el.source === "chat" ? <OverlayChat el={el} /> : el.source === "market" ? <OverlayMarket el={el} /> : <OverlayChip el={el} />}
+            {(el.source === "chat" || el.source === "market") && (
               <div
                 onPointerDown={(e) => onResizeDown(e, el.id, el.w ?? 320, el.h ?? 380)}
                 title="Drag to resize"

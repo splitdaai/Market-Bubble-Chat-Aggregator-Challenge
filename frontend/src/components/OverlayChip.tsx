@@ -12,6 +12,7 @@ const LABEL: Record<OverlaySource, string> = {
   pumpfun: "pump.fun",
   combined: "Total",
   chat: "Chat",
+  market: "Market",
 };
 
 function Glyph({ source, color }: { source: OverlaySource; color: string }) {

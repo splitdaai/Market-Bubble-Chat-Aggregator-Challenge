@@ -119,8 +119,9 @@ export function StreamPreview() {
         </div>
       </div>
 
-      {/* 16:9 preview — real stream video, with the chat-velocity chart as a fallback skin */}
-      <div className="relative min-h-0 flex-1 overflow-hidden rounded-xl border border-white/10 bg-gradient-to-br from-black/40 to-[color-mix(in_srgb,var(--vc-accent)_10%,#04100c)]">
+      {/* 16:9 preview — real stream video (fully visible, never cropped), with
+          the chat-velocity chart as a fallback skin */}
+      <div className="relative min-h-0 flex-1 overflow-hidden rounded-xl border border-white/10 bg-black">
         <video
           ref={videoRef}
           src="/stream-preview.mp4"
@@ -129,7 +130,7 @@ export function StreamPreview() {
           loop
           playsInline
           onError={() => setVideoOk(false)}
-          className={`absolute inset-0 h-full w-full object-cover ${videoOk ? "" : "hidden"}`}
+          className={`absolute inset-0 h-full w-full object-contain ${videoOk ? "" : "hidden"}`}
         />
         {!videoOk && (
           <>

@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import type { OverlayElement, OverlaySource } from "@shared/types";
+import type { OverlayElement, OverlaySource, OverlayMarketData } from "@shared/types";
 
 /**
  * On-screen / OBS overlay. The user freely positions viewer-count badges
@@ -28,6 +28,10 @@ interface OverlayState {
   move: (id: string, x: number, y: number) => void;
   setScale: (id: string, scale: number) => void;
   setSize: (id: string, w: number, h: number) => void;
+  /** Pin a Polymarket market to the overlay (enables it if off). */
+  addMarket: (market: OverlayMarketData) => void;
+  /** Remove any element (used by the dynamic market cards). */
+  removeElement: (id: string) => void;
   reset: () => void;
 }
 
@@ -53,6 +57,25 @@ export const useOverlayStore = create<OverlayState>()(
 
       setSize: (id, w, h) =>
         set((s) => ({ elements: s.elements.map((e) => (e.id === id ? { ...e, w, h } : e)) })),
+
+      addMarket: (market) =>
+        set((s) => {
+          const id = `mkt-${market.id}`;
+          if (s.elements.some((e) => e.id === id)) {
+            // already pinned — just make sure it's visible
+            return { enabled: true, elements: s.elements.map((e) => (e.id === id ? { ...e, visible: true } : e)) };
+          }
+          // stagger new cards so they don't stack exactly
+          const n = s.elements.filter((e) => e.source === "market").length;
+          const el: OverlayElement = {
+            id, source: "market", x: 60 + (n % 4) * 28, y: 120 + (n % 4) * 28,
+            scale: 1, showLabel: true, visible: true, w: 300, h: 120, market,
+          };
+          return { enabled: true, elements: [...s.elements, el] };
+        }),
+
+      removeElement: (id) =>
+        set((s) => ({ elements: s.elements.filter((e) => e.id !== id) })),
 
       reset: () => set({ elements: DEFAULTS }),
     }),

@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { useOverlayStore } from "@/store/overlayStore";
 import { OverlayChip } from "./OverlayChip";
 import { OverlayChat } from "./OverlayChat";
+import { OverlayMarket } from "./OverlayMarket";
 
 /**
  * Standalone OBS browser-source page (rendered for `?overlay=1`). Transparent
@@ -27,7 +28,7 @@ export function OverlayPage() {
     <div className="fixed inset-0">
       {elements.filter((el) => el.visible).map((el) => (
         <div key={el.id} className="absolute" style={{ left: el.x, top: el.y }}>
-          {el.source === "chat" ? <OverlayChat el={el} /> : <OverlayChip el={el} />}
+          {el.source === "chat" ? <OverlayChat el={el} /> : el.source === "market" ? <OverlayMarket el={el} /> : <OverlayChip el={el} />}
         </div>
       ))}
     </div>
