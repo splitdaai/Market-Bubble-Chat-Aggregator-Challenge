@@ -107,6 +107,9 @@ async function main() {
   });
   io.on("connection", (socket) => socket.emit("accounts", getAccounts()));
 
+  // Accounts restored from the 30-day auth store: start their chat readers now.
+  syncAccountConnectors();
+
   // Save the current session into history (call when a stream ends).
   app.post("/api/session/save", (req, res) => {
     const title = (req.body?.title as string) ?? `Stream ${new Date().toISOString().slice(0, 10)}`;

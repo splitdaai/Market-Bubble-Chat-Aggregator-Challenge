@@ -9,4 +9,5 @@ dist/
 
 # backend runtime
 backend/data/
+auth-store.json
 *.env.local

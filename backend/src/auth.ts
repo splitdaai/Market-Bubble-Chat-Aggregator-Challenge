@@ -1,4 +1,5 @@
 import { createHash, randomBytes } from "node:crypto";
+import { readFileSync, writeFileSync } from "node:fs";
 import type { Express, Request, Response } from "express";
 import type { Account, Platform } from "../../shared/types.ts";
 
@@ -99,10 +100,50 @@ const PROVIDERS: Partial<Record<Platform, Provider>> = {
 
 const b64url = (b: Buffer) => b.toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 
-// --- in-memory state (swap for a DB in production) ---
+// --- account + token store ---
+// Persisted to disk with a 30-day TTL so a login survives backend restarts:
+// reconnected accounts come back on boot and their chat readers re-start.
+const AUTH_STORE = process.env.AUTH_STORE_PATH ?? "auth-store.json";
+const LOGIN_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
+
 const accounts: Account[] = [];
 const tokens = new Map<string, { access: string; refresh?: string }>();
+const connectedAt = new Map<string, number>(); // account id -> epoch ms of login
 const pending = new Map<string, { platform: Platform; verifier?: string }>();
+
+function persistStore() {
+  try {
+    const data = {
+      accounts: accounts.map((a) => ({ ...a, connectedAt: connectedAt.get(a.id) ?? Date.now() })),
+      tokens: Object.fromEntries(tokens),
+    };
+    writeFileSync(AUTH_STORE, JSON.stringify(data));
+  } catch (e) {
+    console.error("auth store persist failed:", e);
+  }
+}
+
+function loadStore() {
+  try {
+    const data = JSON.parse(readFileSync(AUTH_STORE, "utf8")) as {
+      accounts?: (Account & { connectedAt?: number })[];
+      tokens?: Record<string, { access: string; refresh?: string }>;
+    };
+    const now = Date.now();
+    for (const a of data.accounts ?? []) {
+      const ca = a.connectedAt ?? 0;
+      if (now - ca > LOGIN_TTL_MS) continue; // login older than the 30-day TTL — drop it
+      accounts.push({ id: a.id, platform: a.platform, handle: a.handle, displayName: a.displayName, connected: true });
+      connectedAt.set(a.id, ca);
+      const tok = data.tokens?.[a.id];
+      if (tok) tokens.set(a.id, tok);
+    }
+    if (accounts.length) console.log(`↺ restored ${accounts.length} connected account(s) from the 30-day auth store`);
+  } catch {
+    /* no store yet — first run */
+  }
+}
+loadStore();
 
 export function getAccounts(): Account[] {
   return accounts;
@@ -185,6 +226,8 @@ export function mountAuth(app: Express, publicUrl: string, onChange: () => void)
       if (!accounts.some((a) => a.id === id)) {
         accounts.push({ id, platform, handle: info.handle, displayName: info.displayName, connected: true });
       }
+      connectedAt.set(id, Date.now()); // (re)login resets the 30-day TTL
+      persistStore();
       onChange();
       res.send(closePopup(`Connected ${info.displayName} on ${platform}`, info.handle));
     } catch (e) {
@@ -196,7 +239,9 @@ export function mountAuth(app: Express, publicUrl: string, onChange: () => void)
     const i = accounts.findIndex((a) => a.id === req.params.id);
     if (i >= 0) {
       tokens.delete(accounts[i].id);
+      connectedAt.delete(accounts[i].id);
       accounts.splice(i, 1);
+      persistStore();
       onChange();
     }
     res.json({ ok: true });
