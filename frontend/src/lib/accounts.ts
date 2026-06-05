@@ -17,7 +17,6 @@ export const DEMO_ACCOUNTS: Account[] = [
   { id: "twitch:marketbubble", platform: "twitch", handle: "marketbubble", displayName: "Market Bubble", connected: true },
   { id: "x:marketbubble", platform: "x", handle: "@MarketBubbleLive", displayName: "Market Bubble", connected: true },
   { id: "youtube:marketbubble", platform: "youtube", handle: "@MarketBubble", displayName: "Market Bubble", connected: true },
-  { id: "pumpfun:marketbubble", platform: "pumpfun", handle: "MarketBubble.sol", displayName: "Market Bubble", connected: true },
 ];
 
 /** Rough channel-size weights for splitting platform totals across accounts. */
@@ -30,7 +29,7 @@ export function accountShare(account: Account, accounts: Account[]): number {
   return (ACCOUNT_WEIGHT[account.displayName] ?? 0.6) / total;
 }
 
-export const PLATFORM_ORDER: Platform[] = ["twitch", "kick", "x", "youtube", "pumpfun"];
+export const PLATFORM_ORDER: Platform[] = ["twitch", "kick", "x", "youtube"];
 
 /** Platforms that have at least one connected account (shown in the UI). */
 export function activePlatforms(accounts: Account[]): Platform[] {

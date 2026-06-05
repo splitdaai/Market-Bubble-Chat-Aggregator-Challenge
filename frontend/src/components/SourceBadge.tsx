@@ -43,7 +43,7 @@ const META: Record<
 };
 
 /** Every platform we aggregate — all are first-class chat sources now. */
-export const CHAT_PLATFORMS: Platform[] = ["twitch", "kick", "x", "youtube", "pumpfun"];
+export const CHAT_PLATFORMS: Platform[] = ["twitch", "kick", "x", "youtube"];
 /** Alias kept for existing imports. */
 export const EXT_PLATFORMS: ExtPlatform[] = CHAT_PLATFORMS;
 

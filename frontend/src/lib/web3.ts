@@ -81,6 +81,70 @@ export async function sendTip(from: string, to: string, amount: string): Promise
   return hash;
 }
 
+/* ------------------------------ stablecoins -------------------------------- */
+
+export type Stable = "USDC" | "USDT";
+export interface TokenInfo { address: string; decimals: number }
+
+/** Canonical USDC/USDT contracts per chain (all 6-decimals on these chains). */
+export const STABLES: Record<number, Partial<Record<Stable, TokenInfo>>> = {
+  1: { // Ethereum
+    USDC: { address: "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48", decimals: 6 },
+    USDT: { address: "0xdAC17F958D2ee523a2206206994597C13D831ec7", decimals: 6 },
+  },
+  8453: { // Base
+    USDC: { address: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913", decimals: 6 },
+  },
+  42161: { // Arbitrum
+    USDC: { address: "0xaf88d065e77c8cC2239327C5EDb3A432268e5831", decimals: 6 },
+    USDT: { address: "0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9", decimals: 6 },
+  },
+  10: { // Optimism
+    USDC: { address: "0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85", decimals: 6 },
+    USDT: { address: "0x94b008aA00579c1307B0EF2c499aD98a8ce58e58", decimals: 6 },
+  },
+  137: { // Polygon
+    USDC: { address: "0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359", decimals: 6 },
+    USDT: { address: "0xc2132D05D31c914a87C6611C10748AEb04B58e8F", decimals: 6 },
+  },
+};
+
+export function tokenFor(chainId: number | null, symbol: Stable): TokenInfo | undefined {
+  return chainId ? STABLES[chainId]?.[symbol] : undefined;
+}
+
+/** Which stablecoins are deployed on this chain. */
+export function stablesOn(chainId: number | null): Stable[] {
+  return chainId && STABLES[chainId] ? (Object.keys(STABLES[chainId]) as Stable[]) : [];
+}
+
+/** Convert a decimal token amount to integer base units. */
+export function toUnits(amount: string, decimals: number): bigint {
+  const [whole = "0", fracRaw = ""] = amount.trim().split(".");
+  const frac = (fracRaw + "0".repeat(decimals)).slice(0, decimals);
+  return BigInt(whole || "0") * 10n ** BigInt(decimals) + BigInt(frac || "0");
+}
+
+/**
+ * Send an ERC-20 stablecoin tip (USDC/USDT). Encodes a standard
+ * `transfer(address,uint256)` call and routes it through the user's wallet,
+ * which prompts them to confirm — the app never auto-sends.
+ */
+export async function sendToken(from: string, token: TokenInfo, to: string, amount: string): Promise<string> {
+  if (!isAddress(to)) throw new Error("Invalid recipient address.");
+  const units = toUnits(amount, token.decimals);
+  const data =
+    "0xa9059cbb" +
+    to.toLowerCase().replace(/^0x/, "").padStart(64, "0") +
+    units.toString(16).padStart(64, "0");
+  const p = getProvider();
+  const hash = (await p.request({
+    method: "eth_sendTransaction",
+    params: [{ from, to: token.address, data, value: "0x0" }],
+  })) as string;
+  return hash;
+}
+
 export function isAddress(a: string | undefined | null): a is string {
   return !!a && /^0x[a-fA-F0-9]{40}$/.test(a);
 }

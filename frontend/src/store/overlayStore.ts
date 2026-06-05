@@ -14,7 +14,6 @@ const DEFAULTS: OverlayElement[] = [
   { id: "ov-kick", source: "kick", x: 40, y: 220, scale: 1, showLabel: true, visible: false },
   { id: "ov-x", source: "x", x: 40, y: 280, scale: 1, showLabel: true, visible: false },
   { id: "ov-youtube", source: "youtube", x: 40, y: 340, scale: 1, showLabel: true, visible: false },
-  { id: "ov-pumpfun", source: "pumpfun", x: 40, y: 400, scale: 1, showLabel: true, visible: false },
   { id: "ov-chat", source: "chat", x: 40, y: 480, scale: 1, showLabel: true, visible: false, w: 320, h: 380 },
 ];
 
@@ -79,6 +78,6 @@ export const useOverlayStore = create<OverlayState>()(
 
       reset: () => set({ elements: DEFAULTS }),
     }),
-    { name: "vibechat-overlay-v2" },
+    { name: "vibechat-overlay-v3" },
   ),
 );

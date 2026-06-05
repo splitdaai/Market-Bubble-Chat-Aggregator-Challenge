@@ -60,7 +60,7 @@ export const useConnectionsStore = create<ConnectionsState>()(
       setObsState: (patch) => set(patch),
     }),
     {
-      name: "vibechat-connections-v3",
+      name: "vibechat-connections-v4",
       partialize: (s) => ({ accounts: s.accounts, obs: s.obs }),
     },
   ),

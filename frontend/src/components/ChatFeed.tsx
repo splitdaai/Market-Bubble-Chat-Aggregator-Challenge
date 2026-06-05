@@ -40,12 +40,15 @@ export function ChatFeed({ panel }: { panel: PanelLayout }) {
     [messages, enabled, scoped],
   );
 
-  // Auto-scroll to bottom when pinned.
+  // Auto-scroll to bottom when pinned. Keyed on the newest message id (not
+  // length) so it keeps following live once the buffer hits its cap — Twitch-
+  // style: stays live unless you scroll up to read.
+  const newestId = visible.length ? visible[visible.length - 1].id : null;
   useEffect(() => {
     if (pinned && scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [visible.length, pinned]);
+  }, [newestId, pinned]);
 
   // Fire a particle burst when a new hype message lands.
   useEffect(() => {

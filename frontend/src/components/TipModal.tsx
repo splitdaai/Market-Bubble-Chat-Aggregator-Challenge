@@ -2,10 +2,10 @@ import { useState } from "react";
 import { motion } from "framer-motion";
 import { Wallet, X, Send, Check, ExternalLink, Loader2, AlertTriangle } from "lucide-react";
 import { useWalletStore } from "@/store/walletStore";
-import { sendTip, chainInfo, shortAddr, hasInjectedWallet } from "@/lib/web3";
+import { sendToken, tokenFor, stablesOn, chainInfo, shortAddr, hasInjectedWallet, type Stable } from "@/lib/web3";
 import { useToastStore } from "@/store/toastStore";
 
-const PRESETS = ["0.005", "0.01", "0.05", "0.1"];
+const PRESETS = ["5", "10", "25", "50"];
 
 /**
  * Send a non-custodial EVM tip to a wallet-connected viewer. The operator's own
@@ -24,22 +24,25 @@ export function TipModal({
   const connect = useWalletStore((s) => s.connect);
   const push = useToastStore((s) => s.push);
 
-  const [amount, setAmount] = useState("0.01");
+  const [amount, setAmount] = useState("10");
+  const [token, setToken] = useState<Stable>("USDC");
   const [sending, setSending] = useState(false);
   const [txHash, setTxHash] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const chain = chainId ? chainInfo(chainId) : null;
-  const sym = chain?.symbol ?? "ETH";
+  const available = stablesOn(chainId); // which of USDC/USDT exist on this chain
+  const activeToken = available.includes(token) ? token : available[0];
+  const tokenInfo = activeToken ? tokenFor(chainId, activeToken) : undefined;
 
   const send = async () => {
-    if (!address) return;
+    if (!address || !tokenInfo || !activeToken) return;
     setSending(true);
     setError(null);
     try {
-      const hash = await sendTip(address, recipient.address, amount);
+      const hash = await sendToken(address, tokenInfo, recipient.address, amount);
       setTxHash(hash);
-      push({ message: `Tip of ${amount} ${sym} sent to ${recipient.name}`, tone: "ok" });
+      push({ message: `Tip of $${amount} ${activeToken} sent to ${recipient.name}`, tone: "ok" });
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Transaction failed";
       setError(msg);
@@ -109,43 +112,73 @@ export function TipModal({
               {chain && <span className="rounded-full bg-white/8 px-2 py-0.5 font-semibold text-ink">{chain.name}</span>}
             </div>
 
-            {/* amount */}
-            <div className="mb-2 grid grid-cols-4 gap-1.5">
-              {PRESETS.map((p) => (
+            {!activeToken ? (
+              <div className="flex flex-col items-center gap-2 rounded-xl border border-amber-400/20 bg-amber-400/5 px-3 py-3 text-center text-[12px] text-amber-200/90">
+                <AlertTriangle size={18} className="text-amber-400" />
+                No USDC/USDT on {chain?.name ?? "this network"}. Switch your wallet to Ethereum, Base, Arbitrum, Optimism or Polygon.
+              </div>
+            ) : (
+              <>
+                {/* stablecoin toggle */}
+                <div className="mb-2 flex gap-1.5">
+                  {(["USDC", "USDT"] as Stable[]).map((s) => {
+                    const ok = available.includes(s);
+                    return (
+                      <button
+                        key={s}
+                        disabled={!ok}
+                        onClick={() => setToken(s)}
+                        title={ok ? `Tip in ${s}` : `${s} not on ${chain?.name}`}
+                        className={`flex-1 rounded-lg border py-1.5 text-xs font-bold transition disabled:opacity-30 ${
+                          activeToken === s ? "border-accent bg-accent/15 text-accent" : "border-white/10 text-muted hover:text-ink"
+                        }`}
+                      >
+                        {s}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* amount ($) */}
+                <div className="mb-2 grid grid-cols-4 gap-1.5">
+                  {PRESETS.map((p) => (
+                    <button
+                      key={p}
+                      onClick={() => setAmount(p)}
+                      className={`rounded-lg border py-1.5 text-xs font-bold transition ${
+                        amount === p ? "border-accent bg-accent/15 text-accent" : "border-white/10 text-muted hover:text-ink"
+                      }`}
+                    >
+                      ${p}
+                    </button>
+                  ))}
+                </div>
+                <div className="mb-4 flex items-center gap-2 rounded-xl border border-white/10 bg-black/30 px-3 py-2">
+                  <span className="text-lg font-bold text-muted">$</span>
+                  <input
+                    value={amount}
+                    onChange={(e) => setAmount(e.target.value.replace(/[^0-9.]/g, ""))}
+                    inputMode="decimal"
+                    className="w-full bg-transparent text-lg font-bold tabular-nums text-ink outline-none"
+                  />
+                  <span className="text-sm font-bold text-muted">{activeToken}</span>
+                </div>
+
+                {error && <div className="mb-3 text-xs text-red-300">{error}</div>}
+
                 <button
-                  key={p}
-                  onClick={() => setAmount(p)}
-                  className={`rounded-lg border py-1.5 text-xs font-bold transition ${
-                    amount === p ? "border-accent bg-accent/15 text-accent" : "border-white/10 text-muted hover:text-ink"
-                  }`}
+                  onClick={send}
+                  disabled={sending || !(Number(amount) > 0)}
+                  className="flex w-full items-center justify-center gap-2 rounded-xl border border-accent/50 bg-accent/20 py-2.5 text-sm font-bold text-accent shadow-neon transition hover:bg-accent/30 disabled:opacity-50"
                 >
-                  {p}
+                  {sending ? <Loader2 size={15} className="animate-spin" /> : <Send size={15} />}
+                  {sending ? "Confirm in wallet…" : `Send $${amount} ${activeToken}`}
                 </button>
-              ))}
-            </div>
-            <div className="mb-4 flex items-center gap-2 rounded-xl border border-white/10 bg-black/30 px-3 py-2">
-              <input
-                value={amount}
-                onChange={(e) => setAmount(e.target.value.replace(/[^0-9.]/g, ""))}
-                inputMode="decimal"
-                className="w-full bg-transparent text-lg font-bold tabular-nums text-ink outline-none"
-              />
-              <span className="text-sm font-bold text-muted">{sym}</span>
-            </div>
-
-            {error && <div className="mb-3 text-xs text-red-300">{error}</div>}
-
-            <button
-              onClick={send}
-              disabled={sending || !(Number(amount) > 0)}
-              className="flex w-full items-center justify-center gap-2 rounded-xl border border-accent/50 bg-accent/20 py-2.5 text-sm font-bold text-accent shadow-neon transition hover:bg-accent/30 disabled:opacity-50"
-            >
-              {sending ? <Loader2 size={15} className="animate-spin" /> : <Send size={15} />}
-              {sending ? "Confirm in wallet…" : `Send ${amount} ${sym}`}
-            </button>
-            <p className="mt-2 text-center text-[10px] leading-tight text-muted opacity-70">
-              You'll approve this transfer in your wallet. Market Bubble never holds your funds or keys.
-            </p>
+                <p className="mt-2 text-center text-[10px] leading-tight text-muted opacity-70">
+                  You'll approve this transfer in your wallet. Market Bubble never holds your funds or keys.
+                </p>
+              </>
+            )}
           </>
         )}
       </motion.div>

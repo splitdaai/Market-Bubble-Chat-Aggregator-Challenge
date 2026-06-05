@@ -90,7 +90,7 @@ export function GiveawayBot() {
             </div>
 
             {/* per-platform entry split */}
-            <div className="mt-2 grid grid-cols-5 gap-1">
+            <div className="mt-2 grid grid-cols-4 gap-1">
               {ALL.map((p) => (
                 <div key={p} className="rounded-lg border border-white/8 bg-white/[0.02] py-1.5 text-center">
                   <div className="mb-0.5 flex justify-center"><SourceBadge platform={p} compact /></div>

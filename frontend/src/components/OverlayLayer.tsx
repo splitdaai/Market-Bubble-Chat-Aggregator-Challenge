@@ -9,7 +9,7 @@ import { OverlayMarket } from "./OverlayMarket";
 import type { OverlaySource } from "@shared/types";
 import { useState } from "react";
 
-const SOURCES: OverlaySource[] = ["combined", "twitch", "kick", "x", "youtube", "pumpfun", "chat"];
+const SOURCES: OverlaySource[] = ["combined", "twitch", "kick", "x", "youtube", "chat"];
 const SOURCE_LABEL: Record<OverlaySource, string> = {
   combined: "Total",
   twitch: "Twitch",

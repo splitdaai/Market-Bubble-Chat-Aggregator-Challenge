@@ -6,19 +6,16 @@ import type { Layout, PanelLayout, WidgetKind, ActionButton } from "@shared/type
 const DEFAULT_LAYOUT: Layout = {
   version: 1,
   panels: [
-    // Live Stats — tall column down the LEFT (all per-platform/channel data).
-    { i: "stats-1", widget: "stats", x: 0, y: 0, w: 5, h: 40, minW: 4, minH: 10 },
-    // Stream preview in the middle.
+    // Top row — Combined Viewers, stream preview and chat all the same height.
+    { i: "stats-1", widget: "stats", x: 0, y: 0, w: 5, h: 15, minW: 4, minH: 8 },
     { i: "preview-1", widget: "stream-preview", x: 5, y: 0, w: 4, h: 15, minW: 3, minH: 4 },
-    // Chat on the right — same height as the stream preview (stops where it stops).
     { i: "feed-1", widget: "chat-feed", x: 9, y: 0, w: 3, h: 15, minW: 3, minH: 6 },
-    // Polymarket markets under the preview.
-    { i: "polymarket-1", widget: "polymarket", x: 5, y: 15, w: 4, h: 17, minW: 3, minH: 8 },
-    // Ops under the chat.
-    { i: "ops-1", widget: "ops", x: 9, y: 15, w: 3, h: 17, minW: 3, minH: 8 },
-    // Leaderboards + users along the bottom.
-    { i: "chatters-1", widget: "top-chatters", x: 5, y: 32, w: 4, h: 11, minW: 2, minH: 6 },
-    { i: "users-1", widget: "user-list", x: 9, y: 32, w: 3, h: 11, minW: 3, minH: 6 },
+    // Second row.
+    { i: "chatters-1", widget: "top-chatters", x: 0, y: 15, w: 5, h: 13, minW: 2, minH: 6 },
+    { i: "polymarket-1", widget: "polymarket", x: 5, y: 15, w: 4, h: 18, minW: 3, minH: 8 },
+    { i: "ops-1", widget: "ops", x: 9, y: 15, w: 3, h: 18, minW: 3, minH: 8 },
+    // Users along the bottom-left.
+    { i: "users-1", widget: "user-list", x: 0, y: 28, w: 5, h: 10, minW: 3, minH: 6 },
   ],
 };
 
@@ -102,6 +99,6 @@ export const useLayoutStore = create<LayoutState>()(
         set((s) => ({ buttons: s.buttons.map((x) => (x.id === b.id ? b : x)) })),
       removeButton: (id) => set((s) => ({ buttons: s.buttons.filter((x) => x.id !== id) })),
     }),
-    { name: "vibechat-layout-v12" },
+    { name: "vibechat-layout-v13" },
   ),
 );
