@@ -22,6 +22,8 @@ interface Provider {
   tokenUrl: string;
   scopes: string;
   pkce?: boolean;
+  /** Authenticate the token request with an HTTP Basic header instead of body params (X requires this for confidential clients). */
+  basicAuth?: boolean;
   clientId?: string;
   clientSecret?: string;
   /** Resolve the connected account's handle + display name from a token. */
@@ -68,6 +70,7 @@ const PROVIDERS: Partial<Record<Platform, Provider>> = {
     tokenUrl: "https://api.twitter.com/2/oauth2/token",
     scopes: "tweet.read users.read offline.access",
     pkce: true,
+    basicAuth: true,
     clientId: env.X_CLIENT_ID,
     clientSecret: env.X_CLIENT_SECRET,
     userInfo: async (token) => {
@@ -156,18 +159,21 @@ export function mountAuth(app: Express, publicUrl: string, onChange: () => void)
     try {
       const body = new URLSearchParams({
         client_id: prov.clientId!,
-        client_secret: prov.clientSecret!,
         code,
         grant_type: "authorization_code",
         redirect_uri: redirectUri(platform),
       });
       if (ctx.verifier) body.set("code_verifier", ctx.verifier);
 
-      const tr = await fetch(prov.tokenUrl, {
-        method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body,
-      });
+      const headers: Record<string, string> = { "Content-Type": "application/x-www-form-urlencoded" };
+      if (prov.basicAuth) {
+        // Confidential-client auth (X): credentials go in the Authorization header.
+        headers.Authorization = `Basic ${Buffer.from(`${prov.clientId}:${prov.clientSecret}`).toString("base64")}`;
+      } else {
+        body.set("client_secret", prov.clientSecret!);
+      }
+
+      const tr = await fetch(prov.tokenUrl, { method: "POST", headers, body });
       if (!tr.ok) return res.send(closePopup(`Token exchange failed (${tr.status})`));
       const tok = (await tr.json()) as { access_token: string; refresh_token?: string };
 
