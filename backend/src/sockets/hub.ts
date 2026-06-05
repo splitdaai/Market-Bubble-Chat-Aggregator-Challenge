@@ -30,6 +30,12 @@ export function bindHub(
   const moderate = makeModerationRouter(registry);
   const statuses = new Map<string, ConnectionStatus>();
 
+  // Rolling buffer of the stream's recent messages so a client that refreshes
+  // (or joins late) gets the backlog replayed instead of an empty feed. Kept in
+  // memory for the life of the backend process (i.e. the stream).
+  const MESSAGE_BUFFER_CAP = 2000;
+  const messageBuffer: ChatMessage[] = [];
+
   const broadcastStatus = () => io.emit("status", [...statuses.values()]);
 
   // Subscribe a connector's message/status streams into the hub.
@@ -37,6 +43,8 @@ export function bindHub(
     statuses.set(connector.platform, connector.status());
     connector.onMessage((m: ChatMessage) => {
       aggregator.ingest(m);
+      messageBuffer.push(m);
+      if (messageBuffer.length > MESSAGE_BUFFER_CAP) messageBuffer.shift();
       io.emit("message", m);
     });
     connector.onStatusChange((s: ConnectionStatus) => {
@@ -70,10 +78,12 @@ export function bindHub(
   const statsTimer = setInterval(() => io.emit("stats", aggregator.snapshot()), 2000);
 
   io.on("connection", (socket) => {
-    // Joining client gets the current health + stats + past streams immediately.
+    // Joining client gets the current health + stats + past streams immediately,
+    // plus the stream's recent chat backlog so a refresh doesn't blank the feed.
     socket.emit("status", [...statuses.values()]);
     socket.emit("stats", aggregator.snapshot());
     socket.emit("history", history.all());
+    for (const m of messageBuffer) socket.emit("message", m);
 
     socket.on("moderate", async (req) => {
       const result = await moderate(req);

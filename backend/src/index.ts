@@ -8,6 +8,7 @@ import type { Connector } from "./platforms/types.ts";
 import { TwitchConnector } from "./platforms/twitch.ts";
 import { KickConnector } from "./platforms/kick.ts";
 import { XConnector } from "./platforms/x.ts";
+import { YouTubeConnector } from "./platforms/youtube.ts";
 import { bindHub } from "./sockets/hub.ts";
 import { StatsAggregator } from "./stats/aggregator.ts";
 import { HistoryStore } from "./history/store.ts";
@@ -47,6 +48,9 @@ function buildConnectors(): Connector[] {
   if (process.env.X_BEARER_TOKEN) {
     const rules = (process.env.X_STREAM_RULES ?? "").split(",").map((s) => s.trim()).filter(Boolean);
     connectors.push(new XConnector(process.env.X_BEARER_TOKEN, rules));
+  }
+  if (process.env.YOUTUBE_VIDEO_ID && process.env.YOUTUBE_API_KEY) {
+    connectors.push(new YouTubeConnector(process.env.YOUTUBE_VIDEO_ID, process.env.YOUTUBE_API_KEY));
   }
   return connectors;
 }
