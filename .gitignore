@@ -11,3 +11,6 @@ dist/
 backend/data/
 auth-store.json
 *.env.local
+
+# TS incremental build cache
+*.tsbuildinfo
