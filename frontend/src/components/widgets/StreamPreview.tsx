@@ -106,19 +106,33 @@ export function StreamPreview() {
     [accountStats, accounts],
   );
 
+  // A channel counts as "live" when it currently has viewers (the real poller
+  // reports 0 for an offline channel; demo channels are always live). While the
+  // stats are still warming up we treat connected channels as live so the tile
+  // doesn't flash the VOD fallback for a frame before the live feed appears.
+  const liveChannels = useMemo(() => channels.filter((c) => (c.viewers ?? 0) > 0), [channels]);
+  const statsWarming = channels.length === 0 && accounts.some((a) => a.connected);
+  const anyLive = liveChannels.length > 0 || statsWarming;
+
   const focused = useMemo(
-    () => channels.find((c) => c.accountId === pick) ?? channels[0],
-    [channels, pick],
+    () => channels.find((c) => c.accountId === pick) ?? liveChannels[0] ?? channels[0],
+    [channels, liveChannels, pick],
   );
   const focusViewers = focused?.viewers ?? totalViewers;
 
-  // What the preview actually shows:
-  //  • a selected VOD  → that VOD file
-  //  • the live view   → the focused channel's REAL player embed when we're Live
-  //    (Twitch/Kick), otherwise that channel's distinct demo clip.
-  const liveView = broadcast.live;
+  // What the preview shows, in priority order:
+  //  1. a VOD the user explicitly picked          → that VOD file
+  //  2. the live view + any channel is live        → that channel's live stream
+  //     (real Twitch/Kick embed in Live mode, else its distinct demo clip)
+  //  3. the live view + nothing is live            → fall back to the most recent
+  //     past broadcast, so the tile is never blank
+  const latestVod = useMemo(() => BROADCASTS.find((b) => !b.live) ?? BROADCASTS[BROADCASTS.length - 1], []);
+  const fallbackToVod = broadcast.live && !anyLive;
+  const shownBroadcast = fallbackToVod ? latestVod : broadcast;
+
+  const liveView = shownBroadcast.live;
   const embedUrl = liveView && !demo ? liveEmbedUrl(focused?.meta) : null;
-  const previewSrc = liveView ? clipFor(focused?.accountId) : broadcast.src;
+  const previewSrc = liveView ? clipFor(focused?.accountId) : shownBroadcast.src;
 
   // Seek to the start frame + (re)start playback whenever the source (VOD or
   // focused channel) changes. Wait for `canplay` (readyState ≥ 3) so play()
@@ -127,11 +141,11 @@ export function StreamPreview() {
   useEffect(() => {
     const v = videoRef.current;
     if (!v) return;
-    const go = () => { v.currentTime = broadcast.startAt ?? 0; v.play().catch(() => {}); };
+    const go = () => { v.currentTime = shownBroadcast.startAt ?? 0; v.play().catch(() => {}); };
     if (v.readyState >= 3) { go(); return; }
     v.addEventListener("canplay", go, { once: true });
     return () => v.removeEventListener("canplay", go);
-  }, [previewSrc, broadcast.startAt]);
+  }, [previewSrc, shownBroadcast.startAt]);
 
   const chart = useMemo(() => {
     const W = 100, H = 56;
@@ -250,7 +264,7 @@ export function StreamPreview() {
           </>
         )}
 
-        {broadcast.live ? (
+        {shownBroadcast.live ? (
           <span className="absolute left-2 top-2 flex items-center gap-1.5 rounded-md bg-black/55 px-1.5 py-0.5 text-[10px] font-black uppercase tracking-wider text-red-400 backdrop-blur">
             <span className="relative flex h-1.5 w-1.5"><span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-500/70" /><span className="relative h-1.5 w-1.5 rounded-full bg-red-500" /></span>
             Live
@@ -258,12 +272,12 @@ export function StreamPreview() {
           </span>
         ) : (
           <span className="absolute left-2 top-2 flex max-w-[70%] items-center gap-1.5 rounded-md bg-black/55 px-1.5 py-0.5 text-[10px] font-black uppercase tracking-wider text-accent backdrop-blur">
-            <span className="rounded bg-accent/20 px-1">VOD</span>
-            <span className="truncate normal-case text-white/90">{broadcast.title}</span>
+            <span className="rounded bg-accent/20 px-1">{fallbackToVod ? "No live · Replay" : "VOD"}</span>
+            <span className="truncate normal-case text-white/90">{shownBroadcast.title}</span>
           </span>
         )}
         <span className="absolute right-2 top-2 rounded-md bg-black/55 px-1.5 py-0.5 text-[11px] font-bold tabular-nums text-ink backdrop-blur">👁 {compact(focusViewers)}</span>
-        {focused?.meta && (
+        {liveView && focused?.meta && (
           <span className="absolute bottom-2 left-2 flex items-center gap-1.5 rounded-md bg-black/55 px-1.5 py-0.5 backdrop-blur">
             <SourceBadge platform={focused.meta.platform} compact />
             <span className="text-[11px] font-semibold text-ink">{focused.meta.displayName}</span>
