@@ -28,7 +28,7 @@ export class XConnector extends BaseConnector {
   private userId: string | null = null;
   private stopped = false;
 
-  constructor(private opts: { bearer?: string; rules?: string[]; oauthToken?: string; label?: string }) {
+  constructor(private opts: { bearer?: string; rules?: string[]; oauthToken?: string; label?: string; refresh?: () => Promise<string | null> }) {
     super("x", opts.label ?? "stream");
   }
 
@@ -82,8 +82,13 @@ export class XConnector extends BaseConnector {
           }
         }
         if (!this._status.connected) this.setStatus({ connected: true });
+      } else if (r.status === 401 && this.opts.refresh) {
+        // Access token expired — refresh and retry on the next tick.
+        const fresh = await this.opts.refresh();
+        if (fresh) this.opts.oauthToken = fresh;
+        else { this.setStatus({ connected: false, error: "http_401" }); return; }
       } else if (r.status === 401 || r.status === 403) {
-        this.setStatus({ connected: false, error: `http_${r.status}` }); // bad/expired token
+        this.setStatus({ connected: false, error: `http_${r.status}` }); // bad token / paywalled tier
         return;
       }
     } catch {

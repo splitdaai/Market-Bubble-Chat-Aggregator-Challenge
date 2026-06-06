@@ -34,7 +34,7 @@ export class YouTubeConnector extends BaseConnector {
 
   // Either a public video id + API key, OR a connected account's OAuth token
   // (which lets us auto-find that channel's active live broadcast).
-  constructor(private opts: { videoId?: string; apiKey?: string; oauthToken?: string; label?: string }) {
+  constructor(private opts: { videoId?: string; apiKey?: string; oauthToken?: string; label?: string; refresh?: () => Promise<string | null> }) {
     super("youtube", opts.label ?? opts.videoId ?? "live");
   }
 
@@ -111,7 +111,12 @@ export class YouTubeConnector extends BaseConnector {
           }
         }
         if (!this._status.connected) this.setStatus({ connected: true });
-      } else if (r.status === 403 || r.status === 404) {
+      } else if (r.status === 401 && this.opts.refresh) {
+        // Access token expired — refresh and retry on the next tick.
+        const fresh = await this.opts.refresh();
+        if (fresh) this.opts.oauthToken = fresh;
+        else { this.setStatus({ connected: false, error: "http_401" }); return; }
+      } else if (r.status === 401 || r.status === 403 || r.status === 404) {
         // chat ended / quota exceeded / invalid id — stop polling cleanly
         this.setStatus({ connected: false, error: `http_${r.status}` });
         return;

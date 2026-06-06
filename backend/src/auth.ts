@@ -156,6 +156,36 @@ export function getToken(accountId: string) {
   return tokens.get(accountId);
 }
 
+/**
+ * Exchange the stored refresh token for a fresh access token (OAuth access
+ * tokens expire in ~1–2h). Connectors that read with a user token (X, YouTube)
+ * call this on a 401 so they keep working through a whole stream. Stores the
+ * rotated tokens (X rotates the refresh token on every use). Returns the new
+ * access token, or null if it can't refresh.
+ */
+export async function refreshToken(accountId: string): Promise<string | null> {
+  const platform = accountId.split(":")[0] as Platform;
+  const prov = PROVIDERS[platform];
+  const tok = tokens.get(accountId);
+  if (!prov?.clientId || !tok?.refresh) return null;
+  try {
+    const body = new URLSearchParams({ grant_type: "refresh_token", refresh_token: tok.refresh, client_id: prov.clientId });
+    const headers: Record<string, string> = { "Content-Type": "application/x-www-form-urlencoded" };
+    if (prov.basicAuth) headers.Authorization = `Basic ${Buffer.from(`${prov.clientId}:${prov.clientSecret}`).toString("base64")}`;
+    else if (prov.clientSecret) body.set("client_secret", prov.clientSecret);
+
+    const r = await fetch(prov.tokenUrl, { method: "POST", headers, body });
+    if (!r.ok) return null;
+    const d = (await r.json()) as { access_token?: string; refresh_token?: string };
+    if (!d.access_token) return null;
+    tokens.set(accountId, { access: d.access_token, refresh: d.refresh_token ?? tok.refresh });
+    persistStore();
+    return d.access_token;
+  } catch {
+    return null;
+  }
+}
+
 /** Mount the auth routes. `publicUrl` is the externally-reachable backend URL. */
 export function mountAuth(app: Express, publicUrl: string, onChange: () => void) {
   const redirectUri = (p: string) => `${publicUrl}/auth/${p}/callback`;

@@ -13,7 +13,7 @@ import { bindHub } from "./sockets/hub.ts";
 import { StatsAggregator } from "./stats/aggregator.ts";
 import { HistoryStore } from "./history/store.ts";
 import { twitchViewers, kickViewers, youtubeViewers } from "./stats/viewers.ts";
-import { mountAuth, getAccounts, getToken } from "./auth.ts";
+import { mountAuth, getAccounts, getToken, refreshToken } from "./auth.ts";
 
 const PORT = Number(process.env.PORT ?? 4000);
 // Non-wildcard CORS allowlist in production (comma-separated origins); "*" only
@@ -111,10 +111,10 @@ async function main() {
       else if (a.platform === "kick") connector = new KickConnector(channel);
       else if (a.platform === "youtube") {
         const tok = getToken(a.id)?.access;
-        if (tok) connector = new YouTubeConnector({ oauthToken: tok, label: channel });
+        if (tok) connector = new YouTubeConnector({ oauthToken: tok, label: channel, refresh: () => refreshToken(a.id) });
       } else if (a.platform === "x") {
         const tok = getToken(a.id)?.access;
-        if (tok) connector = new XConnector({ oauthToken: tok, label: channel }); // poll this account's mentions
+        if (tok) connector = new XConnector({ oauthToken: tok, label: channel, refresh: () => refreshToken(a.id) }); // poll this account's mentions
       }
       if (!connector) continue;
       linked.add(a.id); // each connected account gets its own reader
