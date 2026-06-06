@@ -1,5 +1,6 @@
-import { motion } from "framer-motion";
-import { Palette, Pencil, Eye, RotateCcw, Monitor, Radio, BarChart3, Plug, Sparkles } from "lucide-react";
+import { useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Palette, Pencil, Eye, RotateCcw, Monitor, Radio, BarChart3, Plug, Sparkles, MousePointerClick, X } from "lucide-react";
 import { useLayoutStore } from "@/store/layoutStore";
 import { useModeStore } from "@/store/modeStore";
 import { useOverlayStore } from "@/store/overlayStore";
@@ -19,6 +20,12 @@ export function Topbar({ onOpenTheme, onOpenConnections, onOpenFeatures }: { onO
   const view = useViewStore((s) => s.view);
   const setView = useViewStore((s) => s.setView);
   const isLive = view === "live";
+
+  // Proactive nudge on the Demo/Live toggle — dismissed once the user clicks it
+  // (or the ✕). Session-only so a fresh load shows it again for the next viewer.
+  const [hintDismissed, setHintDismissed] = useState(false);
+  const showDemoHint = isLive && !hintDismissed;
+  const onToggleDemo = () => { toggleDemo(); setHintDismissed(true); };
 
   return (
     <header className="relative z-20 flex items-center justify-between px-5 py-3">
@@ -107,23 +114,76 @@ export function Topbar({ onOpenTheme, onOpenConnections, onOpenFeatures }: { onO
         </motion.button>
 
         {isLive && (
-          <div className="group relative">
-            <button
-              onClick={toggleDemo}
+          <div className="relative">
+            <motion.button
+              onClick={onToggleDemo}
+              whileTap={{ scale: 0.94 }}
+              animate={showDemoHint ? { scale: [1, 1.05, 1] } : { scale: 1 }}
+              transition={showDemoHint ? { duration: 1.4, repeat: Infinity, ease: "easeInOut" } : { duration: 0.2 }}
               className={`flex items-center gap-1.5 rounded-xl border px-2.5 py-1.5 text-[11px] font-bold uppercase tracking-wider transition ${
                 demo ? "border-amber-400/40 bg-amber-400/10 text-amber-300 hover:bg-amber-400/20" : "border-emerald-400/40 bg-emerald-400/10 text-emerald-300 hover:bg-emerald-400/20"
               }`}
             >
-              <span className={`h-1.5 w-1.5 rounded-full ${demo ? "bg-amber-400" : "bg-emerald-400"}`} />
+              <span className={`relative flex h-1.5 w-1.5`}>
+                {showDemoHint && (
+                  <span className={`absolute inline-flex h-full w-full animate-ping rounded-full ${demo ? "bg-amber-400/70" : "bg-emerald-400/70"}`} />
+                )}
+                <span className={`relative inline-flex h-1.5 w-1.5 rounded-full ${demo ? "bg-amber-400" : "bg-emerald-400"}`} />
+              </span>
               {demo ? "Demo" : "Live"}
-            </button>
-            {/* Guidance tooltip — nudges reviewers to go Live to connect real channels */}
-            <div className="pointer-events-none absolute right-0 top-full z-[60] mt-2 w-56 rounded-lg border border-white/12 bg-black/90 px-3 py-2 text-left text-[11px] font-medium normal-case leading-snug tracking-normal text-white/90 opacity-0 shadow-xl backdrop-blur transition-opacity duration-150 group-hover:opacity-100">
-              <span className="absolute -top-1 right-5 h-2 w-2 rotate-45 border-l border-t border-white/12 bg-black/90" />
-              {demo
-                ? "Demo data is on. Click to switch to Live — then connect your channels to test the real integration."
-                : "You're Live. Open the 🔌 Connections panel to link your channels and test."}
-            </div>
+            </motion.button>
+
+            {/* Proactive animated reminder: floats, glows, and points at the toggle */}
+            <AnimatePresence>
+              {showDemoHint && (
+                <motion.div
+                  initial={{ opacity: 0, y: -8, scale: 0.9 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -8, scale: 0.9 }}
+                  transition={{ type: "spring", stiffness: 300, damping: 22 }}
+                  className="absolute right-0 top-full z-[70] mt-2.5 w-64"
+                >
+                  <motion.div
+                    animate={{
+                      y: [0, -3.5, 0],
+                      boxShadow: [
+                        "0 0 0px rgba(var(--vc-accent-rgb),0)",
+                        "0 0 20px rgba(var(--vc-accent-rgb),0.45)",
+                        "0 0 0px rgba(var(--vc-accent-rgb),0)",
+                      ],
+                    }}
+                    transition={{ duration: 2.2, repeat: Infinity, ease: "easeInOut" }}
+                    className="relative rounded-xl border border-accent/45 bg-black/90 px-3 py-2.5 text-left backdrop-blur"
+                  >
+                    {/* caret pointing up at the toggle */}
+                    <span className="absolute -top-1.5 right-7 h-3 w-3 rotate-45 border-l border-t border-accent/45 bg-black/90" />
+                    <button
+                      onClick={() => setHintDismissed(true)}
+                      title="Got it"
+                      className="absolute right-1.5 top-1.5 text-white/40 transition hover:text-white"
+                    >
+                      <X size={11} />
+                    </button>
+                    <div className="flex items-start gap-2 pr-3">
+                      <motion.span
+                        className="mt-0.5 shrink-0 text-accent"
+                        animate={{ scale: [1, 0.75, 1], rotate: [0, -10, 0] }}
+                        transition={{ duration: 1.1, repeat: Infinity, ease: "easeInOut" }}
+                      >
+                        <MousePointerClick size={16} />
+                      </motion.span>
+                      <p className="text-[11px] font-medium normal-case leading-snug tracking-normal text-white/90">
+                        {demo ? (
+                          <>You're viewing <b className="text-amber-300">demo data</b>. Click to switch to <b className="text-emerald-300">Live</b> and aggregate your real channels.</>
+                        ) : (
+                          <>You're <b className="text-emerald-300">Live</b> on real data. Click anytime for <b className="text-amber-300">demo data</b>.</>
+                        )}
+                      </p>
+                    </div>
+                  </motion.div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         )}
         <AudioControl />
