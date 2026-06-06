@@ -73,35 +73,113 @@ export class YouTubeConnector extends BaseConnector {
     void this.poll();
   }
 
-  /** Resolve the active live-chat id — from the OAuth account's own live
-   *  broadcast (liveBroadcasts.mine) or from a public video id. */
-  private async resolveLiveChatId(retried = false): Promise<string | null> {
+  /** GET a Data API url, refreshing the OAuth token once on a 401. */
+  private async ytGet(url: URL): Promise<Response> {
+    let r = await fetch(url, this.authed(url));
+    if (r.status === 401 && this.opts.refresh) {
+      const fresh = await this.opts.refresh();
+      if (fresh) { this.opts.oauthToken = fresh; r = await fetch(url, this.authed(url)); }
+    }
+    return r;
+  }
+
+  /** Resolve the live-chat id — from the OAuth account's own live broadcast or
+   *  from a public video id.
+   *
+   *  YouTube only marks a broadcast `active` once it fully transitions to *live*,
+   *  but "Stream now"/preview streams sit in `ready`/`upcoming` with a fully open,
+   *  chattable live chat. So we gather candidates across active + upcoming and,
+   *  when there's more than one, pick the broadcast that's really being used:
+   *  truly-live first, then the one whose bound stream is actively ingesting,
+   *  then the chat with the most recent messages. */
+  private async resolveLiveChatId(): Promise<string | null> {
     try {
-      if (this.opts.oauthToken) {
-        const url = new URL(`${API}/liveBroadcasts`);
-        url.searchParams.set("part", "snippet");
-        url.searchParams.set("broadcastStatus", "active");
-        url.searchParams.set("broadcastType", "all");
-        const r = await fetch(url, this.authed(url));
-        if (r.status === 401 && this.opts.refresh && !retried) {
-          // Expired access token would otherwise look like "no broadcast".
-          const fresh = await this.opts.refresh();
-          if (fresh) { this.opts.oauthToken = fresh; return this.resolveLiveChatId(true); }
-        }
+      if (!this.opts.oauthToken) {
+        const url = new URL(`${API}/videos`);
+        url.searchParams.set("part", "liveStreamingDetails");
+        url.searchParams.set("id", this.opts.videoId ?? "");
+        const r = await this.ytGet(url);
         if (!r.ok) return null;
-        const d = (await r.json()) as { items?: { snippet?: { liveChatId?: string } }[] };
-        return d.items?.[0]?.snippet?.liveChatId ?? null;
+        const d = (await r.json()) as { items?: { liveStreamingDetails?: { activeLiveChatId?: string } }[] };
+        return d.items?.[0]?.liveStreamingDetails?.activeLiveChatId ?? null;
       }
-      const url = new URL(`${API}/videos`);
-      url.searchParams.set("part", "liveStreamingDetails");
-      url.searchParams.set("id", this.opts.videoId ?? "");
-      const r = await fetch(url, this.authed(url));
-      if (!r.ok) return null;
-      const d = (await r.json()) as { items?: { liveStreamingDetails?: { activeLiveChatId?: string } }[] };
-      return d.items?.[0]?.liveStreamingDetails?.activeLiveChatId ?? null;
+
+      const cands: { liveChatId: string; life?: string; boundStreamId?: string }[] = [];
+      for (const st of ["active", "upcoming"] as const) {
+        const url = new URL(`${API}/liveBroadcasts`);
+        url.searchParams.set("part", "snippet,status,contentDetails");
+        url.searchParams.set("broadcastStatus", st);
+        url.searchParams.set("broadcastType", "all");
+        url.searchParams.set("maxResults", "20");
+        const r = await this.ytGet(url);
+        if (!r.ok) continue;
+        const d = (await r.json()) as {
+          items?: { snippet?: { liveChatId?: string }; status?: { lifeCycleStatus?: string }; contentDetails?: { boundStreamId?: string } }[];
+        };
+        for (const it of d.items ?? []) {
+          const liveChatId = it.snippet?.liveChatId;
+          if (liveChatId) cands.push({ liveChatId, life: it.status?.lifeCycleStatus, boundStreamId: it.contentDetails?.boundStreamId });
+        }
+      }
+      if (cands.length === 0) return null;
+      if (cands.length === 1) return cands[0].liveChatId;
+
+      // 1) a broadcast YouTube already considers live
+      const live = cands.find((c) => c.life === "live" || c.life === "liveStarting");
+      if (live) return live.liveChatId;
+      // 2) the broadcast whose bound stream is actively receiving video
+      const ingesting = await this.firstIngestingChat(cands);
+      if (ingesting) return ingesting;
+      // 3) the chat that's actually getting messages right now
+      const active = await this.mostActiveChat(cands.map((c) => c.liveChatId));
+      return active ?? cands[0].liveChatId;
     } catch {
       return null;
     }
+  }
+
+  /** Of the candidates, the live-chat id whose bound stream is actively
+   *  ingesting video (streamStatus "active") — the one really being broadcast. */
+  private async firstIngestingChat(cands: { liveChatId: string; boundStreamId?: string }[]): Promise<string | null> {
+    const ids = cands.map((c) => c.boundStreamId).filter(Boolean) as string[];
+    if (ids.length === 0) return null;
+    try {
+      const url = new URL(`${API}/liveStreams`);
+      url.searchParams.set("part", "status");
+      url.searchParams.set("id", ids.join(","));
+      url.searchParams.set("maxResults", "50");
+      const r = await this.ytGet(url);
+      if (!r.ok) return null;
+      const d = (await r.json()) as { items?: { id?: string; status?: { streamStatus?: string } }[] };
+      const activeStream = d.items?.find((s) => s.status?.streamStatus === "active")?.id;
+      if (!activeStream) return null;
+      return cands.find((c) => c.boundStreamId === activeStream)?.liveChatId ?? null;
+    } catch {
+      return null;
+    }
+  }
+
+  /** Poll each candidate chat once; return the one with the newest message. */
+  private async mostActiveChat(chatIds: string[]): Promise<string | null> {
+    let best: { id: string; ts: number } | null = null;
+    for (const id of chatIds) {
+      try {
+        const url = new URL(`${API}/liveChat/messages`);
+        url.searchParams.set("liveChatId", id);
+        url.searchParams.set("part", "snippet");
+        url.searchParams.set("maxResults", "200");
+        const r = await this.ytGet(url);
+        if (!r.ok) continue;
+        const d = (await r.json()) as { items?: { snippet?: { publishedAt?: string } }[] };
+        const items = d.items ?? [];
+        if (items.length === 0) continue;
+        const ts = Date.parse(items[items.length - 1].snippet?.publishedAt ?? "") || 0;
+        if (!best || ts > best.ts) best = { id, ts };
+      } catch {
+        /* skip */
+      }
+    }
+    return best?.id ?? null;
   }
 
   private async poll() {
