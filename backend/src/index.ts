@@ -14,7 +14,6 @@ import { StatsAggregator } from "./stats/aggregator.ts";
 import { HistoryStore } from "./history/store.ts";
 import { twitchViewers, kickViewers, youtubeViewers } from "./stats/viewers.ts";
 import { mountAuth, getAccounts, getToken, refreshToken } from "./auth.ts";
-import { recordVisit, visitSummary, recentVisits, renderDashboard } from "./visitLog.ts";
 
 const PORT = Number(process.env.PORT ?? 4000);
 // Non-wildcard CORS allowlist in production (comma-separated origins); "*" only
@@ -29,24 +28,8 @@ app.use(cors({ origin: ORIGIN }));
 app.use(express.json());
 app.get("/health", (_req, res) => res.json({ ok: true, ts: Date.now() }));
 
-// Visitor log — the static site pings this on load; we append a JSON line to a
-// git-ignored file (see visitLog.ts). Privacy-clean: time + page + referrer only,
-// no IPs / no fingerprinting. 204 so the beacon stays tiny.
-app.post("/api/visit", (req, res) => {
-  void recordVisit({
-    path: typeof req.body?.path === "string" ? req.body.path.slice(0, 300) : undefined,
-    ref: (typeof req.body?.ref === "string" ? req.body.ref : (req.headers["referer"] as string | undefined))?.slice(0, 300),
-    vid: typeof req.body?.vid === "string" ? req.body.vid.slice(0, 64) : undefined,
-  });
-  res.status(204).end();
-});
-// A human-friendly dashboard page: open /visits in a browser.
-app.get("/visits", async (_req, res) => res.type("html").send(await renderDashboard()));
-// Raw JSON for tooling.
-app.get("/api/visits/summary", async (_req, res) => res.json(await visitSummary()));
-app.get("/api/visits/recent", async (req, res) =>
-  res.json(await recentVisits(Math.min(100, Number(req.query.n) || 25))),
-);
+// Visitor tracking lives entirely on the AWS edge (Caddy access logs → an
+// EC2-only parser → /visits dashboard). No application code, no data in git.
 
 const httpServer = createServer(app);
 const io = new Server<ClientToServerEvents, ServerToClientEvents>(httpServer, {

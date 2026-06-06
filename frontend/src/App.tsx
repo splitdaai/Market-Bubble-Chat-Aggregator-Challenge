@@ -16,7 +16,6 @@ import { UserCard } from "./components/UserCard";
 import { useViewStore } from "./store/viewStore";
 import { useChatConnection } from "./hooks/useChatConnection";
 import { useWalletStore } from "./store/walletStore";
-import { trackVisit } from "./lib/visit";
 
 export default function App() {
   // Always boot the data pipeline — both the dashboard and the OBS overlay
@@ -25,12 +24,6 @@ export default function App() {
 
   // Re-attach to an already-authorized EVM wallet + watch for account changes.
   useEffect(() => useWalletStore.getState().hydrate(), []);
-
-  // Log a visit once per page load (skips the OBS overlay/dock embeds).
-  useEffect(() => {
-    const p = new URLSearchParams(window.location.search);
-    if (!p.has("overlay") && !p.has("dock")) trackVisit();
-  }, []);
 
   const view = useViewStore((s) => s.view);
   const [themeOpen, setThemeOpen] = useState(false);

@@ -12,7 +12,8 @@ backend/data/
 auth-store.json
 *.env.local
 
-# visitor log — kept off git
+# Visitor tracking lives entirely on the AWS edge (Caddy access logs +
+# an EC2-only parser → /visits dashboard). No tracking code or data in git.
 visits.log
 **/visits.log
 
