@@ -29,7 +29,7 @@ export const useThemeStore = create<ThemeState>()(
       toggleSound: () => set((s) => ({ soundEnabled: !s.soundEnabled })),
     }),
     {
-      name: "vibechat-theme-mb",
+      name: "vibechat-theme-mb-v2",
       onRehydrateStorage: () => (state) => {
         // Re-apply persisted theme to :root once hydrated from localStorage.
         if (state?.theme) applyTheme(state.theme);

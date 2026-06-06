@@ -30,10 +30,27 @@ export const NEON_VOID_THEME: Theme = {
   bubbleStyle: "glass",
 };
 
+/** Mono Terminal — the shipped default: black bg, electric-blue accent, purple
+ *  secondary, max glow, sharp 6px corners, JetBrains Mono, outline bubbles. */
+export const MONO_TERMINAL_THEME: Theme = {
+  name: "Mono Terminal",
+  bg: "#0a0a0a",
+  surface: "rgba(20, 20, 20, 0.72)",
+  accent: "#00aaff",
+  accent2: "#9146ff",
+  text: "#f5f5f5",
+  textMuted: "#888888",
+  glow: 1,
+  radius: 6,
+  font: "JetBrains Mono",
+  bubbleStyle: "outline",
+};
+
 /** Active default theme. */
-export const DEFAULT_THEME: Theme = MARKET_BUBBLE_THEME;
+export const DEFAULT_THEME: Theme = MONO_TERMINAL_THEME;
 
 export const THEME_PRESETS: Theme[] = [
+  MONO_TERMINAL_THEME,
   MARKET_BUBBLE_THEME,
   NEON_VOID_THEME,
   {
@@ -61,19 +78,6 @@ export const THEME_PRESETS: Theme[] = [
     radius: 22,
     font: "Inter",
     bubbleStyle: "glass",
-  },
-  {
-    name: "Mono Terminal",
-    bg: "#0a0a0a",
-    surface: "rgba(20, 20, 20, 0.72)",
-    accent: "#e7e9ea",
-    accent2: "#9146ff",
-    text: "#f5f5f5",
-    textMuted: "#888888",
-    glow: 0.25,
-    radius: 6,
-    font: "JetBrains Mono",
-    bubbleStyle: "outline",
   },
 ];
 
