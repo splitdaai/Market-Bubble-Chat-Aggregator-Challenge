@@ -22,6 +22,27 @@ export interface Visit extends VisitEntry {
   ts?: string;
 }
 
+/** Where a visit came from. A `?src=`/`?utm_source=` tag on the URL wins (the
+ *  reliable signal — referrers are stripped on the https→http hop from Google),
+ *  else the referrer's host, else "direct". Google Forms links → "google form". */
+export function sourceOf(v: { ref?: string; path?: string }): string {
+  try {
+    const q = new URLSearchParams((v.path ?? "").split("?")[1] ?? "");
+    const tag = (q.get("src") || q.get("utm_source") || q.get("ref") || "").trim().toLowerCase();
+    if (tag) return tag === "gform" || tag === "googleform" || tag === "form" ? "google form" : tag;
+  } catch {
+    /* ignore */
+  }
+  const ref = (v.ref ?? "").toLowerCase();
+  if (!ref) return "direct";
+  if (ref.includes("docs.google.com") || ref.includes("forms.gle") || ref.includes("/forms/")) return "google form";
+  try {
+    return new URL(v.ref!).hostname.replace(/^www\./, "");
+  } catch {
+    return "other";
+  }
+}
+
 /** Append a single visit as a JSON line. Best-effort — never throws to callers. */
 export async function recordVisit(entry: VisitEntry): Promise<void> {
   const line = JSON.stringify({ ts: new Date().toISOString(), ...entry }) + "\n";
@@ -61,10 +82,12 @@ export interface VisitStats {
   uniqueVisitors: number;
   uniqueToday: number;
   byDay: Record<string, number>;
+  /** Per-source visit + unique counts, e.g. { "google form": { visits, unique } }. */
+  bySource: Record<string, { visits: number; unique: number }>;
 }
 
-/** Counts: total + unique visitors (overall and today), and per-day, so you can
- *  see how many people came and when. */
+/** Counts: total + unique visitors (overall and today), per-day, and per-source
+ *  (so you can see how many came from the Google Form vs elsewhere). */
 export async function visitSummary(): Promise<VisitStats> {
   try {
     const txt = await readFile(LOG_PATH, "utf8");
@@ -73,17 +96,19 @@ export async function visitSummary(): Promise<VisitStats> {
       .filter(Boolean)
       .map((l) => {
         try {
-          return JSON.parse(l) as { ts?: string; vid?: string };
+          return JSON.parse(l) as Visit;
         } catch {
           return null;
         }
       })
-      .filter((e): e is { ts?: string; vid?: string } => e !== null);
+      .filter((e): e is Visit => e !== null);
 
     const today = new Date().toISOString().slice(0, 10);
     const byDay: Record<string, number> = {};
     const visitors = new Set<string>();
     const visitorsToday = new Set<string>();
+    const sourceVisits: Record<string, number> = {};
+    const sourceVids: Record<string, Set<string>> = {};
     for (const e of entries) {
       const day = (e.ts ?? "").slice(0, 10);
       if (day) byDay[day] = (byDay[day] ?? 0) + 1;
@@ -91,6 +116,13 @@ export async function visitSummary(): Promise<VisitStats> {
         visitors.add(e.vid);
         if (day === today) visitorsToday.add(e.vid);
       }
+      const src = sourceOf(e);
+      sourceVisits[src] = (sourceVisits[src] ?? 0) + 1;
+      (sourceVids[src] ??= new Set()).add(e.vid ?? `_${sourceVisits[src]}`);
+    }
+    const bySource: Record<string, { visits: number; unique: number }> = {};
+    for (const src of Object.keys(sourceVisits)) {
+      bySource[src] = { visits: sourceVisits[src], unique: sourceVids[src].size };
     }
     return {
       total: entries.length,
@@ -98,9 +130,10 @@ export async function visitSummary(): Promise<VisitStats> {
       uniqueVisitors: visitors.size,
       uniqueToday: visitorsToday.size,
       byDay,
+      bySource,
     };
   } catch {
-    return { total: 0, today: 0, uniqueVisitors: 0, uniqueToday: 0, byDay: {} };
+    return { total: 0, today: 0, uniqueVisitors: 0, uniqueToday: 0, byDay: {}, bySource: {} };
   }
 }
 
@@ -120,8 +153,22 @@ export async function renderDashboard(): Promise<string> {
     .map(([d, n]) => `<div class="row"><span class="day">${esc(d)}</span><span class="bar" style="width:${Math.round((n / maxDay) * 100)}%"></span><span class="n">${n}</span></div>`)
     .join("");
 
+  const sources = Object.entries(s.bySource).sort((a, b) => b[1].visits - a[1].visits);
+  const maxSrc = Math.max(1, ...sources.map(([, v]) => v.visits));
+  const sourceRows = sources
+    .map(([name, v]) => {
+      const gf = name === "google form";
+      return `<div class="row"><span class="src-lbl${gf ? " gf" : ""}">${gf ? "📋 " : ""}${esc(name)}</span><span class="bar" style="width:${Math.round((v.visits / maxSrc) * 100)}%"></span><span class="n">${v.unique} unique · ${v.visits} visits</span></div>`;
+    })
+    .join("");
+  const gf = s.bySource["google form"];
+
   const recentRows = recent
-    .map((r) => `<tr><td class="t" data-ts="${esc(r.ts)}">${esc(r.ts)}</td><td>${esc(r.path || "/")}</td><td class="ref">${esc(r.ref || "—")}</td></tr>`)
+    .map((r) => {
+      const src = sourceOf(r);
+      const gfRow = src === "google form";
+      return `<tr><td class="t" data-ts="${esc(r.ts)}">${esc(r.ts)}</td><td>${esc(r.path || "/")}</td><td class="src${gfRow ? " gf" : ""}">${gfRow ? "📋 " : ""}${esc(src)}</td></tr>`;
+    })
     .join("");
 
   return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
@@ -147,22 +194,32 @@ export async function renderDashboard(): Promise<string> {
   th{color:#78b6a4;text-transform:uppercase;font-size:10px;letter-spacing:.08em}
   td.t{font-variant-numeric:tabular-nums;white-space:nowrap;color:#cfeee2}
   td.ref{color:#5e927f;max-width:280px;overflow:hidden;text-overflow:ellipsis}
+  td.src{color:#9ec8b9;text-transform:capitalize;white-space:nowrap}
+  td.src.gf,.src-lbl.gf{color:#16e6a4;font-weight:700}
+  .src-lbl{width:150px;text-transform:capitalize;color:#cfeee2}
+  .gfbox{display:flex;align-items:baseline;gap:10px;background:rgba(22,230,164,.08);border:1px solid rgba(22,230,164,.3);border-radius:12px;padding:12px 16px;margin:0 0 8px}
+  .gfbox b{font-size:22px;color:#16e6a4}
+  .gfbox span{color:#9ec8b9;font-size:12.5px}
   .empty{color:#5e927f;padding:20px 0}
   .foot{margin-top:24px;color:#46685c;font-size:11px}
 </style></head>
 <body><div class="wrap">
   <h1>Market <span class="b">Bubble</span> · Visitors</h1>
-  <div class="sub">Privacy-clean — anonymous counts only, no IPs or fingerprinting. Auto-refreshes every 30s.</div>
+  <div class="sub">All-time cumulative totals — every visitor is counted permanently, even after they leave. The same browser = one unique visitor. Privacy-clean (no IPs / no fingerprinting). Auto-refreshes every 30s.</div>
   <div class="cards">
-    ${stat("Unique visitors", s.uniqueVisitors)}
-    ${stat("Total visits", s.total)}
+    ${stat("Unique visitors · all-time", s.uniqueVisitors)}
+    ${stat("Total visits · all-time", s.total)}
     ${stat("Unique today", s.uniqueToday)}
     ${stat("Visits today", s.today)}
   </div>
+  <h2>📋 From your Google Form</h2>
+  <div class="gfbox"><b>${(gf?.unique ?? 0).toLocaleString()}</b><span>unique visitors · ${(gf?.visits ?? 0).toLocaleString()} visits arrived via a <code>?src=gform</code>-tagged link</span></div>
+  <h2>Where visitors came from</h2>
+  ${sources.length ? sourceRows : '<div class="empty">No visits yet.</div>'}
   <h2>Visits by day</h2>
   ${days.length ? dayRows : '<div class="empty">No visits yet.</div>'}
   <h2>Recent visits</h2>
-  ${recent.length ? `<table><thead><tr><th>When (your local time)</th><th>Page</th><th>Came from</th></tr></thead><tbody>${recentRows}</tbody></table>` : '<div class="empty">No visits yet.</div>'}
+  ${recent.length ? `<table><thead><tr><th>When (your local time)</th><th>Page</th><th>Source</th></tr></thead><tbody>${recentRows}</tbody></table>` : '<div class="empty">No visits yet.</div>'}
   <div class="foot">Times stored in UTC; shown in your browser's local time.</div>
 </div>
 <script>
