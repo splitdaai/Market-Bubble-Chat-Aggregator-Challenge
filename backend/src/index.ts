@@ -47,7 +47,7 @@ function buildConnectors(): Connector[] {
   }
   if (process.env.X_BEARER_TOKEN) {
     const rules = (process.env.X_STREAM_RULES ?? "").split(",").map((s) => s.trim()).filter(Boolean);
-    connectors.push(new XConnector(process.env.X_BEARER_TOKEN, rules));
+    connectors.push(new XConnector({ bearer: process.env.X_BEARER_TOKEN, rules }));
   }
   if (process.env.YOUTUBE_VIDEO_ID && process.env.YOUTUBE_API_KEY) {
     connectors.push(new YouTubeConnector({ videoId: process.env.YOUTUBE_VIDEO_ID, apiKey: process.env.YOUTUBE_API_KEY }));
@@ -112,6 +112,9 @@ async function main() {
       else if (a.platform === "youtube") {
         const tok = getToken(a.id)?.access;
         if (tok) connector = new YouTubeConnector({ oauthToken: tok, label: channel });
+      } else if (a.platform === "x") {
+        const tok = getToken(a.id)?.access;
+        if (tok) connector = new XConnector({ oauthToken: tok, label: channel }); // poll this account's mentions
       }
       if (!connector) continue;
       linked.add(a.id); // each connected account gets its own reader

@@ -2,39 +2,113 @@ import { BaseConnector } from "./types.ts";
 import type { ChatMessage, ModerationRequest, ModerationResult } from "../../../shared/types.ts";
 
 /**
- * X (Twitter) connector via the v2 filtered stream.
+ * X (Twitter) connector with two modes:
  *
- * Requires X_BEARER_TOKEN (OAuth 2.0 App-Only bearer). On start we register the
- * rules in X_STREAM_RULES (comma-separated, e.g. "#yourstream,@yourhandle") and
- * open the streaming connection. Each matching tweet becomes a chat message.
+ *  - **Per-account mentions** (a connected account's OAuth token): polls the
+ *    tweets that @-mention the account — the closest thing X has to a "chat" —
+ *    and aggregates them into the unified feed. This is what drives X from the
+ *    multi-account OAuth flow.
+ *  - **App-level filtered stream** (X_BEARER_TOKEN + rules): tweets matching
+ *    rules like "#yourstream,@yourhandle".
  *
- * Note: X is broadcast, not a moderatable chat room — "moderation" here maps to
- * hiding replies you own / muting, which we expose as a best-effort no-op until
- * a write-scoped user token is supplied.
+ * X is broadcast, not a moderatable room, so moderation is a best-effort no-op.
  */
-const RULES_URL = "https://api.twitter.com/2/tweets/search/stream/rules";
-const STREAM_URL =
-  "https://api.twitter.com/2/tweets/search/stream?tweet.fields=created_at&expansions=author_id&user.fields=username,profile_image_url,verified";
+const API = "https://api.twitter.com/2";
+const RULES_URL = `${API}/tweets/search/stream/rules`;
+const STREAM_URL = `${API}/tweets/search/stream?tweet.fields=created_at&expansions=author_id&user.fields=username,profile_image_url,verified`;
+
+interface XTweet { id: string; text: string; created_at?: string; author_id?: string }
+interface XUser { id?: string; username: string; profile_image_url?: string; verified?: boolean }
 
 export class XConnector extends BaseConnector {
   readonly platform = "x" as const;
   private abort: AbortController | null = null;
+  private mentionsTimer: ReturnType<typeof setTimeout> | null = null;
+  private sinceId: string | undefined;
+  private userId: string | null = null;
+  private stopped = false;
 
-  constructor(private bearer: string | undefined, private rules: string[]) {
-    super("x", "stream");
+  constructor(private opts: { bearer?: string; rules?: string[]; oauthToken?: string; label?: string }) {
+    super("x", opts.label ?? "stream");
   }
 
   async start() {
-    if (!this.bearer) {
-      this.setStatus({ connected: false, error: "no_bearer_token" });
-      return;
-    }
+    this.stopped = false;
+    if (this.opts.oauthToken) return this.startMentions(); // account mode
+    if (!this.opts.bearer) { this.setStatus({ connected: false, error: "no_bearer_token" }); return; }
     await this.syncRules();
-    this.openStream();
+    void this.openStream();
   }
 
+  /* ---------------- per-account mentions polling (OAuth token) ---------------- */
+
+  private async startMentions() {
+    this.userId = await this.resolveUserId();
+    if (!this.userId) { this.setStatus({ connected: false, error: "could_not_resolve_user" }); return; }
+    this.setStatus({ connected: true });
+    void this.pollMentions(true);
+  }
+
+  private async resolveUserId(): Promise<string | null> {
+    try {
+      const r = await fetch(`${API}/users/me`, { headers: { Authorization: `Bearer ${this.opts.oauthToken}` } });
+      if (!r.ok) return null;
+      const d = (await r.json()) as { data?: { id?: string } };
+      return d.data?.id ?? null;
+    } catch {
+      return null;
+    }
+  }
+
+  private async pollMentions(first = false) {
+    if (this.stopped || !this.userId) return;
+    try {
+      const url = new URL(`${API}/users/${this.userId}/mentions`);
+      url.searchParams.set("tweet.fields", "created_at");
+      url.searchParams.set("expansions", "author_id");
+      url.searchParams.set("user.fields", "username,profile_image_url,verified");
+      url.searchParams.set("max_results", "20");
+      if (this.sinceId) url.searchParams.set("since_id", this.sinceId);
+
+      const r = await fetch(url, { headers: { Authorization: `Bearer ${this.opts.oauthToken}` } });
+      if (r.ok) {
+        const d = (await r.json()) as { data?: XTweet[]; includes?: { users?: XUser[] }; meta?: { newest_id?: string } };
+        if (d.meta?.newest_id) this.sinceId = d.meta.newest_id;
+        // Skip the initial backlog; stream new mentions oldest→newest thereafter.
+        if (!first) {
+          const users = new Map((d.includes?.users ?? []).map((u) => [u.id, u]));
+          for (const t of (d.data ?? []).slice().reverse()) {
+            this.messageCb(this.normalizeTweet(t, users.get(t.author_id ?? "")));
+          }
+        }
+        if (!this._status.connected) this.setStatus({ connected: true });
+      } else if (r.status === 401 || r.status === 403) {
+        this.setStatus({ connected: false, error: `http_${r.status}` }); // bad/expired token
+        return;
+      }
+    } catch {
+      /* transient network error — retry next tick */
+    }
+    this.mentionsTimer = setTimeout(() => void this.pollMentions(false), 20_000); // 20s, rate-limit friendly
+  }
+
+  private normalizeTweet(t: XTweet, user?: XUser): ChatMessage {
+    return {
+      id: `x:${t.id}`,
+      nativeId: t.id,
+      platform: "x",
+      username: user ? `@${user.username}` : "@unknown",
+      avatar: user?.profile_image_url,
+      message: t.text,
+      timestamp: t.created_at ? Date.parse(t.created_at) : Date.now(),
+      badges: user?.verified ? [{ type: "verified", label: "Verified" }] : [],
+    };
+  }
+
+  /* ------------------- app-level filtered stream (bearer) -------------------- */
+
   private headers() {
-    return { Authorization: `Bearer ${this.bearer}` };
+    return { Authorization: `Bearer ${this.opts.bearer}` };
   }
 
   /** Replace existing rules with our configured set. */
@@ -51,7 +125,7 @@ export class XConnector extends BaseConnector {
       await fetch(RULES_URL, {
         method: "POST",
         headers: { ...this.headers(), "Content-Type": "application/json" },
-        body: JSON.stringify({ add: this.rules.map((value) => ({ value })) }),
+        body: JSON.stringify({ add: (this.opts.rules ?? []).map((value) => ({ value })) }),
       });
     } catch (e) {
       this.setStatus({ error: `rule_sync_failed: ${e}` });
@@ -87,37 +161,29 @@ export class XConnector extends BaseConnector {
         }
       }
     } catch (e) {
-      if (!this.abort?.signal.aborted) {
+      if (!this.stopped && !this.abort?.signal.aborted) {
         this.setStatus({ connected: false, error: String(e) });
-        setTimeout(() => this.openStream(), 5000); // backoff reconnect
+        setTimeout(() => void this.openStream(), 5000); // backoff reconnect
       }
     }
   }
 
   private normalize(payload: {
     data: { id: string; text: string; created_at?: string };
-    includes?: { users?: { username: string; profile_image_url?: string; verified?: boolean }[] };
+    includes?: { users?: XUser[] };
   }): ChatMessage {
-    const user = payload.includes?.users?.[0];
-    return {
-      id: `x:${payload.data.id}`,
-      nativeId: payload.data.id,
-      platform: "x",
-      username: user ? `@${user.username}` : "@unknown",
-      avatar: user?.profile_image_url,
-      message: payload.data.text,
-      timestamp: payload.data.created_at ? Date.parse(payload.data.created_at) : Date.now(),
-      badges: user?.verified ? [{ type: "verified", label: "Verified" }] : [],
-    };
+    return this.normalizeTweet(payload.data, payload.includes?.users?.[0]);
   }
 
   async stop() {
+    this.stopped = true;
     this.abort?.abort();
+    if (this.mentionsTimer) clearTimeout(this.mentionsTimer);
     this.setStatus({ connected: false });
   }
 
   async moderate(req: ModerationRequest): Promise<ModerationResult> {
-    // X is not a moderatable room from a broadcaster seat; expose as best-effort.
+    // X is not a moderatable room from a broadcaster seat; best-effort no-op.
     return { ok: false, request: req, error: "x_moderation_unsupported" };
   }
 }
