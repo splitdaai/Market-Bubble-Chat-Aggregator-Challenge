@@ -1,6 +1,10 @@
 import WebSocket from "ws";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
 import { BaseConnector } from "./types.ts";
 import type { ChatMessage, ModerationRequest, ModerationResult, Badge } from "../../../shared/types.ts";
+
+const execFileP = promisify(execFile);
 
 /**
  * Kick connector via their public Pusher-backed chatroom WebSocket.
@@ -13,46 +17,70 @@ import type { ChatMessage, ModerationRequest, ModerationResult, Badge } from "..
 const PUSHER_KEY = "32cbd69e4b950bf97679"; // Kick's public app key
 const PUSHER_URL = `wss://ws-us2.pusher.com/app/${PUSHER_KEY}?protocol=7&client=js&version=8.4.0&flash=false`;
 
-// Kick's channel API sits behind Cloudflare bot protection — a request with no
-// browser User-Agent is 403'd ("Request blocked by security policy"), which left
-// the chatroom id unresolved and the socket never connecting. Sending realistic
-// browser headers gets a clean 200 from the server.
-const BROWSER_HEADERS = {
-  Accept: "application/json",
-  "User-Agent":
-    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
-  "Accept-Language": "en-US,en;q=0.9",
-};
+const BROWSER_UA =
+  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36";
 
 export class KickConnector extends BaseConnector {
   readonly platform = "kick" as const;
   private ws: WebSocket | null = null;
   private chatroomId: number | null = null;
+  private stopped = false;
 
   constructor(private slug: string, private bearer?: string) {
     super("kick", slug);
   }
 
   async start() {
+    this.stopped = false;
     this.chatroomId = await this.resolveChatroomId(this.slug);
     if (!this.chatroomId) {
+      // Don't give up forever — Cloudflare can be flaky; retry the whole resolve.
       this.setStatus({ connected: false, error: "channel_not_found" });
+      console.warn(`✗ kick:${this.slug} — couldn't resolve chatroom id; retrying in 30s`);
+      if (!this.stopped) setTimeout(() => void this.start(), 30_000);
       return;
     }
+    console.log(`✓ kick:${this.slug} resolved chatroom ${this.chatroomId}`);
     this.connectSocket();
   }
 
+  /**
+   * Resolve the chatroom id behind Kick's Cloudflare bot wall.
+   *
+   * Cloudflare fingerprints the TLS handshake (JA3), so Node's `fetch` (undici)
+   * is 403'd — "Request blocked by security policy" — even with a browser
+   * User-Agent. `curl` presents a browser-like TLS fingerprint and gets a clean
+   * 200, so we resolve via curl and only fall back to fetch where curl is absent
+   * (and, on some networks, not blocked). A few attempts smooth over flakiness.
+   */
   private async resolveChatroomId(slug: string): Promise<number | null> {
-    try {
-      const res = await fetch(`https://kick.com/api/v2/channels/${slug}`, {
-        headers: BROWSER_HEADERS,
-      });
-      if (!res.ok) return null;
-      const data = (await res.json()) as { chatroom?: { id: number } };
-      return data.chatroom?.id ?? null;
-    } catch {
-      return null;
+    const url = `https://kick.com/api/v2/channels/${slug}`;
+    for (let attempt = 0; attempt < 3 && !this.stopped; attempt++) {
+      // 1) curl — passes Cloudflare on servers where Node's fetch is blocked
+      try {
+        const { stdout } = await execFileP(
+          "curl",
+          ["-s", "--max-time", "10", "-H", `User-Agent: ${BROWSER_UA}`, "-H", "Accept: application/json", "-H", "Accept-Language: en-US,en;q=0.9", url],
+          { maxBuffer: 4 * 1024 * 1024 },
+        );
+        const id = JSON.parse(stdout)?.chatroom?.id;
+        if (typeof id === "number") return id;
+      } catch {
+        /* curl missing/failed/non-JSON — try fetch, then retry */
+      }
+      // 2) fetch fallback (local dev, or networks that don't block undici)
+      try {
+        const res = await fetch(url, { headers: { Accept: "application/json", "User-Agent": BROWSER_UA, "Accept-Language": "en-US,en;q=0.9" } });
+        if (res.ok) {
+          const data = (await res.json()) as { chatroom?: { id: number } };
+          if (typeof data.chatroom?.id === "number") return data.chatroom.id;
+        }
+      } catch {
+        /* ignore and retry */
+      }
+      await new Promise((r) => setTimeout(r, 1500 * (attempt + 1)));
     }
+    return null;
   }
 
   private connectSocket() {
@@ -68,7 +96,9 @@ export class KickConnector extends BaseConnector {
     this.ws.on("message", (raw) => {
       try {
         const frame = JSON.parse(raw.toString()) as { event: string; data: string };
-        if (frame.event === "App\\Events\\ChatMessageEvent") {
+        if (frame.event === "pusher_internal:subscription_succeeded") {
+          console.log(`✓ kick:${this.slug} subscribed to chatrooms.${this.chatroomId}.v2 — receiving chat`);
+        } else if (frame.event === "App\\Events\\ChatMessageEvent") {
           this.messageCb(this.normalize(JSON.parse(frame.data)));
         }
       } catch {
@@ -78,7 +108,7 @@ export class KickConnector extends BaseConnector {
 
     this.ws.on("close", () => {
       this.setStatus({ connected: false });
-      setTimeout(() => this.connectSocket(), 3000); // auto-reconnect
+      if (!this.stopped) setTimeout(() => this.connectSocket(), 3000); // auto-reconnect
     });
     this.ws.on("error", (e) => this.setStatus({ connected: false, error: String(e) }));
   }
@@ -107,6 +137,7 @@ export class KickConnector extends BaseConnector {
   }
 
   async stop() {
+    this.stopped = true;
     this.ws?.close();
     this.setStatus({ connected: false });
   }
