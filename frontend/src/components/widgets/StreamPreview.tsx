@@ -7,16 +7,40 @@ import { useClipsStore } from "@/store/clipsStore";
 import { useConnectionsStore } from "@/store/connectionsStore";
 import { usePreviewStore } from "@/store/previewStore";
 import { useAudioStore } from "@/store/audioStore";
+import { useModeStore } from "@/store/modeStore";
 import { useBroadcastStore, BROADCASTS } from "@/store/broadcastStore";
 import { SourceBadge, platformColor } from "../SourceBadge";
 import { LiveTimer } from "../LiveTimer";
 import { compact } from "@/lib/format";
+import type { Account } from "@shared/types";
 
 /** seconds → M:SS */
 function clock(s: number): string {
   if (!isFinite(s) || s < 0) s = 0;
   const m = Math.floor(s / 60);
   return `${m}:${Math.floor(s % 60).toString().padStart(2, "0")}`;
+}
+
+// Distinct demo footage per channel, so clicking a channel under the preview
+// genuinely swaps the stream you're watching (not just the label).
+const CLIPS = ["/stream-preview.mp4", "/vods/vod-1.mp4", "/vods/vod-2.mp4", "/vods/vod-3.mp4", "/vods/vod-4.mp4", "/vods/vod-5.mp4"];
+function clipFor(accountId: string | undefined): string {
+  if (!accountId) return CLIPS[0];
+  let h = 0;
+  for (let i = 0; i < accountId.length; i++) h = (h * 31 + accountId.charCodeAt(i)) >>> 0;
+  return CLIPS[h % CLIPS.length];
+}
+
+/** A real, embeddable live-player URL for a channel — Twitch & Kick support an
+ *  iframe player by channel name. YouTube/X have no by-handle embed, so they
+ *  fall back to the preview clip. */
+function liveEmbedUrl(account: Account | undefined): string | null {
+  if (!account) return null;
+  const handle = account.handle.replace(/^@/, "");
+  if (!handle) return null;
+  if (account.platform === "twitch") return `https://player.twitch.tv/?channel=${handle}&parent=${location.hostname}&muted=true&autoplay=true`;
+  if (account.platform === "kick") return `https://player.kick.com/${handle}?muted=true&autoplay=true`;
+  return null;
 }
 
 /**
@@ -39,7 +63,9 @@ export function StreamPreview() {
 
   const muted = useAudioStore((s) => s.muted);
   const volume = useAudioStore((s) => s.volume);
+  const demo = useModeStore((s) => s.demo);
   const currentId = useBroadcastStore((s) => s.currentId);
+  const selectBroadcast = useBroadcastStore((s) => s.select);
   const broadcast = BROADCASTS.find((b) => b.id === currentId) ?? BROADCASTS[0];
   const videoRef = useRef<HTMLVideoElement>(null);
 
@@ -55,15 +81,6 @@ export function StreamPreview() {
     if (v.paused) v.play().catch(() => {});
     else v.pause();
   };
-
-  // Jump to this broadcast's start frame whenever the selection changes.
-  useEffect(() => {
-    const v = videoRef.current;
-    if (!v) return;
-    const seek = () => { v.currentTime = broadcast.startAt ?? 0; v.play().catch(() => {}); };
-    if (v.readyState >= 1) seek();
-    else v.addEventListener("loadedmetadata", seek, { once: true });
-  }, [broadcast.id, broadcast.startAt]);
 
   const onSeek = (t: number) => {
     const v = videoRef.current;
@@ -94,6 +111,27 @@ export function StreamPreview() {
     [channels, pick],
   );
   const focusViewers = focused?.viewers ?? totalViewers;
+
+  // What the preview actually shows:
+  //  • a selected VOD  → that VOD file
+  //  • the live view   → the focused channel's REAL player embed when we're Live
+  //    (Twitch/Kick), otherwise that channel's distinct demo clip.
+  const liveView = broadcast.live;
+  const embedUrl = liveView && !demo ? liveEmbedUrl(focused?.meta) : null;
+  const previewSrc = liveView ? clipFor(focused?.accountId) : broadcast.src;
+
+  // Seek to the start frame + (re)start playback whenever the source (VOD or
+  // focused channel) changes. Wait for `canplay` (readyState ≥ 3) so play()
+  // actually starts — loadedmetadata fires too early and the muted autoplay
+  // can be a no-op after a programmatic src swap.
+  useEffect(() => {
+    const v = videoRef.current;
+    if (!v) return;
+    const go = () => { v.currentTime = broadcast.startAt ?? 0; v.play().catch(() => {}); };
+    if (v.readyState >= 3) { go(); return; }
+    v.addEventListener("canplay", go, { once: true });
+    return () => v.removeEventListener("canplay", go);
+  }, [previewSrc, broadcast.startAt]);
 
   const chart = useMemo(() => {
     const W = 100, H = 56;
@@ -156,23 +194,35 @@ export function StreamPreview() {
       {/* 16:9 preview — real stream video (fully visible, never cropped), with
           the chat-velocity chart as a fallback skin */}
       <div className="relative min-h-0 flex-1 overflow-hidden rounded-xl border border-white/10 bg-black">
-        <video
-          ref={videoRef}
-          src={broadcast.src}
-          autoPlay
-          muted
-          loop
-          playsInline
-          onError={() => setVideoOk(false)}
-          onPlay={() => setPlaying(true)}
-          onPause={() => setPlaying(false)}
-          onTimeUpdate={(e) => setProgress(e.currentTarget.currentTime)}
-          onLoadedMetadata={(e) => setDuration(e.currentTarget.duration)}
-          onClick={togglePlay}
-          className={`absolute inset-0 h-full w-full cursor-pointer object-contain ${videoOk ? "" : "hidden"}`}
-        />
+        {embedUrl ? (
+          /* Live mode: the focused channel's real platform player. */
+          <iframe
+            key={embedUrl}
+            src={embedUrl}
+            title={`${focused?.meta?.displayName ?? "Live"} stream`}
+            allow="autoplay; fullscreen; encrypted-media; picture-in-picture"
+            allowFullScreen
+            className="absolute inset-0 h-full w-full"
+          />
+        ) : (
+          <video
+            ref={videoRef}
+            src={previewSrc}
+            autoPlay
+            muted
+            loop
+            playsInline
+            onError={() => setVideoOk(false)}
+            onPlay={() => setPlaying(true)}
+            onPause={() => setPlaying(false)}
+            onTimeUpdate={(e) => setProgress(e.currentTarget.currentTime)}
+            onLoadedMetadata={(e) => setDuration(e.currentTarget.duration)}
+            onClick={togglePlay}
+            className={`absolute inset-0 h-full w-full cursor-pointer object-contain ${videoOk ? "" : "hidden"}`}
+          />
+        )}
         {/* big center play affordance when paused */}
-        {videoOk && !playing && (
+        {!embedUrl && videoOk && !playing && (
           <button
             onClick={togglePlay}
             className="absolute inset-0 z-[5] grid place-items-center bg-black/30"
@@ -183,7 +233,7 @@ export function StreamPreview() {
             </span>
           </button>
         )}
-        {!videoOk && (
+        {!embedUrl && !videoOk && (
           <>
             <img src="/logo-white.png" alt="" className="pointer-events-none absolute left-1/2 top-1/2 h-1/2 -translate-x-1/2 -translate-y-1/2 opacity-[0.06]" />
             <svg viewBox="0 0 100 56" preserveAspectRatio="none" className="absolute inset-0 h-full w-full">
@@ -223,7 +273,7 @@ export function StreamPreview() {
       </div>
 
       {/* transport — play/pause + seek the whole clip */}
-      {videoOk && (
+      {!embedUrl && videoOk && (
         <div className="mt-2 flex shrink-0 items-center gap-2">
           <button onClick={togglePlay} title={playing ? "Pause" : "Play"} className="grid h-7 w-7 shrink-0 place-items-center rounded-lg border border-white/12 text-white transition hover:border-accent/60 hover:text-accent">
             {playing ? <Pause size={14} /> : <Play size={14} className="ml-0.5" />}
@@ -251,7 +301,7 @@ export function StreamPreview() {
             return (
               <button
                 key={c.accountId}
-                onClick={() => setPick(c.accountId)}
+                onClick={() => { setPick(c.accountId); selectBroadcast("live"); }}
                 className={`flex shrink-0 items-center gap-1.5 rounded-lg border px-2 py-1 text-[11px] font-bold transition ${
                   on ? "bg-white/[0.06]" : "border-white/8 text-muted hover:text-ink"
                 }`}

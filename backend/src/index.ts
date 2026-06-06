@@ -14,7 +14,7 @@ import { StatsAggregator } from "./stats/aggregator.ts";
 import { HistoryStore } from "./history/store.ts";
 import { twitchViewers, kickViewers, youtubeViewers } from "./stats/viewers.ts";
 import { mountAuth, getAccounts, getToken, refreshToken } from "./auth.ts";
-import { recordVisit, visitSummary, recentVisits } from "./visitLog.ts";
+import { recordVisit, visitSummary, recentVisits, renderDashboard } from "./visitLog.ts";
 
 const PORT = Number(process.env.PORT ?? 4000);
 // Non-wildcard CORS allowlist in production (comma-separated origins); "*" only
@@ -36,10 +36,13 @@ app.post("/api/visit", (req, res) => {
   void recordVisit({
     path: typeof req.body?.path === "string" ? req.body.path.slice(0, 300) : undefined,
     ref: (typeof req.body?.ref === "string" ? req.body.ref : (req.headers["referer"] as string | undefined))?.slice(0, 300),
+    vid: typeof req.body?.vid === "string" ? req.body.vid.slice(0, 64) : undefined,
   });
   res.status(204).end();
 });
-// When people visited: counts per day, and the most recent visits.
+// A human-friendly dashboard page: open /visits in a browser.
+app.get("/visits", async (_req, res) => res.type("html").send(await renderDashboard()));
+// Raw JSON for tooling.
 app.get("/api/visits/summary", async (_req, res) => res.json(await visitSummary()));
 app.get("/api/visits/recent", async (req, res) =>
   res.json(await recentVisits(Math.min(100, Number(req.query.n) || 25))),
