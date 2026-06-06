@@ -57,7 +57,11 @@ const PROVIDERS: Partial<Record<Platform, Provider>> = {
     authorizeUrl: "https://accounts.google.com/o/oauth2/v2/auth",
     tokenUrl: "https://oauth2.googleapis.com/token",
     scopes: "https://www.googleapis.com/auth/youtube.readonly",
-    authParams: { prompt: "select_account", access_type: "offline" }, // account picker + refresh token
+    // `select_account` always shows Google's account picker (so a *different*
+    // channel can be linked, not the one you're already signed in as); `consent`
+    // guarantees a refresh_token is re-issued for that account so its reader can
+    // auto-refresh through a full stream. `access_type=offline` enables refresh.
+    authParams: { prompt: "select_account consent", access_type: "offline" },
     clientId: env.GOOGLE_CLIENT_ID,
     clientSecret: env.GOOGLE_CLIENT_SECRET,
     userInfo: async (token) => {

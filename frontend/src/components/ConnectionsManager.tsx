@@ -151,9 +151,18 @@ export function ConnectionsManager({ open, onClose }: { open: boolean; onClose: 
               </h2>
               <button onClick={onClose} className="text-muted hover:text-ink"><X size={18} /></button>
             </div>
-            <p className="mb-4 text-[11px] text-muted">
+            <p className="mb-2 text-[11px] text-muted">
               Add multiple channels per platform — every connected account is aggregated into one feed.
             </p>
+            <div className="mb-4 flex items-start gap-2 rounded-lg border border-amber-400/20 bg-amber-400/[0.06] p-2.5 text-[10px] leading-relaxed text-amber-200/80">
+              <LogIn size={13} className="mt-0.5 shrink-0 text-amber-300" />
+              <span>
+                <span className="font-semibold text-amber-200">Adding a different channel?</span> Google/YouTube shows
+                an account picker automatically. Twitch, X &amp; Kick reuse your current browser login — so to link a{" "}
+                <span className="font-semibold text-amber-200">separate</span> account, log into that account first (or
+                open this in a private window), then click Add account.
+              </span>
+            </div>
 
             {/* ---- accounts, grouped by platform ---- */}
             <div className="space-y-3">
@@ -182,7 +191,11 @@ export function ConnectionsManager({ open, onClose }: { open: boolean; onClose: 
                               ? `${platformLabel(p)} OAuth needs ${OAUTH_ENV[p]} in backend/.env`
                               : list.length >= MAX_ACCOUNTS
                                 ? `Up to ${MAX_ACCOUNTS} ${platformLabel(p)} accounts`
-                                : `${list.length ? "Add another" : "Connect a"} ${platformLabel(p)} account via OAuth`
+                                : list.length === 0
+                                  ? `Connect a ${platformLabel(p)} account via OAuth`
+                                  : p === "youtube"
+                                    ? `Add another ${platformLabel(p)} account — pick a different channel in the Google account picker`
+                                    : `Add another ${platformLabel(p)} account — log into that channel first (this platform reuses your browser login)`
                           }
                         >
                           {oauthReady && list.length > 0 ? <Plus size={11} /> : <LogIn size={11} />}
