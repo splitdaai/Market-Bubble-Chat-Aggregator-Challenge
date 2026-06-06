@@ -13,7 +13,7 @@ import { bindHub } from "./sockets/hub.ts";
 import { StatsAggregator } from "./stats/aggregator.ts";
 import { HistoryStore } from "./history/store.ts";
 import { twitchViewers, kickViewers, youtubeViewers } from "./stats/viewers.ts";
-import { mountAuth, getAccounts } from "./auth.ts";
+import { mountAuth, getAccounts, getToken } from "./auth.ts";
 
 const PORT = Number(process.env.PORT ?? 4000);
 // Non-wildcard CORS allowlist in production (comma-separated origins); "*" only
@@ -50,26 +50,40 @@ function buildConnectors(): Connector[] {
     connectors.push(new XConnector(process.env.X_BEARER_TOKEN, rules));
   }
   if (process.env.YOUTUBE_VIDEO_ID && process.env.YOUTUBE_API_KEY) {
-    connectors.push(new YouTubeConnector(process.env.YOUTUBE_VIDEO_ID, process.env.YOUTUBE_API_KEY));
+    connectors.push(new YouTubeConnector({ videoId: process.env.YOUTUBE_VIDEO_ID, apiKey: process.env.YOUTUBE_API_KEY }));
   }
   return connectors;
 }
 
-/** Poll the real platform APIs for live viewer counts into the aggregator. */
+/** Poll the real platform APIs for live viewer counts into the aggregator.
+ *  Channels come from the CONNECTED accounts (any account, summed per platform),
+ *  with env channels as an optional fallback — nothing is hard-coded. */
 function startViewerPollers() {
   const tick = async () => {
-    const { TWITCH_CHANNEL, TWITCH_CLIENT_ID, TWITCH_CLIENT_SECRET, KICK_CHANNEL, YOUTUBE_VIDEO_ID, YOUTUBE_API_KEY } = process.env;
+    const { TWITCH_CLIENT_ID, TWITCH_CLIENT_SECRET, TWITCH_CHANNEL, KICK_CHANNEL, YOUTUBE_VIDEO_ID, YOUTUBE_API_KEY } = process.env;
+    const connected = getAccounts().filter((a) => a.connected);
+    const channelsFor = (p: string) => {
+      const set = new Set(connected.filter((a) => a.platform === p).map((a) => a.handle.replace(/^@/, "").toLowerCase()));
+      return [...set];
+    };
 
-    if (TWITCH_CHANNEL && TWITCH_CLIENT_ID && TWITCH_CLIENT_SECRET) {
-      const v = await twitchViewers(TWITCH_CHANNEL, TWITCH_CLIENT_ID, TWITCH_CLIENT_SECRET);
-      if (v != null) aggregator.setViewers("twitch", v);
+    // Twitch: sum viewers across every connected Twitch channel (+ env fallback).
+    const tw = channelsFor("twitch");
+    if (TWITCH_CHANNEL && !tw.includes(TWITCH_CHANNEL.toLowerCase())) tw.push(TWITCH_CHANNEL.toLowerCase());
+    if (tw.length && TWITCH_CLIENT_ID && TWITCH_CLIENT_SECRET) {
+      let total = 0;
+      for (const ch of tw) { const v = await twitchViewers(ch, TWITCH_CLIENT_ID, TWITCH_CLIENT_SECRET); if (v != null) total += v; }
+      aggregator.setViewers("twitch", total);
     }
-    if (KICK_CHANNEL) {
-      const v = await kickViewers(KICK_CHANNEL);
-      if (v != null) aggregator.setViewers("kick", v);
+    // Kick: sum across every connected Kick channel (+ env fallback).
+    const kk = channelsFor("kick");
+    if (KICK_CHANNEL && !kk.includes(KICK_CHANNEL.toLowerCase())) kk.push(KICK_CHANNEL.toLowerCase());
+    if (kk.length) {
+      let total = 0;
+      for (const ch of kk) { const v = await kickViewers(ch); if (v != null) total += v; }
+      aggregator.setViewers("kick", total);
     }
-    // YouTube viewers map onto the "x" slot only if you aren't also running X;
-    // otherwise expose via a dedicated platform once youtube is a chat source.
+    // YouTube viewer count from an env video id (legacy "x" slot mapping).
     if (YOUTUBE_VIDEO_ID && YOUTUBE_API_KEY && !process.env.X_BEARER_TOKEN) {
       const v = await youtubeViewers(YOUTUBE_VIDEO_ID, YOUTUBE_API_KEY);
       if (v != null) aggregator.setViewers("x", v);
@@ -83,18 +97,24 @@ async function main() {
   const connectors = buildConnectors();
   const hub = bindHub(io, connectors, aggregator, history);
 
-  // Auto-start a live chat reader for each connected Twitch/Kick account, so
-  // connecting via OAuth makes that channel's chat flow with no extra config.
-  // (Read is anonymous — just the channel name. X is a tweet-stream and YouTube
-  // has no chat connector, so those remain env-driven.)
+  // Auto-start a live chat reader for EACH connected account (any account — not
+  // a hard-coded list): Twitch/Kick read by channel name (anonymous), YouTube
+  // uses the account's OAuth token to find its own active live broadcast. X is a
+  // tweet filtered-stream (app-level), so it stays env-configured.
   const linked = new Set<string>(); // account ids that already have a live chat reader
   const syncAccountConnectors = () => {
     for (const a of getAccounts()) {
-      if (!a.connected || (a.platform !== "twitch" && a.platform !== "kick")) continue;
-      if (linked.has(a.id)) continue; // each connected account gets its own reader
-      linked.add(a.id);
+      if (!a.connected || linked.has(a.id)) continue;
       const channel = a.handle.replace(/^@/, "").toLowerCase();
-      const connector = a.platform === "twitch" ? new TwitchConnector(channel) : new KickConnector(channel);
+      let connector: Connector | null = null;
+      if (a.platform === "twitch") connector = new TwitchConnector(channel);
+      else if (a.platform === "kick") connector = new KickConnector(channel);
+      else if (a.platform === "youtube") {
+        const tok = getToken(a.id)?.access;
+        if (tok) connector = new YouTubeConnector({ oauthToken: tok, label: channel });
+      }
+      if (!connector) continue;
+      linked.add(a.id); // each connected account gets its own reader
       void hub.addConnector(connector);
     }
   };
@@ -130,7 +150,9 @@ async function main() {
     }),
   );
 
-  const pollers = process.env.TWITCH_CLIENT_ID || process.env.KICK_CHANNEL || process.env.YOUTUBE_API_KEY ? startViewerPollers() : null;
+  // Always poll — channels come from connected accounts at tick time (each tick
+  // re-reads getAccounts()), so viewer counts work as accounts connect.
+  const pollers = startViewerPollers();
 
   if (connectors.length === 0) {
     console.warn("⚠  No platform credentials configured — backend is idle. See .env.example.");

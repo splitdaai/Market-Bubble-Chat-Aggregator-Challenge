@@ -32,8 +32,17 @@ export class YouTubeConnector extends BaseConnector {
   private timer: ReturnType<typeof setTimeout> | null = null;
   private stopped = false;
 
-  constructor(private videoId: string, private apiKey: string) {
-    super("youtube", videoId);
+  // Either a public video id + API key, OR a connected account's OAuth token
+  // (which lets us auto-find that channel's active live broadcast).
+  constructor(private opts: { videoId?: string; apiKey?: string; oauthToken?: string; label?: string }) {
+    super("youtube", opts.label ?? opts.videoId ?? "live");
+  }
+
+  /** Auth a Data API request — Bearer for OAuth accounts, key param otherwise. */
+  private authed(url: URL): RequestInit {
+    if (this.opts.oauthToken) return { headers: { Authorization: `Bearer ${this.opts.oauthToken}` } };
+    if (this.opts.apiKey) url.searchParams.set("key", this.opts.apiKey);
+    return {};
   }
 
   async start() {
@@ -47,10 +56,24 @@ export class YouTubeConnector extends BaseConnector {
     void this.poll();
   }
 
-  /** A live video exposes its chat id under liveStreamingDetails.activeLiveChatId. */
+  /** Resolve the active live-chat id — from the OAuth account's own live
+   *  broadcast (liveBroadcasts.mine) or from a public video id. */
   private async resolveLiveChatId(): Promise<string | null> {
     try {
-      const r = await fetch(`${API}/videos?part=liveStreamingDetails&id=${this.videoId}&key=${this.apiKey}`);
+      if (this.opts.oauthToken) {
+        const url = new URL(`${API}/liveBroadcasts`);
+        url.searchParams.set("part", "snippet");
+        url.searchParams.set("broadcastStatus", "active");
+        url.searchParams.set("broadcastType", "all");
+        const r = await fetch(url, this.authed(url));
+        if (!r.ok) return null;
+        const d = (await r.json()) as { items?: { snippet?: { liveChatId?: string } }[] };
+        return d.items?.[0]?.snippet?.liveChatId ?? null;
+      }
+      const url = new URL(`${API}/videos`);
+      url.searchParams.set("part", "liveStreamingDetails");
+      url.searchParams.set("id", this.opts.videoId ?? "");
+      const r = await fetch(url, this.authed(url));
       if (!r.ok) return null;
       const d = (await r.json()) as { items?: { liveStreamingDetails?: { activeLiveChatId?: string } }[] };
       return d.items?.[0]?.liveStreamingDetails?.activeLiveChatId ?? null;
@@ -66,10 +89,10 @@ export class YouTubeConnector extends BaseConnector {
       const url = new URL(`${API}/liveChat/messages`);
       url.searchParams.set("liveChatId", this.liveChatId);
       url.searchParams.set("part", "snippet,authorDetails");
-      url.searchParams.set("key", this.apiKey);
       if (this.pageToken) url.searchParams.set("pageToken", this.pageToken);
+      const init = this.authed(url);
 
-      const r = await fetch(url);
+      const r = await fetch(url, init);
       if (r.ok) {
         const d = (await r.json()) as {
           nextPageToken?: string;
