@@ -2,16 +2,15 @@ import { appendFile, mkdir, readFile } from "node:fs/promises";
 import { dirname } from "node:path";
 
 /**
- * Lightweight visitor log. One JSON line per visit, appended to a file that is
- * git-ignored (lives under backend/data/). No third-party analytics, no cookies —
- * just a timestamped record so the site owner can see traffic via SSH or the
- * aggregate /api/visits/summary endpoint.
+ * Dead-simple, privacy-clean visit log. One JSON line per page load so the owner
+ * can see *if and when* people visit — that's it. No IP addresses, no device
+ * fingerprinting, no cookies, no third-party analytics. We record only the time,
+ * which page was opened, and (if the browser sends it) where the visitor came
+ * from. The file is git-ignored (lives under backend/data/).
  */
 const LOG_PATH = process.env.VISIT_LOG_PATH ?? "data/visits.log";
 
 export interface VisitEntry {
-  ip?: string;
-  ua?: string;
   path?: string;
   ref?: string;
 }
@@ -27,13 +26,30 @@ export async function recordVisit(entry: VisitEntry): Promise<void> {
   }
 }
 
-/** Aggregate counts only — no raw IPs/UAs leave the server via this endpoint. */
-export async function visitSummary(): Promise<{
-  total: number;
-  today: number;
-  uniqueIps: number;
-  byDay: Record<string, number>;
-}> {
+/** The most recent visits (newest first) for an at-a-glance "anyone been on?" view. */
+export async function recentVisits(limit = 25): Promise<VisitEntry & { ts?: string }[]> {
+  try {
+    const txt = await readFile(LOG_PATH, "utf8");
+    return txt
+      .split("\n")
+      .filter(Boolean)
+      .slice(-limit)
+      .reverse()
+      .map((l) => {
+        try {
+          return JSON.parse(l) as { ts?: string; path?: string; ref?: string };
+        } catch {
+          return null;
+        }
+      })
+      .filter((e): e is { ts?: string; path?: string; ref?: string } => e !== null);
+  } catch {
+    return [];
+  }
+}
+
+/** Counts: total, today, and per-day so you can see when traffic happened. */
+export async function visitSummary(): Promise<{ total: number; today: number; byDay: Record<string, number> }> {
   try {
     const txt = await readFile(LOG_PATH, "utf8");
     const entries = txt
@@ -41,23 +57,21 @@ export async function visitSummary(): Promise<{
       .filter(Boolean)
       .map((l) => {
         try {
-          return JSON.parse(l) as { ts?: string; ip?: string };
+          return JSON.parse(l) as { ts?: string };
         } catch {
           return null;
         }
       })
-      .filter((e): e is { ts?: string; ip?: string } => e !== null);
+      .filter((e): e is { ts?: string } => e !== null);
 
     const today = new Date().toISOString().slice(0, 10);
     const byDay: Record<string, number> = {};
-    const ips = new Set<string>();
     for (const e of entries) {
       const day = (e.ts ?? "").slice(0, 10);
       if (day) byDay[day] = (byDay[day] ?? 0) + 1;
-      if (e.ip) ips.add(e.ip);
     }
-    return { total: entries.length, today: byDay[today] ?? 0, uniqueIps: ips.size, byDay };
+    return { total: entries.length, today: byDay[today] ?? 0, byDay };
   } catch {
-    return { total: 0, today: 0, uniqueIps: 0, byDay: {} };
+    return { total: 0, today: 0, byDay: {} };
   }
 }
