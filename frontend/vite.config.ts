@@ -4,6 +4,18 @@ import path from "node:path";
 
 export default defineConfig({
   plugins: [react()],
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          "react-vendor": ["react", "react-dom"],
+          "motion-vendor": ["framer-motion"],
+          "socket-vendor": ["socket.io-client"],
+          "grid-vendor": ["react-grid-layout"],
+        },
+      },
+    },
+  },
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),

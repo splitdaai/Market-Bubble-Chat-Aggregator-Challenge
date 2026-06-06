@@ -1,6 +1,19 @@
 import { motion } from "framer-motion";
-import * as Icons from "lucide-react";
-import { Plus, Pencil } from "lucide-react";
+import {
+  Crown,
+  Flame,
+  Gift,
+  Heart,
+  Megaphone,
+  PartyPopper,
+  Pencil,
+  Plus,
+  Rocket,
+  Swords,
+  Timer,
+  Zap,
+  type LucideIcon,
+} from "lucide-react";
 import { useLayoutStore } from "@/store/layoutStore";
 import { useToastStore } from "@/store/toastStore";
 import { burst } from "../Particles";
@@ -8,12 +21,21 @@ import { getSocket } from "@/lib/socket";
 import type { ActionButton } from "@shared/types";
 
 /** Resolve a Lucide icon by name; fall back to a zap glyph. */
+const ICONS: Record<string, LucideIcon> = {
+  Crown,
+  Flame,
+  Gift,
+  Heart,
+  Megaphone,
+  PartyPopper,
+  Rocket,
+  Swords,
+  Timer,
+  Zap,
+};
+
 function Icon({ name, size = 16 }: { name?: string; size?: number }) {
-  const Cmp = (name && (Icons as Record<string, unknown>)[name]) as
-    | React.ComponentType<{ size?: number }>
-    | undefined;
-  const Fallback = Icons.Zap;
-  const C = Cmp ?? Fallback;
+  const C = name ? ICONS[name] ?? Zap : Zap;
   return <C size={size} />;
 }
 

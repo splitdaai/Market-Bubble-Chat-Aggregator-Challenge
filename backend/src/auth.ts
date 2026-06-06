@@ -1,5 +1,6 @@
 import { createHash, randomBytes } from "node:crypto";
-import { readFileSync, writeFileSync } from "node:fs";
+import { chmodSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { dirname } from "node:path";
 import type { Express, Request, Response } from "express";
 import type { Account, Platform } from "../../shared/types.ts";
 
@@ -125,7 +126,9 @@ function persistStore() {
       accounts: accounts.map((a) => ({ ...a, connectedAt: connectedAt.get(a.id) ?? Date.now() })),
       tokens: Object.fromEntries(tokens),
     };
-    writeFileSync(AUTH_STORE, JSON.stringify(data));
+    mkdirSync(dirname(AUTH_STORE), { recursive: true });
+    writeFileSync(AUTH_STORE, JSON.stringify(data), { mode: 0o600 });
+    chmodSync(AUTH_STORE, 0o600);
   } catch (e) {
     console.error("auth store persist failed:", e);
   }
@@ -290,7 +293,27 @@ export function mountAuth(app: Express, publicUrl: string, onChange: () => void)
 
 /** Tiny HTML that notifies the opener and closes the popup. */
 function closePopup(message: string, handle?: string): string {
+  const safeMessage = escapeHtml(message);
   return `<!doctype html><meta charset=utf-8><body style="background:#04100c;color:#16e6a4;font-family:system-ui;display:grid;place-items:center;height:100vh">
-<div style="text-align:center"><h3>${message}</h3><p style="color:#78b6a4">You can close this window.</p></div>
+<div style="text-align:center"><h3>${safeMessage}</h3><p style="color:#78b6a4">You can close this window.</p></div>
 <script>try{window.opener&&window.opener.postMessage({type:"mb-auth",handle:${JSON.stringify(handle ?? null)}},"*")}catch(e){}setTimeout(()=>window.close(),1200)</script>`;
+}
+
+function escapeHtml(value: string): string {
+  return value.replace(/[&<>"']/g, (char) => {
+    switch (char) {
+      case "&":
+        return "&amp;";
+      case "<":
+        return "&lt;";
+      case ">":
+        return "&gt;";
+      case '"':
+        return "&quot;";
+      case "'":
+        return "&#39;";
+      default:
+        return char;
+    }
+  });
 }

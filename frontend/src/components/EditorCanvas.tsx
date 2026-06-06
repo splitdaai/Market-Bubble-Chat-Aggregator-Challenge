@@ -1,25 +1,25 @@
-import { useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import GridLayout, { WidthProvider, type Layout as RGLLayout } from "react-grid-layout";
 import { useToastStore } from "@/store/toastStore";
 import { GripVertical, X, Plus, MessageSquare, Activity, BarChart3, Flame, Zap, Smile, Scissors, Trophy, Gift, Film, Users, Monitor, LayoutGrid, TrendingUp } from "lucide-react";
 import { useLayoutStore } from "@/store/layoutStore";
 import type { PanelLayout, WidgetKind, ActionButton } from "@shared/types";
-import { ChatFeed } from "./ChatFeed";
-import { ConnectionStatusWidget } from "./widgets/ConnectionStatusWidget";
-import { StatsWidget } from "./widgets/StatsWidget";
-import { HypeMeter } from "./widgets/HypeMeter";
-import { ButtonDeck } from "./widgets/ButtonDeck";
-import { MoodMeter } from "./widgets/MoodMeter";
-import { ClipRadar } from "./widgets/ClipRadar";
-import { TopChatters } from "./widgets/TopChatters";
-import { GiveawayBot } from "./widgets/GiveawayBot";
-import { Clips } from "./widgets/Clips";
-import { UserList } from "./widgets/UserList";
-import { StreamPreview } from "./widgets/StreamPreview";
-import { OpsPanel } from "./widgets/OpsPanel";
-import { PolymarketPanel } from "./widgets/PolymarketPanel";
 
 const Grid = WidthProvider(GridLayout);
+const ChatFeed = lazy(() => import("./ChatFeed").then((m) => ({ default: m.ChatFeed })));
+const ConnectionStatusWidget = lazy(() => import("./widgets/ConnectionStatusWidget").then((m) => ({ default: m.ConnectionStatusWidget })));
+const StatsWidget = lazy(() => import("./widgets/StatsWidget").then((m) => ({ default: m.StatsWidget })));
+const HypeMeter = lazy(() => import("./widgets/HypeMeter").then((m) => ({ default: m.HypeMeter })));
+const ButtonDeck = lazy(() => import("./widgets/ButtonDeck").then((m) => ({ default: m.ButtonDeck })));
+const MoodMeter = lazy(() => import("./widgets/MoodMeter").then((m) => ({ default: m.MoodMeter })));
+const ClipRadar = lazy(() => import("./widgets/ClipRadar").then((m) => ({ default: m.ClipRadar })));
+const TopChatters = lazy(() => import("./widgets/TopChatters").then((m) => ({ default: m.TopChatters })));
+const GiveawayBot = lazy(() => import("./widgets/GiveawayBot").then((m) => ({ default: m.GiveawayBot })));
+const Clips = lazy(() => import("./widgets/Clips").then((m) => ({ default: m.Clips })));
+const UserList = lazy(() => import("./widgets/UserList").then((m) => ({ default: m.UserList })));
+const StreamPreview = lazy(() => import("./widgets/StreamPreview").then((m) => ({ default: m.StreamPreview })));
+const OpsPanel = lazy(() => import("./widgets/OpsPanel").then((m) => ({ default: m.OpsPanel })));
+const PolymarketPanel = lazy(() => import("./widgets/PolymarketPanel").then((m) => ({ default: m.PolymarketPanel })));
 
 const WIDGET_META: Record<WidgetKind, { label: string; icon: React.ReactNode }> = {
   "chat-feed": { label: "Chat Feed", icon: <MessageSquare size={15} /> },
@@ -127,7 +127,9 @@ export function EditorCanvas({ onEditButton }: { onEditButton: (b?: ActionButton
                   </button>
                 </div>
               )}
-              <div className="min-h-0 flex-1">{renderWidget(panel, onEditButton)}</div>
+              <div className="min-h-0 flex-1">
+                <Suspense fallback={null}>{renderWidget(panel, onEditButton)}</Suspense>
+              </div>
             </div>
           </div>
         ))}

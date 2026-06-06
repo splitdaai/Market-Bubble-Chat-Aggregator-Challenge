@@ -1,21 +1,23 @@
-import { useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import type { ActionButton } from "@shared/types";
 import { Topbar } from "./components/Topbar";
-import { EditorCanvas } from "./components/EditorCanvas";
-import { ThemeEditor } from "./components/ThemeEditor";
-import { ButtonEditor } from "./components/ButtonEditor";
 import { Toaster } from "./components/Toaster";
 import { ParticleLayer } from "./components/Particles";
 import { OverlayLayer } from "./components/OverlayLayer";
-import { OverlayPage } from "./components/OverlayPage";
-import { DockView } from "./components/DockView";
-import { AnalyticsTab } from "./components/analytics/AnalyticsTab";
-import { ConnectionsManager } from "./components/ConnectionsManager";
-import { FeaturesModal } from "./components/FeaturesModal";
-import { UserCard } from "./components/UserCard";
 import { useViewStore } from "./store/viewStore";
 import { useChatConnection } from "./hooks/useChatConnection";
 import { useWalletStore } from "./store/walletStore";
+import { useTwitchStore } from "./store/twitchStore";
+
+const EditorCanvas = lazy(() => import("./components/EditorCanvas").then((m) => ({ default: m.EditorCanvas })));
+const ThemeEditor = lazy(() => import("./components/ThemeEditor").then((m) => ({ default: m.ThemeEditor })));
+const ButtonEditor = lazy(() => import("./components/ButtonEditor").then((m) => ({ default: m.ButtonEditor })));
+const OverlayPage = lazy(() => import("./components/OverlayPage").then((m) => ({ default: m.OverlayPage })));
+const DockView = lazy(() => import("./components/DockView").then((m) => ({ default: m.DockView })));
+const AnalyticsTab = lazy(() => import("./components/analytics/AnalyticsTab").then((m) => ({ default: m.AnalyticsTab })));
+const ConnectionsManager = lazy(() => import("./components/ConnectionsManager").then((m) => ({ default: m.ConnectionsManager })));
+const FeaturesModal = lazy(() => import("./components/FeaturesModal").then((m) => ({ default: m.FeaturesModal })));
+const UserCard = lazy(() => import("./components/UserCard").then((m) => ({ default: m.UserCard })));
 
 export default function App() {
   // Always boot the data pipeline — both the dashboard and the OBS overlay
@@ -24,6 +26,9 @@ export default function App() {
 
   // Re-attach to an already-authorized EVM wallet + watch for account changes.
   useEffect(() => useWalletStore.getState().hydrate(), []);
+
+  // Pull the real Twitch channel feed (live / VODs / clips) for the embeds.
+  useEffect(() => void useTwitchStore.getState().fetch(), []);
 
   const view = useViewStore((s) => s.view);
   const [themeOpen, setThemeOpen] = useState(false);
@@ -37,8 +42,8 @@ export default function App() {
   // Standalone OBS routes: floating viewer overlay (browser source) or the
   // compact dock panel (Custom Browser Dock).
   const params = new URLSearchParams(window.location.search);
-  if (params.has("overlay")) return <OverlayPage />;
-  if (params.has("dock")) return <DockView />;
+  if (params.has("overlay")) return <Suspense fallback={null}><OverlayPage /></Suspense>;
+  if (params.has("dock")) return <Suspense fallback={null}><DockView /></Suspense>;
 
   return (
     <div className="vc-aurora vc-grid-texture relative min-h-screen">
@@ -50,23 +55,29 @@ export default function App() {
       />
 
       <main className="relative z-10 px-4 pb-24">
-        {view === "analytics" ? (
-          <AnalyticsTab />
-        ) : (
-          <EditorCanvas onEditButton={(b) => setBtnEditor({ open: true, editing: b ?? null })} />
-        )}
+        <Suspense fallback={null}>
+          {view === "analytics" ? (
+            <AnalyticsTab />
+          ) : (
+            <EditorCanvas onEditButton={(b) => setBtnEditor({ open: true, editing: b ?? null })} />
+          )}
+        </Suspense>
       </main>
 
       <OverlayLayer />
-      <UserCard />
-      <ConnectionsManager open={connOpen} onClose={() => setConnOpen(false)} />
-      <FeaturesModal open={featuresOpen} onClose={() => setFeaturesOpen(false)} />
-      <ThemeEditor open={themeOpen} onClose={() => setThemeOpen(false)} />
-      <ButtonEditor
-        open={btnEditor.open}
-        editing={btnEditor.editing}
-        onClose={() => setBtnEditor({ open: false, editing: null })}
-      />
+      <Suspense fallback={null}>
+        <UserCard />
+        {connOpen && <ConnectionsManager open={connOpen} onClose={() => setConnOpen(false)} />}
+        {featuresOpen && <FeaturesModal open={featuresOpen} onClose={() => setFeaturesOpen(false)} />}
+        {themeOpen && <ThemeEditor open={themeOpen} onClose={() => setThemeOpen(false)} />}
+        {btnEditor.open && (
+          <ButtonEditor
+            open={btnEditor.open}
+            editing={btnEditor.editing}
+            onClose={() => setBtnEditor({ open: false, editing: null })}
+          />
+        )}
+      </Suspense>
       <Toaster />
     </div>
   );

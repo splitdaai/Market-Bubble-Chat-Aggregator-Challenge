@@ -14,6 +14,7 @@ import { StatsAggregator } from "./stats/aggregator.ts";
 import { HistoryStore } from "./history/store.ts";
 import { twitchViewers, kickViewers, youtubeViewers } from "./stats/viewers.ts";
 import { mountAuth, getAccounts, getToken, refreshToken } from "./auth.ts";
+import { getTwitchChannel } from "./twitchChannel.ts";
 
 const PORT = Number(process.env.PORT ?? 4000);
 // Non-wildcard CORS allowlist in production (comma-separated origins); "*" only
@@ -30,6 +31,18 @@ app.get("/health", (_req, res) => res.json({ ok: true, ts: Date.now() }));
 
 // Visitor tracking lives entirely on the AWS edge (Caddy access logs → an
 // EC2-only parser → /visits dashboard). No application code, no data in git.
+
+// Real Twitch channel feed (live status + VODs + clips) for the embeds.
+app.get("/api/twitch/channel/:login", async (req, res) => {
+  try {
+    const data = await getTwitchChannel(req.params.login);
+    if (!data) return res.status(404).json({ error: "unavailable" });
+    res.set("Cache-Control", "public, max-age=60");
+    res.json(data);
+  } catch {
+    res.status(502).json({ error: "twitch fetch failed" });
+  }
+});
 
 const httpServer = createServer(app);
 const io = new Server<ClientToServerEvents, ServerToClientEvents>(httpServer, {
