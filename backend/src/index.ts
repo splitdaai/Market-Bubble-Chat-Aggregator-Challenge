@@ -14,6 +14,7 @@ import { StatsAggregator } from "./stats/aggregator.ts";
 import { HistoryStore } from "./history/store.ts";
 import { twitchViewers, kickViewers, youtubeViewers } from "./stats/viewers.ts";
 import { mountAuth, getAccounts, getToken, refreshToken } from "./auth.ts";
+import { recordVisit, visitSummary } from "./visitLog.ts";
 
 const PORT = Number(process.env.PORT ?? 4000);
 // Non-wildcard CORS allowlist in production (comma-separated origins); "*" only
@@ -27,6 +28,23 @@ const app = express();
 app.use(cors({ origin: ORIGIN }));
 app.use(express.json());
 app.get("/health", (_req, res) => res.json({ ok: true, ts: Date.now() }));
+
+// Visitor log — the static site pings this on load; we append a JSON line to a
+// git-ignored file (see visitLog.ts). 204 so the beacon stays tiny.
+app.post("/api/visit", (req, res) => {
+  const fwd = (req.headers["x-forwarded-for"] as string | undefined)?.split(",")[0]?.trim();
+  const ip = fwd || req.socket.remoteAddress || "";
+  void recordVisit({
+    ip,
+    ua: req.headers["user-agent"],
+    path: typeof req.body?.path === "string" ? req.body.path.slice(0, 300) : undefined,
+    ref: (typeof req.body?.ref === "string" ? req.body.ref : (req.headers["referer"] as string | undefined))?.slice(0, 300),
+  });
+  res.status(204).end();
+});
+// Aggregate counts only (no raw IPs leave the server). For full detail, read the
+// log file on the server: backend/data/visits.log
+app.get("/api/visits/summary", async (_req, res) => res.json(await visitSummary()));
 
 const httpServer = createServer(app);
 const io = new Server<ClientToServerEvents, ServerToClientEvents>(httpServer, {

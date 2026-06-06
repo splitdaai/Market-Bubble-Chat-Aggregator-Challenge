@@ -12,5 +12,9 @@ backend/data/
 auth-store.json
 *.env.local
 
+# visitor log — kept off git
+visits.log
+**/visits.log
+
 # TS incremental build cache
 *.tsbuildinfo
