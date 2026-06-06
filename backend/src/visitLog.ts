@@ -15,6 +15,11 @@ export interface VisitEntry {
   ref?: string;
 }
 
+/** A logged visit — a VisitEntry plus the server-stamped timestamp. */
+export interface Visit extends VisitEntry {
+  ts?: string;
+}
+
 /** Append a single visit as a JSON line. Best-effort — never throws to callers. */
 export async function recordVisit(entry: VisitEntry): Promise<void> {
   const line = JSON.stringify({ ts: new Date().toISOString(), ...entry }) + "\n";
@@ -27,7 +32,7 @@ export async function recordVisit(entry: VisitEntry): Promise<void> {
 }
 
 /** The most recent visits (newest first) for an at-a-glance "anyone been on?" view. */
-export async function recentVisits(limit = 25): Promise<VisitEntry & { ts?: string }[]> {
+export async function recentVisits(limit = 25): Promise<Visit[]> {
   try {
     const txt = await readFile(LOG_PATH, "utf8");
     return txt
@@ -37,12 +42,12 @@ export async function recentVisits(limit = 25): Promise<VisitEntry & { ts?: stri
       .reverse()
       .map((l) => {
         try {
-          return JSON.parse(l) as { ts?: string; path?: string; ref?: string };
+          return JSON.parse(l) as Visit;
         } catch {
           return null;
         }
       })
-      .filter((e): e is { ts?: string; path?: string; ref?: string } => e !== null);
+      .filter((e): e is Visit => e !== null);
   } catch {
     return [];
   }

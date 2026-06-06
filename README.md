@@ -106,6 +106,8 @@ syncs `frontend/dist/` to S3 on every push to `main` (needs the repo secrets
 No secrets are committed (`.env*` is gitignored; only `.env.example` is tracked).
 Chat / usernames / market data are rendered as escaped React text (no `innerHTML`).
 Tipping validates the recipient address before signing and never holds keys. The
+optional visit log is privacy-clean — it records only a timestamp, page, and
+referrer (no IPs, no fingerprinting, no cookies) to a git-ignored file. The
 backend is a single-operator scaffold — add an auth gate + a non-wildcard
 `CORS_ORIGIN` before exposing it publicly.
 
