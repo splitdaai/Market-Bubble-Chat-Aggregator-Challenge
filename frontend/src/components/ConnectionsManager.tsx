@@ -15,6 +15,9 @@ let obsClient: ObsClient | null = null;
 
 const BACKEND = import.meta.env.VITE_BACKEND_URL as string | undefined;
 
+/** Max accounts a single platform can aggregate. */
+const MAX_ACCOUNTS = 5;
+
 /** The backend .env vars each platform's OAuth needs, shown when it isn't set up. */
 const OAUTH_ENV: Partial<Record<Platform, string>> = {
   twitch: "TWITCH_CLIENT_ID / TWITCH_CLIENT_SECRET",
@@ -171,16 +174,19 @@ export function ConnectionsManager({ open, onClose }: { open: boolean; onClose: 
                             are logged in (never typed in by hand). */}
                         <button
                           onClick={() => connectOAuth(p)}
-                          className="flex items-center gap-1 rounded-md px-2 py-1 text-[10px] font-bold text-white transition hover:opacity-90"
+                          disabled={oauthReady && list.length >= MAX_ACCOUNTS}
+                          className="flex items-center gap-1 rounded-md px-2 py-1 text-[10px] font-bold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
                           style={{ background: oauthReady ? `color-mix(in srgb, ${platformColor(p)} 80%, #000)` : "color-mix(in srgb, #f59e0b 35%, #000)" }}
                           title={
                             !oauthReady
                               ? `${platformLabel(p)} OAuth needs ${OAUTH_ENV[p]} in backend/.env`
-                              : `${list.length ? "Add another" : "Connect a"} ${platformLabel(p)} account via OAuth`
+                              : list.length >= MAX_ACCOUNTS
+                                ? `Up to ${MAX_ACCOUNTS} ${platformLabel(p)} accounts`
+                                : `${list.length ? "Add another" : "Connect a"} ${platformLabel(p)} account via OAuth`
                           }
                         >
                           {oauthReady && list.length > 0 ? <Plus size={11} /> : <LogIn size={11} />}
-                          {!oauthReady ? "Set up" : list.length > 0 ? "Add account" : "Connect"}
+                          {!oauthReady ? "Set up" : list.length >= MAX_ACCOUNTS ? `Max ${MAX_ACCOUNTS}` : list.length > 0 ? "Add account" : "Connect"}
                         </button>
                       </div>
                     </div>
