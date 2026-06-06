@@ -25,6 +25,8 @@ interface Provider {
   pkce?: boolean;
   /** Authenticate the token request with an HTTP Basic header instead of body params (X requires this for confidential clients). */
   basicAuth?: boolean;
+  /** Extra authorize-URL params — used to force an account picker so multiple accounts can be linked. */
+  authParams?: Record<string, string>;
   clientId?: string;
   clientSecret?: string;
   /** Resolve the connected account's handle + display name from a token. */
@@ -38,6 +40,7 @@ const PROVIDERS: Partial<Record<Platform, Provider>> = {
     authorizeUrl: "https://id.twitch.tv/oauth2/authorize",
     tokenUrl: "https://id.twitch.tv/oauth2/token",
     scopes: "chat:read chat:edit channel:moderate moderator:manage:banned_users",
+    authParams: { force_verify: "true" }, // re-prompt so a different account can be linked
     clientId: env.TWITCH_CLIENT_ID,
     clientSecret: env.TWITCH_CLIENT_SECRET,
     userInfo: async (token) => {
@@ -54,6 +57,7 @@ const PROVIDERS: Partial<Record<Platform, Provider>> = {
     authorizeUrl: "https://accounts.google.com/o/oauth2/v2/auth",
     tokenUrl: "https://oauth2.googleapis.com/token",
     scopes: "https://www.googleapis.com/auth/youtube.readonly",
+    authParams: { prompt: "select_account", access_type: "offline" }, // account picker + refresh token
     clientId: env.GOOGLE_CLIENT_ID,
     clientSecret: env.GOOGLE_CLIENT_SECRET,
     userInfo: async (token) => {
@@ -177,6 +181,8 @@ export function mountAuth(app: Express, publicUrl: string, onChange: () => void)
       scope: prov.scopes,
       state,
     });
+    // Force an account picker / re-consent so a *different* account can be linked.
+    for (const [k, v] of Object.entries(prov.authParams ?? {})) params.set(k, v);
     if (prov.pkce) {
       const verifier = b64url(randomBytes(32));
       params.set("code_challenge", b64url(createHash("sha256").update(verifier).digest()));

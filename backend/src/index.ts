@@ -87,13 +87,13 @@ async function main() {
   // connecting via OAuth makes that channel's chat flow with no extra config.
   // (Read is anonymous — just the channel name. X is a tweet-stream and YouTube
   // has no chat connector, so those remain env-driven.)
-  const linked = new Map<string, string>(); // platform -> channel currently linked
+  const linked = new Set<string>(); // account ids that already have a live chat reader
   const syncAccountConnectors = () => {
     for (const a of getAccounts()) {
       if (!a.connected || (a.platform !== "twitch" && a.platform !== "kick")) continue;
+      if (linked.has(a.id)) continue; // each connected account gets its own reader
+      linked.add(a.id);
       const channel = a.handle.replace(/^@/, "").toLowerCase();
-      if (linked.get(a.platform) === channel) continue;
-      linked.set(a.platform, channel);
       const connector = a.platform === "twitch" ? new TwitchConnector(channel) : new KickConnector(channel);
       void hub.addConnector(connector);
     }

@@ -26,7 +26,11 @@ export function bindHub(
   aggregator: StatsAggregator,
   history: HistoryStore,
 ) {
-  const registry = new Map<string, Connector>(connectors.map((c) => [c.platform, c]));
+  // Connectors are keyed by platform:channel so MULTIPLE channels per platform
+  // can run at once (multi-account aggregation); the same channel just replaces
+  // itself (env connector vs the OAuth-linked one never double-read).
+  const keyOf = (c: Connector) => `${c.platform}:${(c.status().channel ?? "").replace(/^#/, "").toLowerCase()}`;
+  const registry = new Map<string, Connector>(connectors.map((c) => [keyOf(c), c]));
   const moderate = makeModerationRouter(registry);
   const statuses = new Map<string, ConnectionStatus>();
 
@@ -61,15 +65,16 @@ export function bindHub(
    * existing connector for the same platform first, then wires + starts it.
    */
   const addConnector = async (connector: Connector) => {
-    const prev = registry.get(connector.platform);
+    const key = keyOf(connector);
+    const prev = registry.get(key);
     if (prev && prev !== connector) { try { await prev.stop(); } catch { /* best-effort */ } }
-    registry.set(connector.platform, connector);
+    registry.set(key, connector);
     wire(connector);
     try {
       await connector.start();
-      console.log(`✓ ${connector.platform} connector linked to a connected account`);
+      console.log(`✓ connector linked: ${key}`);
     } catch (e) {
-      console.error(`✗ ${connector.platform} account connector failed:`, e);
+      console.error(`✗ connector ${key} failed:`, e);
     }
     broadcastStatus();
   };
