@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { Palette, Pencil, Eye, RotateCcw, Monitor, Radio, BarChart3, Plug } from "lucide-react";
+import { Palette, Pencil, Eye, RotateCcw, Monitor, Radio, BarChart3, Plug, Sparkles } from "lucide-react";
 import { useLayoutStore } from "@/store/layoutStore";
 import { useModeStore } from "@/store/modeStore";
 import { useOverlayStore } from "@/store/overlayStore";
@@ -8,7 +8,7 @@ import { AudioControl } from "./AudioControl";
 import { LiveTimer } from "./LiveTimer";
 
 /** Top command bar — view tabs, edit-mode toggle, theme editor, sound, reset. */
-export function Topbar({ onOpenTheme, onOpenConnections }: { onOpenTheme: () => void; onOpenConnections: () => void }) {
+export function Topbar({ onOpenTheme, onOpenConnections, onOpenFeatures }: { onOpenTheme: () => void; onOpenConnections: () => void; onOpenFeatures: () => void }) {
   const editMode = useLayoutStore((s) => s.editMode);
   const toggleEditMode = useLayoutStore((s) => s.toggleEditMode);
   const resetLayout = useLayoutStore((s) => s.resetLayout);
@@ -70,6 +70,42 @@ export function Topbar({ onOpenTheme, onOpenConnections }: { onOpenTheme: () => 
       </div>
 
       <div className="flex items-center gap-1.5">
+        {/* Eye-catching feature tour launcher — animated gradient pill */}
+        <motion.button
+          onClick={onOpenFeatures}
+          title="Click to learn about every feature"
+          whileHover={{ scale: 1.06 }}
+          whileTap={{ scale: 0.94 }}
+          animate={{
+            boxShadow: [
+              "0 0 0px rgba(var(--vc-accent-rgb), 0)",
+              "0 0 18px rgba(var(--vc-accent-rgb), 0.55)",
+              "0 0 0px rgba(var(--vc-accent-rgb), 0)",
+            ],
+          }}
+          transition={{ boxShadow: { duration: 2.6, repeat: Infinity, ease: "easeInOut" } }}
+          className="relative mr-1 hidden items-center gap-1.5 overflow-hidden rounded-xl border border-accent/60 px-3 py-2 text-[13px] font-extrabold text-[#04100c] md:flex"
+          style={{ background: "linear-gradient(110deg, var(--vc-accent), var(--vc-accent2))" }}
+        >
+          {/* shimmer sweep */}
+          <motion.span
+            aria-hidden
+            className="pointer-events-none absolute inset-0"
+            style={{ background: "linear-gradient(110deg, transparent 35%, rgba(255,255,255,0.6) 50%, transparent 65%)" }}
+            initial={{ x: "-130%" }}
+            animate={{ x: "150%" }}
+            transition={{ duration: 1.6, repeat: Infinity, repeatDelay: 1.6, ease: "easeInOut" }}
+          />
+          <motion.span
+            className="relative"
+            animate={{ rotate: [0, 16, -10, 0], scale: [1, 1.2, 1] }}
+            transition={{ duration: 2.4, repeat: Infinity, ease: "easeInOut" }}
+          >
+            <Sparkles size={15} />
+          </motion.span>
+          <span className="relative whitespace-nowrap">Click to Learn Features</span>
+        </motion.button>
+
         {isLive && (
           <div className="group relative">
             <button

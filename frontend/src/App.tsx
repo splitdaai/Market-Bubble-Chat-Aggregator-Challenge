@@ -11,6 +11,7 @@ import { OverlayPage } from "./components/OverlayPage";
 import { DockView } from "./components/DockView";
 import { AnalyticsTab } from "./components/analytics/AnalyticsTab";
 import { ConnectionsManager } from "./components/ConnectionsManager";
+import { FeaturesModal } from "./components/FeaturesModal";
 import { UserCard } from "./components/UserCard";
 import { useViewStore } from "./store/viewStore";
 import { useChatConnection } from "./hooks/useChatConnection";
@@ -27,6 +28,7 @@ export default function App() {
   const view = useViewStore((s) => s.view);
   const [themeOpen, setThemeOpen] = useState(false);
   const [connOpen, setConnOpen] = useState(false);
+  const [featuresOpen, setFeaturesOpen] = useState(false);
   const [btnEditor, setBtnEditor] = useState<{ open: boolean; editing: ActionButton | null }>({
     open: false,
     editing: null,
@@ -41,7 +43,11 @@ export default function App() {
   return (
     <div className="vc-aurora vc-grid-texture relative min-h-screen">
       <ParticleLayer />
-      <Topbar onOpenTheme={() => setThemeOpen(true)} onOpenConnections={() => setConnOpen(true)} />
+      <Topbar
+        onOpenTheme={() => setThemeOpen(true)}
+        onOpenConnections={() => setConnOpen(true)}
+        onOpenFeatures={() => setFeaturesOpen(true)}
+      />
 
       <main className="relative z-10 px-4 pb-24">
         {view === "analytics" ? (
@@ -54,6 +60,7 @@ export default function App() {
       <OverlayLayer />
       <UserCard />
       <ConnectionsManager open={connOpen} onClose={() => setConnOpen(false)} />
+      <FeaturesModal open={featuresOpen} onClose={() => setFeaturesOpen(false)} />
       <ThemeEditor open={themeOpen} onClose={() => setThemeOpen(false)} />
       <ButtonEditor
         open={btnEditor.open}
