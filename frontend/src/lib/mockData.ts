@@ -1,6 +1,8 @@
 import type { ChatMessage, Platform, Badge, ChatEvent } from "@shared/types";
 import { useGiveawayStore } from "@/store/giveawayStore";
 import { useConnectionsStore, connectedAccounts } from "@/store/connectionsStore";
+import { useModeStore } from "@/store/modeStore";
+import { DEMO_ACCOUNTS } from "@/lib/accounts";
 
 /**
  * Mock message firehose. Lets the whole UI feel alive with zero backend.
@@ -124,7 +126,13 @@ function makeHype(): { text: string; event?: ChatEvent } {
 
 /** Generate a single believable message from one of the connected accounts. */
 export function makeMockMessage(forced?: Platform): ChatMessage {
-  const accounts = connectedAccounts(useConnectionsStore.getState().accounts);
+  // Demo chat always reflects the canonical demo channels (Ansem / Banks /
+  // Market Bubble), independent of any real accounts. In Live mode the backend
+  // replaces the connections store with the user's own channels (e.g. splitdawig)
+  // and persists it — so without this, switching back to Demo would attribute
+  // mock chat to the live channels instead of the demo trio.
+  const source = useModeStore.getState().demo ? DEMO_ACCOUNTS : useConnectionsStore.getState().accounts;
+  const accounts = connectedAccounts(source);
   const pool = forced ? accounts.filter((a) => a.platform === forced) : accounts;
   const account = pool.length ? pick(pool) : null;
   const platform: Platform = account?.platform ?? forced ?? pick(["twitch", "kick", "x", "youtube", "pumpfun"] as Platform[]);

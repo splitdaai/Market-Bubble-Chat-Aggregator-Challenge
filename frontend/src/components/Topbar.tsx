@@ -23,8 +23,9 @@ export function Topbar({ onOpenTheme, onOpenConnections, onOpenFeatures }: { onO
 
   // Proactive nudge on the Demo/Live toggle — dismissed once the user clicks it
   // (or the ✕). Session-only so a fresh load shows it again for the next viewer.
+  // Shown in BOTH Live and Analytics views (the toggle drives data everywhere).
   const [hintDismissed, setHintDismissed] = useState(false);
-  const showDemoHint = isLive && !hintDismissed;
+  const showDemoHint = !hintDismissed;
   const onToggleDemo = () => { toggleDemo(); setHintDismissed(true); };
 
   return (
@@ -113,8 +114,7 @@ export function Topbar({ onOpenTheme, onOpenConnections, onOpenFeatures }: { onO
           <span className="relative whitespace-nowrap">Click to Learn Features</span>
         </motion.button>
 
-        {isLive && (
-          <div className="relative">
+        <div className="relative">
             <motion.button
               onClick={onToggleDemo}
               whileTap={{ scale: 0.94 }}
@@ -184,8 +184,7 @@ export function Topbar({ onOpenTheme, onOpenConnections, onOpenFeatures }: { onO
                 </motion.div>
               )}
             </AnimatePresence>
-          </div>
-        )}
+        </div>
         <AudioControl />
         <IconBtn onClick={onOpenConnections} title="Connections (platforms + OBS)">
           <Plug size={16} />
