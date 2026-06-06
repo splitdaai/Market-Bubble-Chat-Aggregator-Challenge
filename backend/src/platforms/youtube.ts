@@ -45,20 +45,37 @@ export class YouTubeConnector extends BaseConnector {
     return {};
   }
 
+  private label() {
+    return this.opts.label ?? this.opts.videoId ?? "live";
+  }
+
   async start() {
     this.stopped = false;
+    void this.tryBegin();
+  }
+
+  /** YouTube live chat only exists while the channel is actively broadcasting.
+   *  If there's no active stream yet, keep re-checking so chat starts flowing
+   *  the moment the user goes live — instead of giving up at startup and
+   *  requiring a restart. */
+  private async tryBegin() {
+    if (this.stopped) return;
     this.liveChatId = await this.resolveLiveChatId();
     if (!this.liveChatId) {
       this.setStatus({ connected: false, error: "no_active_live_chat" });
+      console.log(`· youtube:${this.label()} — no active live broadcast; re-checking in 60s`);
+      this.timer = setTimeout(() => void this.tryBegin(), 60_000);
       return;
     }
+    console.log(`✓ youtube:${this.label()} — active live chat found, streaming messages`);
+    this.pageToken = undefined;
     this.setStatus({ connected: true });
     void this.poll();
   }
 
   /** Resolve the active live-chat id — from the OAuth account's own live
    *  broadcast (liveBroadcasts.mine) or from a public video id. */
-  private async resolveLiveChatId(): Promise<string | null> {
+  private async resolveLiveChatId(retried = false): Promise<string | null> {
     try {
       if (this.opts.oauthToken) {
         const url = new URL(`${API}/liveBroadcasts`);
@@ -66,6 +83,11 @@ export class YouTubeConnector extends BaseConnector {
         url.searchParams.set("broadcastStatus", "active");
         url.searchParams.set("broadcastType", "all");
         const r = await fetch(url, this.authed(url));
+        if (r.status === 401 && this.opts.refresh && !retried) {
+          // Expired access token would otherwise look like "no broadcast".
+          const fresh = await this.opts.refresh();
+          if (fresh) { this.opts.oauthToken = fresh; return this.resolveLiveChatId(true); }
+        }
         if (!r.ok) return null;
         const d = (await r.json()) as { items?: { snippet?: { liveChatId?: string } }[] };
         return d.items?.[0]?.snippet?.liveChatId ?? null;
@@ -116,9 +138,16 @@ export class YouTubeConnector extends BaseConnector {
         const fresh = await this.opts.refresh();
         if (fresh) this.opts.oauthToken = fresh;
         else { this.setStatus({ connected: false, error: "http_401" }); return; }
-      } else if (r.status === 401 || r.status === 403 || r.status === 404) {
-        // chat ended / quota exceeded / invalid id — stop polling cleanly
+      } else if (r.status === 404 || r.status === 403) {
+        // Live chat ended (stream over) or quota hit — don't dead-stop; go back
+        // to watching for the next broadcast so the next stream auto-connects.
+        console.log(`· youtube:${this.label()} — live chat closed (http_${r.status}); watching for the next stream`);
+        this.liveChatId = null;
         this.setStatus({ connected: false, error: `http_${r.status}` });
+        this.timer = setTimeout(() => void this.tryBegin(), 60_000);
+        return;
+      } else if (r.status === 401) {
+        this.setStatus({ connected: false, error: "http_401" });
         return;
       }
     } catch {
