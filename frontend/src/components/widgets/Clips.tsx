@@ -7,7 +7,7 @@ import { SourceBadge, platformColor } from "../SourceBadge";
 import { compact } from "@/lib/format";
 import type { Clip, Platform } from "@shared/types";
 
-const ALL: Platform[] = ["twitch", "kick", "x", "youtube", "pumpfun"];
+const ALL: Platform[] = ["twitch", "kick", "x", "youtube"];
 
 function clipTime(ts: number) {
   const d = new Date(ts);

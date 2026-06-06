@@ -7,9 +7,6 @@ describe("subRevenue", () => {
     expect(subRevenue("twitch", 4)).toBe(14); // 4 × 3.50
     expect(subRevenue("kick", 2)).toBe(9.5); // 2 × 4.75
   });
-  it("is zero for platforms without subs", () => {
-    expect(subRevenue("pumpfun", 100)).toBe(0);
-  });
   it("is zero for zero subs", () => {
     expect(subRevenue("youtube", 0)).toBe(0);
   });

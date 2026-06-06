@@ -3,7 +3,7 @@ import type { StatsSnapshot } from "@/store/statsStore";
 import { useConnectionsStore } from "@/store/connectionsStore";
 import { compact } from "./format";
 
-const PLATFORMS: Platform[] = ["twitch", "kick", "x", "youtube", "pumpfun"];
+const PLATFORMS: Platform[] = ["twitch", "kick", "x", "youtube"];
 
 /** Typical full broadcast length (min), used to project "on pace" totals. */
 const TARGET_MIN = 140;

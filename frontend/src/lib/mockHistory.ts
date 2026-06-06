@@ -8,7 +8,7 @@ import { DEMO_ACCOUNTS, accountShare } from "./accounts";
  * The backend (Codex) replaces this with real persisted sessions.
  */
 
-const PLATFORMS: Platform[] = ["twitch", "kick", "x", "youtube", "pumpfun"];
+const PLATFORMS: Platform[] = ["twitch", "kick", "x", "youtube"];
 
 const TITLES = [
   "Fed Decision Live",
@@ -79,9 +79,8 @@ export function generateHistory(count = 12): StreamSession[] {
     const xShare = 0.10 + g * 0.12;
     const ytShare = 0.18 + g * 0.06;
     const kickShare = 0.16 - g * 0.04;
-    const pfShare = 0.06 + g * 0.02;
-    const twitchShare = Math.max(0.1, 1 - xShare - ytShare - kickShare - pfShare);
-    const shares: Record<Platform, number> = { twitch: twitchShare, kick: kickShare, x: xShare, youtube: ytShare, pumpfun: pfShare };
+    const twitchShare = Math.max(0.1, 1 - xShare - ytShare - kickShare);
+    const shares: Record<Platform, number> = { twitch: twitchShare, kick: kickShare, x: xShare, youtube: ytShare };
 
     const totals = { avgViewers, peakViewers, uniqueChatters, messages, watchTimeMinutes, donated, subs, followersGained };
     const perPlatform = buildPerPlatform(totals, shares);

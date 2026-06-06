@@ -16,7 +16,6 @@ const SOURCE_LABEL: Record<OverlaySource, string> = {
   kick: "Kick",
   x: "X",
   youtube: "YouTube",
-  pumpfun: "pump.fun",
   chat: "Chat",
   market: "Market",
 };

@@ -15,7 +15,7 @@ import { subRevenue } from "@/lib/revenue";
  * in live mode `applyBackendStats()` overrides those with real platform numbers.
  */
 
-const PLATFORMS: Platform[] = ["twitch", "kick", "x", "youtube", "pumpfun"];
+const PLATFORMS: Platform[] = ["twitch", "kick", "x", "youtube"];
 const ACTIVE_WINDOW = 5 * 60_000; // "active chatter" = chatted in last 5 min
 const VELOCITY_WINDOW = 60_000; // messages/min lookback
 const SENTIMENT_WINDOW = 90_000;
@@ -23,7 +23,7 @@ const VELOCITY_SAMPLES = 90; // ~3 min of sparkline at 2s
 const CLIP_COOLDOWN = 14_000;
 
 /** Demo-mode viewer baseline PER ACCOUNT (scaled by # of connected channels). */
-const MOCK_BASE: Record<Platform, number> = { twitch: 520, kick: 240, x: 640, youtube: 380, pumpfun: 190 };
+const MOCK_BASE: Record<Platform, number> = { twitch: 520, kick: 240, x: 640, youtube: 380 };
 
 /** Connected channels on a platform (0 = inactive) so viewers scale with multi-account. */
 function accountCount(p: Platform): number {
@@ -153,7 +153,6 @@ const accum: Record<Platform, Accum> = {
   kick: blankAccum(),
   x: blankAccum(),
   youtube: blankAccum(),
-  pumpfun: blankAccum(),
 };
 const chatters = new Map<string, ChatterInfo>();
 /** Per-account accumulators (accountId → stats) for the analytics filter. */
@@ -167,7 +166,7 @@ let warmed = false;
 
 /** Rolling viewer samples that drive the per-platform + per-channel sparklines. */
 const SPARK_SAMPLES = 32;
-let viewersHist: Record<Platform, number[]> = { twitch: [], kick: [], x: [], youtube: [], pumpfun: [] };
+let viewersHist: Record<Platform, number[]> = { twitch: [], kick: [], x: [], youtube: [] };
 const accountHist = new Map<string, number[]>();
 
 function blankAccum(): Accum {
@@ -193,7 +192,7 @@ function emptySnapshot(): StatsSnapshot {
   return {
     sessionStart: start,
     elapsedMs: 0,
-    perPlatform: { twitch: blankLive(), kick: blankLive(), x: blankLive(), youtube: blankLive(), pumpfun: blankLive() },
+    perPlatform: { twitch: blankLive(), kick: blankLive(), x: blankLive(), youtube: blankLive() },
     totals: blankLive(),
     sentiment: 0,
     topChatters: [],
@@ -270,7 +269,7 @@ export const useStatsStore = create<StatsState>((set, get) => ({
     sentimentBuf = [];
     velocityHist = [];
     clipMoments = [];
-    viewersHist = { twitch: [], kick: [], x: [], youtube: [], pumpfun: [] };
+    viewersHist = { twitch: [], kick: [], x: [], youtube: [] };
     accountHist.clear();
     for (const p of PLATFORMS) accum[p] = blankAccum();
     set({ snapshot: emptySnapshot() });
@@ -291,7 +290,7 @@ export const useStatsStore = create<StatsState>((set, get) => ({
       "PogChampion", "xX_dogelord_Xx", "cryptochad", "vibesonly", "degenharry",
       "marketmaven", "bagholder", "moonboi", "paperhands", "diamondhands", "rektrider",
     ];
-    const seedCounts: Record<Platform, number> = { twitch: 300, kick: 110, x: 250, youtube: 240, pumpfun: 70 };
+    const seedCounts: Record<Platform, number> = { twitch: 300, kick: 110, x: 250, youtube: 240 };
     const accountsList = connectedAccounts(useConnectionsStore.getState().accounts);
     let seq = 0;
 
@@ -346,7 +345,7 @@ export const useStatsStore = create<StatsState>((set, get) => ({
 
     // ---- per-platform recompute ----
     const perPlatform: Record<Platform, PlatformLive> = {
-      twitch: blankLive(), kick: blankLive(), x: blankLive(), youtube: blankLive(), pumpfun: blankLive(),
+      twitch: blankLive(), kick: blankLive(), x: blankLive(), youtube: blankLive(),
     };
     let combinedMpm = 0;
 

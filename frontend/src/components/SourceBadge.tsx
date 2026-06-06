@@ -1,10 +1,10 @@
 import type { Platform, ExtPlatform } from "@shared/types";
-import { Twitch, Youtube, Rocket } from "lucide-react";
+import { Twitch, Youtube } from "lucide-react";
 
 /**
  * The non-negotiable source label. Every message carries one.
- * Twitch = purple, X = white-on-black, Kick = green, YouTube = red,
- * pump.fun = mint-green — each a tinted glass chip.
+ * Twitch = purple, X = white-on-black, Kick = green, YouTube = red —
+ * each a tinted glass chip.
  */
 
 const META: Record<
@@ -34,11 +34,6 @@ const META: Record<
     label: "YouTube",
     color: "#ff3b3b",
     icon: <Youtube size={13} strokeWidth={2.4} />,
-  },
-  pumpfun: {
-    label: "pump.fun",
-    color: "#5fe6a8",
-    icon: <Rocket size={11} strokeWidth={2.5} />,
   },
 };
 

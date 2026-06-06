@@ -21,7 +21,6 @@ http://localhost:4000/auth/<platform>/callback
 
 > When you deploy the backend behind HTTPS, change `PUBLIC_URL` in `backend/.env`
 > to that origin and re-register the same paths with the new host.
-> pump.fun has no OAuth — it connects via wallet, not a developer app.
 
 ---
 

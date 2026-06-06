@@ -5,7 +5,7 @@
  */
 
 /** The live chat sources we aggregate. Add more here and the UI follows. */
-export type Platform = "twitch" | "kick" | "x" | "youtube" | "pumpfun";
+export type Platform = "twitch" | "kick" | "x" | "youtube";
 
 /** @deprecated alias — every platform is first-class now. */
 export type ExtPlatform = Platform;
@@ -329,7 +329,6 @@ export type OverlaySource =
   | "kick"
   | "x"
   | "youtube"
-  | "pumpfun"
   | "combined"
   | "chat"
   | "market";

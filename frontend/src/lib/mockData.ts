@@ -34,12 +34,6 @@ const USERS: Record<Platform, { name: string; color: string }[]> = {
     { name: "@OptionsOracle", color: "#ffd0d0" },
     { name: "@BullRunBecky", color: "#ff4d4d" },
   ],
-  pumpfun: [
-    { name: "0xWhale", color: "#5fe6a8" },
-    { name: "SolSniper", color: "#7affc0" },
-    { name: "degenDan", color: "#3fdd95" },
-    { name: "moonfarmer", color: "#9affd0" },
-  ],
 };
 
 const LINES = [
@@ -83,7 +77,6 @@ const BADGES: Record<Platform, Badge[][]> = {
   kick: [[{ type: "og", label: "OG" }], [{ type: "subscriber", label: "Sub" }], []],
   x: [[{ type: "verified", label: "Verified" }], []],
   youtube: [[{ type: "subscriber", label: "Member" }], [{ type: "moderator", label: "Mod" }], []],
-  pumpfun: [[{ type: "og", label: "Holder" }], []],
 };
 
 let seq = 0;
@@ -135,7 +128,7 @@ export function makeMockMessage(forced?: Platform): ChatMessage {
   const accounts = connectedAccounts(source);
   const pool = forced ? accounts.filter((a) => a.platform === forced) : accounts;
   const account = pool.length ? pick(pool) : null;
-  const platform: Platform = account?.platform ?? forced ?? pick(["twitch", "kick", "x", "youtube", "pumpfun"] as Platform[]);
+  const platform: Platform = account?.platform ?? forced ?? pick(["twitch", "kick", "x", "youtube"] as Platform[]);
 
   const user = randomUser(platform);
   const isHype = Math.random() < 0.14;

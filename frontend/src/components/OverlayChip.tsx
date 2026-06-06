@@ -9,7 +9,6 @@ const LABEL: Record<OverlaySource, string> = {
   kick: "Kick",
   x: "X",
   youtube: "YouTube",
-  pumpfun: "pump.fun",
   combined: "Total",
   chat: "Chat",
   market: "Market",
@@ -19,7 +18,6 @@ function Glyph({ source, color }: { source: OverlaySource; color: string }) {
   if (source === "twitch") return <Twitch size={16} style={{ color }} strokeWidth={2.5} />;
   if (source === "kick") return <span className="text-sm font-extrabold leading-none" style={{ color }}>K</span>;
   if (source === "youtube") return <Youtube size={16} style={{ color }} strokeWidth={2.5} />;
-  if (source === "pumpfun") return <span className="text-sm font-extrabold leading-none" style={{ color }}>pf</span>;
   if (source === "x")
     return (
       <svg width="14" height="14" viewBox="0 0 24 24" fill={color} aria-hidden>
