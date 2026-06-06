@@ -13,6 +13,17 @@ import type { ChatMessage, ModerationRequest, ModerationResult, Badge } from "..
 const PUSHER_KEY = "32cbd69e4b950bf97679"; // Kick's public app key
 const PUSHER_URL = `wss://ws-us2.pusher.com/app/${PUSHER_KEY}?protocol=7&client=js&version=8.4.0&flash=false`;
 
+// Kick's channel API sits behind Cloudflare bot protection — a request with no
+// browser User-Agent is 403'd ("Request blocked by security policy"), which left
+// the chatroom id unresolved and the socket never connecting. Sending realistic
+// browser headers gets a clean 200 from the server.
+const BROWSER_HEADERS = {
+  Accept: "application/json",
+  "User-Agent":
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
+  "Accept-Language": "en-US,en;q=0.9",
+};
+
 export class KickConnector extends BaseConnector {
   readonly platform = "kick" as const;
   private ws: WebSocket | null = null;
@@ -34,7 +45,7 @@ export class KickConnector extends BaseConnector {
   private async resolveChatroomId(slug: string): Promise<number | null> {
     try {
       const res = await fetch(`https://kick.com/api/v2/channels/${slug}`, {
-        headers: { Accept: "application/json" },
+        headers: BROWSER_HEADERS,
       });
       if (!res.ok) return null;
       const data = (await res.json()) as { chatroom?: { id: number } };
