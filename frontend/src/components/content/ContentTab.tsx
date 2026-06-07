@@ -32,18 +32,21 @@ function AnsemStream({ login }: { login: string }) {
   const [host, setHost] = useState<string | null>(null);
   useEffect(() => { setHost(location.hostname); fetch(`${BACKEND}/api/twitch/channel/${login}`).then((r) => r.json()).then(setCh).catch(() => setCh({ live: false, vods: [], clips: [] })); }, [login]);
 
-  let src: string | null = null, label = "Offline", live = false;
-  if (host && ch) {
-    if (ch.live) { src = `https://player.twitch.tv/?channel=${login}&parent=${host}&muted=true`; label = "Live"; live = true; }
-    else if (ch.vods?.[0]) { src = `https://player.twitch.tv/?video=${ch.vods[0].id}&parent=${host}&muted=true`; label = "Latest broadcast"; }
-    else if (ch.clips?.[0]) { src = `https://clips.twitch.tv/embed?clip=${ch.clips[0].id}&parent=${host}`; label = "Latest clip"; }
-  }
+  const isLive = !!ch?.live;
+  const liveSrc = host ? `https://player.twitch.tv/?channel=${login}&parent=${host}&muted=true` : null;
+  const broadcast = BROADCASTS[0]; // most recent Market Bubble broadcast
   return (
-    <div className="relative aspect-video w-full overflow-hidden rounded-xl border border-white/10 bg-black">
-      {src ? <iframe key={src} src={src} title={login} allow="autoplay; fullscreen" allowFullScreen className="absolute inset-0 h-full w-full" />
-        : <div className="absolute inset-0 grid place-items-center bg-gradient-to-br from-accent/15 to-black"><Play size={28} /></div>}
-      <span className={`absolute left-2 top-2 rounded-md px-1.5 py-0.5 text-[10px] font-black uppercase backdrop-blur ${live ? "bg-down/25 text-down" : "bg-black/55 text-accent"}`}>{label}</span>
-    </div>
+    <>
+      <div className="relative aspect-video w-full overflow-hidden rounded-xl border border-white/10 bg-black">
+        {isLive && liveSrc
+          ? <iframe key={liveSrc} src={liveSrc} title={login} allow="autoplay; fullscreen" allowFullScreen className="absolute inset-0 h-full w-full" />
+          : <video key={broadcast.src} src={`${broadcast.src}#t=2`} controls preload="metadata" playsInline className="absolute inset-0 h-full w-full object-cover" />}
+        <span className={`absolute left-2 top-2 rounded-md px-1.5 py-0.5 text-[10px] font-black uppercase backdrop-blur ${isLive ? "bg-down/25 text-down" : "bg-black/55 text-accent"}`}>{isLive ? "Ansem Live" : "Latest Broadcast"}</span>
+      </div>
+      {!isLive && (
+        <p className="mt-2 text-[12px] font-semibold">{broadcast.title} <span className="font-normal text-faint">· {broadcast.date} · {broadcast.duration}</span></p>
+      )}
+    </>
   );
 }
 
