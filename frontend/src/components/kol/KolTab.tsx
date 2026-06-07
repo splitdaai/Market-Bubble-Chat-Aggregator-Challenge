@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Crosshair, Wallet, ArrowUpRight, ArrowDownRight, X as XIcon, Activity, TrendingUp, Copy, ExternalLink, UserPlus, Trophy } from "lucide-react";
 import { compact } from "../../lib/format";
 import { Sparkline } from "../Sparkline";
+import { WatchStar } from "../WatchStar";
 
 function makeRng(seed: string) {
   let h = 2166136261;
@@ -110,18 +111,18 @@ export function KolTab() {
             <div className="mb-3 flex items-center gap-2"><Crosshair size={15} className="text-accent" /><span className="serif text-[16px] font-bold">Tracked Wallets</span><span className="ml-auto text-[10px] uppercase tracking-wider text-faint">by balance</span></div>
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
               {ranked.map((k, i) => (
-                <button key={k.id} onClick={() => setOpen(k)} className="group flex items-center gap-3 rounded-xl border border-white/8 bg-white/[0.02] p-2.5 text-left transition hover:border-accent/40 hover:bg-accent/5">
+                <div key={k.id} role="button" tabIndex={0} onClick={() => setOpen(k)} className="group flex cursor-pointer items-center gap-3 rounded-xl border border-white/8 bg-white/[0.02] p-2.5 text-left transition hover:border-accent/40 hover:bg-accent/5">
                   <span className="w-4 text-[11px] font-bold tabular-nums text-faint">{i + 1}</span>
                   <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-[13px] font-black text-black" style={{ background: k.color }}>{k.name[0]}</span>
                   <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-1.5"><span className="truncate text-[13px] font-bold">{k.name}</span><span className="rounded bg-white/8 px-1 text-[9px] font-bold text-faint">{k.chain}</span></div>
+                    <div className="flex items-center gap-1.5"><span className="truncate text-[13px] font-bold">{k.name}</span><span className="rounded bg-white/8 px-1 text-[9px] font-bold text-faint">{k.chain}</span><WatchStar item={{ key: `kol:${k.id}`, type: "kol", label: k.name, sub: "@" + k.handle }} size={12} /></div>
                     <div className="truncate text-[10px] text-muted">@{k.handle} · {short(k.wallet)}</div>
                   </div>
                   <div className="text-right">
                     <div className="text-[13px] font-bold tabular-nums">{usd(k.balance)}</div>
                     <div className={`text-[10px] font-bold tabular-nums ${k.pnl24h >= 0 ? "text-up" : "text-down"}`}>{k.pnl24h >= 0 ? "+" : ""}{k.pnl24h}% 24h</div>
                   </div>
-                </button>
+                </div>
               ))}
             </div>
           </div>

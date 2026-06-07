@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Smile, Send } from "lucide-react";
 import type { Platform } from "@shared/types";
 import { useChatStore } from "@/store/chatStore";
+import { useViewerStore } from "@/store/viewerStore";
 import { accentColor } from "@/lib/theme";
 import { useActivePlatforms } from "@/hooks/useActivePlatforms";
 
@@ -16,25 +17,28 @@ const EMOJIS = [
 export function ChatComposer() {
   const addMessage = useChatStore((s) => s.addMessage);
   const platforms = useActivePlatforms();
+  const xHandle = useViewerStore((s) => s.xHandle);
+  const xName = useViewerStore((s) => s.xName);
   const [text, setText] = useState("");
   const [picker, setPicker] = useState(false);
 
-  // Post as the broadcaster on their primary connected platform (X if present).
-  const platform: Platform = platforms.includes("x") ? "x" : platforms[0] ?? "x";
+  // If the viewer connected their X account, post as them on X; otherwise post
+  // as the broadcaster on their primary connected platform.
+  const platform: Platform = xHandle ? "x" : platforms.includes("x") ? "x" : platforms[0] ?? "x";
 
   const send = () => {
     const msg = text.trim();
     if (!msg) return;
     addMessage({
-      id: `host:${platform}:${Math.random().toString(36).slice(2)}`,
-      nativeId: `host-${Math.random().toString(36).slice(2)}`,
+      id: `me:${platform}:${Math.random().toString(36).slice(2)}`,
+      nativeId: `me-${Math.random().toString(36).slice(2)}`,
       platform,
-      channel: "Market Bubble",
-      username: "Market Bubble",
+      channel: xHandle ? `@${xHandle}` : "Market Bubble",
+      username: xHandle ? (xName ?? xHandle) : "Market Bubble",
       color: accentColor(),
       message: msg,
       timestamp: Date.now(),
-      badges: [{ type: "broadcaster", label: "Host" }],
+      badges: xHandle ? [{ type: "broadcaster", label: "You" }] : [{ type: "broadcaster", label: "Host" }],
       hype: false,
     });
     setText("");
@@ -79,7 +83,7 @@ export function ChatComposer() {
           value={text}
           onChange={(e) => setText(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && send()}
-          placeholder="Send a message…"
+          placeholder={xHandle ? `Chat as @${xHandle}…` : "Send a message…"}
           maxLength={240}
           className="w-full bg-transparent text-sm text-ink outline-none placeholder:text-muted"
         />

@@ -1,11 +1,14 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Palette, Pencil, Eye, RotateCcw, Monitor, Radio, BarChart3, Plug, Sparkles, MousePointerClick, X, TrendingUp, Clapperboard, Crosshair } from "lucide-react";
+import { Palette, Pencil, Eye, RotateCcw, Monitor, Radio, BarChart3, Plug, Sparkles, MousePointerClick, X, TrendingUp, Clapperboard, Crosshair, UserCircle2 } from "lucide-react";
 import { useLayoutStore } from "@/store/layoutStore";
 import { useModeStore } from "@/store/modeStore";
 import { useOverlayStore } from "@/store/overlayStore";
 import { useViewStore } from "@/store/viewStore";
+import { useViewerStore } from "@/store/viewerStore";
+import { useWalletStore } from "@/store/walletStore";
 import { AudioControl } from "./AudioControl";
+import { AccountModal } from "./AccountModal";
 import { MarketBubbleMark } from "./Brand";
 
 /** Top command bar — view tabs, edit-mode toggle, theme editor, sound, reset. */
@@ -18,6 +21,10 @@ export function Topbar({ onOpenTheme, onOpenConnections, onOpenFeatures }: { onO
   const overlayEnabled = useOverlayStore((s) => s.enabled);
   const toggleOverlay = useOverlayStore((s) => s.toggleEnabled);
   const view = useViewStore((s) => s.view);
+  const [accountOpen, setAccountOpen] = useState(false);
+  const xHandle = useViewerStore((s) => s.xHandle);
+  const address = useWalletStore((s) => s.address);
+  const accountLabel = xHandle ? `@${xHandle}` : address ? address.slice(0, 5) + "…" + address.slice(-3) : "Connect";
   const setView = useViewStore((s) => s.setView);
   const isLive = view === "live";
   const canEdit = isLive || view === "market";
@@ -192,6 +199,17 @@ export function Topbar({ onOpenTheme, onOpenConnections, onOpenFeatures }: { onO
           <Palette size={16} />
         </IconBtn>
 
+        <motion.button
+          whileTap={{ scale: 0.95 }}
+          onClick={() => setAccountOpen(true)}
+          title="Connect X / wallet & watchlist"
+          className={`ml-1 flex items-center gap-1.5 rounded-xl border px-3 py-2 text-sm font-bold transition ${
+            xHandle || address ? "border-accent/50 bg-accent/10 text-accent" : "border-white/15 bg-white/[0.04] text-ink hover:border-white/30"
+          }`}
+        >
+          <UserCircle2 size={16} /> <span className="hidden sm:inline">{accountLabel}</span>
+        </motion.button>
+
         {canEdit && (
           <motion.button
             whileTap={{ scale: 0.95 }}
@@ -207,6 +225,7 @@ export function Topbar({ onOpenTheme, onOpenConnections, onOpenFeatures }: { onO
           </motion.button>
         )}
       </div>
+      <AccountModal open={accountOpen} onClose={() => setAccountOpen(false)} />
     </header>
   );
 }

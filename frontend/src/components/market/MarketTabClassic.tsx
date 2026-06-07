@@ -6,6 +6,7 @@ import { useLayoutStore } from "../../store/layoutStore";
 import { PolymarketMark } from "../Brand";
 import { TradingViewTechnicals, MiniChart, TechWidget, tvSymbolFor } from "./TradingViewTechnicals";
 import { HlTraderModal, PortfolioModal, PolyTraderModal } from "./Dashboards";
+import { WatchStar } from "../WatchStar";
 import { compact } from "../../lib/format";
 
 type Detail =
@@ -143,7 +144,7 @@ function MarketTable({ title, rows, onPick }: { title: string; rows: MarketData[
             const up = m.chg >= 0;
             return (
               <tr key={m.sym} onClick={() => onPick?.(m.sym)} className="cursor-pointer border-t border-white/6 transition hover:bg-white/5">
-                <td className="py-1.5 font-bold">{m.sym}</td>
+                <td className="py-1.5 font-bold"><span className="inline-flex items-center gap-1">{m.sym}<WatchStar item={{ key: `asset:${m.sym}`, type: "asset", label: m.sym }} size={11} /></span></td>
                 <td className="py-1.5 text-right font-mono tabular-nums text-muted">{price(m.price)}</td>
                 <td className={`py-1.5 text-right font-bold tabular-nums ${up ? "text-up" : "text-down"}`}>{pct(m.chg)}</td>
                 <td className="py-1.5 pl-2 text-right"><span className="inline-block"><Sparkline data={m.spark} width={64} height={16} color={up ? "#16e6a4" : "#ff5a6a"} /></span></td>
@@ -265,7 +266,7 @@ export function MarketTabClassic() {
                     {HL_TRADERS.map((t, i) => (
                       <tr key={t.name} onClick={() => setDetail({ kind: "hltrader", t })} className="cursor-pointer border-t border-white/6 transition hover:bg-white/5">
                         <td className="py-1.5 font-bold text-faint">{i + 1}</td>
-                        <td className="py-1.5 font-semibold">{t.name}</td>
+                        <td className="py-1.5 font-semibold"><span className="inline-flex items-center gap-1">{t.name}<WatchStar item={{ key: `trader:${t.name}`, type: "trader", label: t.name, sub: "HL" }} size={11} /></span></td>
                         <td className="py-1.5 text-right font-bold tabular-nums text-up">+${compact(t.pnl)}</td>
                         <td className="py-1.5 text-right tabular-nums text-muted">{t.win}%</td>
                         <td className="py-1.5 pl-2 text-right"><span className="inline-block"><Sparkline data={t.trend} width={56} height={16} color="#16e6a4" /></span></td>
@@ -280,7 +281,7 @@ export function MarketTabClassic() {
                 <div className="space-y-1.5">
                   {PORTFOLIOS.map((p) => (
                     <div key={p.fund} onClick={() => setDetail({ kind: "portfolio", p })} className="flex cursor-pointer items-center gap-2 rounded-lg border border-white/8 bg-white/[0.02] px-2.5 py-2 transition hover:border-accent/40 hover:bg-accent/5">
-                      <div className="min-w-0 flex-1"><div className="truncate text-[12px] font-bold">{p.fund}</div><div className="text-[10px] text-faint">top: {p.top}</div></div>
+                      <div className="min-w-0 flex-1"><div className="flex items-center gap-1 text-[12px] font-bold"><span className="truncate">{p.fund}</span><WatchStar item={{ key: `portfolio:${p.fund}`, type: "portfolio", label: p.fund }} size={11} /></div><div className="text-[10px] text-faint">top: {p.top}</div></div>
                       <div className="text-right"><div className="text-[12px] font-bold tabular-nums">${compact(p.value)}</div><div className={`text-[10px] font-bold ${p.chg >= 0 ? "text-up" : "text-down"}`}>{pct(p.chg)}</div></div>
                     </div>
                   ))}
@@ -295,7 +296,7 @@ export function MarketTabClassic() {
                     {POLY_TRADERS.map((t, i) => (
                       <tr key={t.name} onClick={() => setDetail({ kind: "polytrader", t })} className="cursor-pointer border-t border-white/6 transition hover:bg-white/5">
                         <td className="py-1.5 font-bold text-faint">{i + 1}</td>
-                        <td className="truncate py-1.5 font-semibold">{t.name}</td>
+                        <td className="truncate py-1.5 font-semibold"><span className="inline-flex items-center gap-1">{t.name}<WatchStar item={{ key: `polytrader:${t.name}`, type: "polytrader", label: t.name, sub: "Poly" }} size={11} /></span></td>
                         <td className="py-1.5 text-right font-bold tabular-nums text-up">+${compact(t.pnl)}</td>
                         <td className="py-1.5 text-right tabular-nums text-muted">{t.win}%</td>
                       </tr>

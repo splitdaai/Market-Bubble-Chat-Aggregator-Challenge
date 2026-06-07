@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X as XIcon, ArrowUpRight, ArrowDownRight, Activity, TrendingUp, Wallet, Copy, UserPlus, Trophy, Search } from "lucide-react";
+import { X as XIcon, ArrowUpRight, ArrowDownRight, Activity, TrendingUp, Wallet, Copy, UserPlus, Trophy, Search, ExternalLink } from "lucide-react";
 import { Sparkline } from "../Sparkline";
 import { compact } from "../../lib/format";
 
@@ -21,13 +21,21 @@ function makeRng(seed: string) {
 }
 const pick = <T,>(r: () => number, arr: T[]) => arr[Math.floor(r() * arr.length)];
 
-function ModalShell({ title, tag, color, onClose, children }: { title: string; tag: string; color: string; onClose: () => void; children: React.ReactNode }) {
+function ModalShell({ title, tag, color, onClose, children, href, hrefLabel }: { title: string; tag: string; color: string; onClose: () => void; children: React.ReactNode; href?: string; hrefLabel?: string }) {
   return (
     <motion.div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/70 p-4 backdrop-blur-sm" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose}>
       <motion.div className="mb-tab mt-8 w-full max-w-4xl rounded-2xl border border-white/10 bg-[#111]" initial={{ scale: 0.96, y: 12 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.96, opacity: 0 }} onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center gap-3 border-b border-white/8 p-4">
           <span className="grid h-11 w-11 place-items-center rounded-full text-[16px] font-black text-black" style={{ background: color }}>{title[0]}</span>
-          <div className="min-w-0 flex-1"><div className="serif text-xl font-bold">{title}</div><div className="text-[11px] uppercase tracking-wider text-faint">{tag}</div></div>
+          <div className="min-w-0 flex-1">
+            {href ? (
+              <a href={href} target="_blank" rel="noreferrer" className="serif inline-flex items-center gap-1.5 text-xl font-bold hover:text-accent hover:underline">{title} <ExternalLink size={14} /></a>
+            ) : (
+              <div className="serif text-xl font-bold">{title}</div>
+            )}
+            <div className="text-[11px] uppercase tracking-wider text-faint">{tag}</div>
+          </div>
+          {href && <a href={href} target="_blank" rel="noreferrer" className="hidden items-center gap-1.5 rounded-xl border border-white/15 px-3 py-1.5 text-[12px] font-bold text-ink hover:border-accent/50 hover:text-accent sm:flex">{hrefLabel} <ExternalLink size={12} /></a>}
           <button onClick={onClose} className="rounded-lg p-1.5 text-muted hover:bg-white/10 hover:text-ink"><XIcon size={18} /></button>
         </div>
         {children}
@@ -90,7 +98,7 @@ export function HlTraderModal({ trader, color, onClose }: { trader: { name: stri
   const winPct = Math.round((data.wins / data.total) * 100);
 
   return (
-    <ModalShell title={trader.name} tag="Hyperliquid trader · account dashboard" color={color} onClose={onClose}>
+    <ModalShell title={trader.name} tag="Hyperliquid trader · account dashboard" color={color} onClose={onClose} href={`https://app.hyperliquid.xyz/explorer/address/${encodeURIComponent(trader.name)}`} hrefLabel="View on Hyperliquid">
       <div className="p-4">
         <div className="mb-3 flex flex-wrap gap-2">
           <CoolBtn primary><Copy size={13} /> Copy trader</CoolBtn>
@@ -252,7 +260,7 @@ export function PolyTraderModal({ trader, color, onClose }: { trader: { name: st
   }, [trader]);
 
   return (
-    <ModalShell title={trader.name} tag="Polymarket trader · positions & history" color={color} onClose={onClose}>
+    <ModalShell title={trader.name} tag="Polymarket trader · positions & history" color={color} onClose={onClose} href={`https://polymarket.com/profile/${encodeURIComponent(trader.name)}`} hrefLabel="View on Polymarket">
       <div className="p-4">
         <div className="grid grid-cols-4 gap-2">
           <Stat label="Realized PnL" value={"+" + usd(trader.pnl)} tone="up" />
