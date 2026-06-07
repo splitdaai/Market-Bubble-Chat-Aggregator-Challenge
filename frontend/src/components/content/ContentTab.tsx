@@ -50,14 +50,19 @@ const FEED_ACCOUNTS = [
   { name: "Banks", handle: "Banks" },
   { name: "Market Bubble", handle: "marketbubble" },
 ];
+/** Public X List id of the 3 accounts → a single time-interleaved "All" feed.
+ *  Empty = fall back to stacking each account's recent tweets. */
+const FEED_LIST_ID = "";
 
-/** Embedded X (Twitter) timeline — real, recent tweets; clicking opens the tweet. */
-function XTimeline({ handle }: { handle: string }) {
+/** Embedded X (Twitter) timeline — real recent tweets; clicking opens the tweet.
+ *  Pass `handle` for one profile, or `list` for a List (interleaved). */
+function XTimeline({ handle, list, limit = 12 }: { handle?: string; list?: string; limit?: number }) {
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
-    el.innerHTML = `<a class="twitter-timeline" data-theme="dark" data-chrome="noheader nofooter noborders transparent" data-tweet-limit="12" href="https://twitter.com/${handle}">Tweets by @${handle}</a>`;
+    const href = list ? `https://twitter.com/i/lists/${list}` : `https://twitter.com/${handle}`;
+    el.innerHTML = `<a class="twitter-timeline" data-theme="dark" data-chrome="noheader nofooter noborders transparent" data-tweet-limit="${limit}" href="${href}">Tweets</a>`;
     const w = window as unknown as { twttr?: { widgets: { load: (e?: HTMLElement) => void } } };
     if (w.twttr?.widgets) {
       w.twttr.widgets.load(el);
@@ -67,14 +72,18 @@ function XTimeline({ handle }: { handle: string }) {
       s.src = "https://platform.twitter.com/widgets.js";
       s.async = true;
       document.body.appendChild(s);
+    } else {
+      const iv = setInterval(() => { const ww = (window as unknown as { twttr?: { widgets: { load: (e?: HTMLElement) => void } } }).twttr; if (ww?.widgets) { ww.widgets.load(el); clearInterval(iv); } }, 300);
+      setTimeout(() => clearInterval(iv), 6000);
     }
-  }, [handle]);
-  return <div ref={ref} className="min-h-0 flex-1 overflow-y-auto" />;
+  }, [handle, list, limit]);
+  return <div ref={ref} />;
 }
 
 export function ContentTab() {
-  const [feedHandle, setFeedHandle] = useState("blknoiz06");
+  const [feedHandle, setFeedHandle] = useState("all");
   const topPosts = [...FEED].sort((a, b) => b.views - a.views).slice(0, 6);
+  const feedTabs = [{ name: "All", handle: "all" }, ...FEED_ACCOUNTS];
 
   return (
     <div className="mb-tab">
@@ -86,8 +95,8 @@ export function ContentTab() {
         {/* live feed — real X timeline (Ansem / Banks / Market Bubble) */}
         <div className="vc-glass flex flex-col rounded-2xl p-3 lg:col-span-4" style={{ height: 760 }}>
           <div className="mb-2 flex items-center gap-2"><Radio size={14} className="text-down" /><span className="text-[12px] font-bold uppercase tracking-[0.12em] text-muted">Live Feed</span></div>
-          <div className="mb-2 flex gap-1">
-            {FEED_ACCOUNTS.map((a) => (
+          <div className="mb-2 flex flex-wrap gap-1">
+            {feedTabs.map((a) => (
               <button
                 key={a.handle}
                 onClick={() => setFeedHandle(a.handle)}
@@ -97,7 +106,22 @@ export function ContentTab() {
               </button>
             ))}
           </div>
-          <XTimeline key={feedHandle} handle={feedHandle} />
+          <div className="scroll min-h-0 flex-1 overflow-y-auto pr-1">
+            {feedHandle === "all" ? (
+              FEED_LIST_ID ? (
+                <XTimeline list={FEED_LIST_ID} limit={20} />
+              ) : (
+                FEED_ACCOUNTS.map((a) => (
+                  <div key={a.handle} className="mb-4">
+                    <div className="mb-1 px-1 text-[10px] font-bold uppercase tracking-wider text-faint">{a.name}</div>
+                    <XTimeline handle={a.handle} limit={5} />
+                  </div>
+                ))
+              )
+            ) : (
+              <XTimeline key={feedHandle} handle={feedHandle} limit={14} />
+            )}
+          </div>
         </div>
 
         {/* right column */}
