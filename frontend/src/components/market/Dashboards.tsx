@@ -69,7 +69,8 @@ const CoolBtn = ({ children, onClick, primary }: { children: React.ReactNode; on
 );
 
 /* ---------------- Hyperliquid trader account dashboard ---------------- */
-export function HlTraderModal({ trader, color, onClose }: { trader: { name: string; pnl: number; win: number; trend: number[] }; color: string; onClose: () => void }) {
+export function HlTraderModal({ trader, color, onClose }: { trader: { name: string; addr?: string; pnl: number; win: number; trend: number[] }; color: string; onClose: () => void }) {
+  const hlUrl = `https://app.hyperliquid.xyz/explorer/address/${trader.addr ?? trader.name}`;
   const [tab, setTab] = useState<"positions" | "trades">("positions");
   const [feed, setFeed] = useState<{ id: number; sym: string; side: "buy" | "sell"; usd: number; pnl: number; ts: number }[]>([]);
   const idRef = useRef(1);
@@ -106,11 +107,11 @@ export function HlTraderModal({ trader, color, onClose }: { trader: { name: stri
   const winPct = Math.round((data.wins / data.total) * 100);
 
   return (
-    <ModalShell title={trader.name} tag="Hyperliquid trader · account dashboard" color={color} onClose={onClose} href={`https://app.hyperliquid.xyz/explorer/address/${encodeURIComponent(trader.name)}`} hrefLabel="View on Hyperliquid">
+    <ModalShell title={trader.name} tag="Hyperliquid trader · account dashboard" color={color} onClose={onClose} href={hlUrl} hrefLabel="View on Hyperliquid">
       <div className="p-4">
         <div className="mb-3 flex flex-wrap gap-2">
           <CoolBtn primary onClick={() => follow(trader.name)}><UserPlus size={13} /> Follow on X</CoolBtn>
-          <CoolBtn onClick={() => window.open(`https://app.hyperliquid.xyz/explorer/address/${encodeURIComponent(trader.name)}`, "_blank")}><Wallet size={13} /> View on Hyperliquid</CoolBtn>
+          <CoolBtn onClick={() => window.open(hlUrl, "_blank")}><Wallet size={13} /> View on Hyperliquid</CoolBtn>
         </div>
         <div className="grid grid-cols-3 gap-2 sm:grid-cols-6">
           <Stat label="30D PnL" value={"+" + usd(trader.pnl)} tone="up" />
@@ -252,7 +253,8 @@ export function PortfolioModal({ portfolio, color, onClose }: { portfolio: { fun
 }
 
 /* ---------------- Polymarket trader (markets + history + PnL) ---------------- */
-export function PolyTraderModal({ trader, color, onClose }: { trader: { name: string; pnl: number; win: number; trend: number[] }; color: string; onClose: () => void }) {
+export function PolyTraderModal({ trader, color, onClose }: { trader: { name: string; addr?: string; pnl: number; win: number; trend: number[] }; color: string; onClose: () => void }) {
+  const pmUrl = `https://polymarket.com/profile/${trader.addr ?? trader.name}`;
   const [tab, setTab] = useState<"open" | "history">("open");
   const data = useMemo(() => {
     const r = makeRng(trader.name + "poly");
@@ -264,11 +266,11 @@ export function PolyTraderModal({ trader, color, onClose }: { trader: { name: st
   }, [trader]);
 
   return (
-    <ModalShell title={trader.name} tag="Polymarket trader · positions & history" color={color} onClose={onClose} href={`https://polymarket.com/profile/${encodeURIComponent(trader.name)}`} hrefLabel="View on Polymarket">
+    <ModalShell title={trader.name} tag="Polymarket trader · positions & history" color={color} onClose={onClose} href={pmUrl} hrefLabel="View on Polymarket">
       <div className="p-4">
         <div className="mb-3 flex flex-wrap gap-2">
           <CoolBtn primary onClick={() => follow(trader.name)}><UserPlus size={13} /> Follow on X</CoolBtn>
-          <CoolBtn onClick={() => window.open(`https://polymarket.com/profile/${encodeURIComponent(trader.name)}`, "_blank")}><ExternalLink size={13} /> View on Polymarket</CoolBtn>
+          <CoolBtn onClick={() => window.open(pmUrl, "_blank")}><ExternalLink size={13} /> View on Polymarket</CoolBtn>
         </div>
         <div className="grid grid-cols-4 gap-2">
           <Stat label="Realized PnL" value={"+" + usd(trader.pnl)} tone="up" />

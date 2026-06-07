@@ -9,10 +9,13 @@ import { HlTraderModal, PortfolioModal, PolyTraderModal } from "./Dashboards";
 import { WatchStar } from "../WatchStar";
 import { compact } from "../../lib/format";
 
+interface HlRow { name: string; addr?: string; pnl: number; roi?: number; trend?: number[] }
+interface PolyRow { name: string; addr?: string; pnl: number }
+
 type Detail =
   | { kind: "asset"; label: string }
-  | { kind: "hltrader"; t: { name: string; pnl: number; win: number; trend: number[] } }
-  | { kind: "polytrader"; t: { name: string; pnl: number; win: number; trend: number[] } }
+  | { kind: "hltrader"; t: { name: string; addr?: string; pnl: number; win: number; trend: number[] } }
+  | { kind: "polytrader"; t: { name: string; addr?: string; pnl: number; win: number; trend: number[] } }
   | { kind: "portfolio"; p: { fund: string; top: string; value: number; chg: number } };
 
 function AssetModal({ label, onClose }: { label: string; onClose: () => void }) {
@@ -45,51 +48,7 @@ interface MarketData {
 const price = (n: number) => n >= 1000 ? "$" + n.toLocaleString(undefined, { maximumFractionDigits: 0 }) : "$" + n.toLocaleString(undefined, { maximumFractionDigits: 2 });
 const pct = (n: number) => (n >= 0 ? "+" : "") + n.toFixed(2) + "%";
 
-/* demo data for the panels we don't have a live free source for */
-const HL_TRADERS = [
-  { name: "ansem.eth", pnl: 4.82e6, win: 71, trend: [3, 5, 4, 6, 8, 7, 9] },
-  { name: "0xWhale", pnl: 3.11e6, win: 64, trend: [5, 4, 6, 5, 7, 6, 8] },
-  { name: "GiganticRebirth", pnl: 2.45e6, win: 68, trend: [2, 4, 3, 5, 4, 6, 7] },
-  { name: "Tetra", pnl: 1.9e6, win: 59, trend: [4, 3, 5, 4, 6, 5, 6] },
-  { name: "cupsey.sol", pnl: 1.42e6, win: 73, trend: [3, 5, 6, 5, 7, 8, 9] },
-  { name: "0xFrank", pnl: 0.98e6, win: 55, trend: [5, 4, 4, 5, 3, 4, 5] },
-  { name: "perpgod.eth", pnl: 0.91e6, win: 62, trend: [4, 5, 5, 6, 5, 7, 8] },
-  { name: "0xMachi", pnl: 0.84e6, win: 58, trend: [6, 5, 7, 6, 5, 6, 7] },
-  { name: "liquidated.eth", pnl: 0.77e6, win: 66, trend: [3, 4, 5, 4, 5, 6, 6] },
-  { name: "hsaka.hl", pnl: 0.69e6, win: 70, trend: [2, 3, 4, 5, 6, 7, 8] },
-  { name: "0xSisyphus", pnl: 0.58e6, win: 53, trend: [5, 4, 5, 4, 4, 5, 5] },
-  { name: "cobie.eth", pnl: 0.51e6, win: 61, trend: [4, 5, 4, 6, 5, 6, 7] },
-  { name: "0xNomad", pnl: 0.44e6, win: 57, trend: [3, 4, 4, 5, 5, 5, 6] },
-  { name: "degenharry", pnl: 0.38e6, win: 64, trend: [4, 4, 5, 5, 6, 6, 7] },
-  { name: "0xPepe", pnl: 0.29e6, win: 51, trend: [5, 4, 4, 4, 5, 4, 5] },
-  { name: "0xLiquid", pnl: 0.24e6, win: 60, trend: [3, 4, 4, 5, 5, 6, 6] },
-  { name: "smartmoney.eth", pnl: 0.21e6, win: 67, trend: [2, 3, 4, 4, 5, 6, 7] },
-  { name: "0xVega", pnl: 0.18e6, win: 54, trend: [4, 4, 4, 5, 4, 5, 5] },
-  { name: "perpqueen", pnl: 0.14e6, win: 63, trend: [3, 4, 5, 5, 5, 6, 6] },
-  { name: "0xGamma", pnl: 0.09e6, win: 52, trend: [5, 4, 4, 4, 5, 4, 4] },
-];
-const POLY_TRADERS = [
-  { name: "0xPolyKing", pnl: 2.1e6, win: 74, trend: [3, 5, 4, 6, 7, 8, 9] },
-  { name: "domer.eth", pnl: 1.6e6, win: 69, trend: [4, 4, 6, 5, 7, 7, 8] },
-  { name: "0xOracle", pnl: 1.2e6, win: 66, trend: [2, 4, 5, 5, 6, 7, 7] },
-  { name: "electionmaxi", pnl: 0.94e6, win: 71, trend: [3, 5, 5, 6, 6, 7, 8] },
-  { name: "0xEdge", pnl: 0.81e6, win: 62, trend: [4, 4, 5, 5, 6, 6, 7] },
-  { name: "sportsdegen", pnl: 0.73e6, win: 58, trend: [5, 4, 5, 4, 5, 6, 6] },
-  { name: "0xSharp", pnl: 0.66e6, win: 64, trend: [3, 4, 5, 5, 5, 6, 7] },
-  { name: "marketmaker.eth", pnl: 0.58e6, win: 60, trend: [4, 5, 4, 6, 5, 6, 6] },
-  { name: "0xResolve", pnl: 0.49e6, win: 67, trend: [2, 3, 4, 5, 6, 6, 7] },
-  { name: "fadethepublic", pnl: 0.42e6, win: 55, trend: [5, 4, 4, 5, 4, 5, 5] },
-  { name: "0xKalshi", pnl: 0.37e6, win: 61, trend: [3, 4, 5, 5, 6, 6, 6] },
-  { name: "binarybets", pnl: 0.31e6, win: 59, trend: [4, 4, 4, 5, 5, 5, 6] },
-  { name: "0xParlay", pnl: 0.27e6, win: 63, trend: [3, 4, 4, 5, 5, 6, 6] },
-  { name: "oddsmaker.eth", pnl: 0.22e6, win: 57, trend: [4, 4, 5, 4, 5, 5, 6] },
-  { name: "0xHedge", pnl: 0.19e6, win: 65, trend: [2, 3, 4, 4, 5, 6, 6] },
-  { name: "vigilante", pnl: 0.15e6, win: 53, trend: [5, 4, 4, 4, 5, 4, 5] },
-  { name: "0xConviction", pnl: 0.12e6, win: 60, trend: [3, 4, 4, 5, 5, 5, 6] },
-  { name: "longshot.eth", pnl: 0.09e6, win: 56, trend: [4, 4, 5, 5, 5, 6, 6] },
-  { name: "0xConsensus", pnl: 0.07e6, win: 62, trend: [3, 4, 4, 5, 5, 6, 6] },
-  { name: "pollpredictor", pnl: 0.05e6, win: 58, trend: [4, 4, 4, 5, 5, 5, 5] },
-];
+/* 13F-style portfolios — no free real-time API for these specific funds (curated). */
 const PORTFOLIOS = [
   { fund: "ARK Invest", top: "COIN", value: 1.2e9, chg: 8.4 },
   { fund: "BlackRock 13F", top: "IBIT", value: 4.8e9, chg: 12.1 },
@@ -199,7 +158,15 @@ export function MarketTabClassic() {
   const [tries, setTries] = useState(0);
   const [pulse, setPulse] = useState(0);
   const [detail, setDetail] = useState<Detail | null>(null);
+  const [lb, setLb] = useState<{ hyperliquid: HlRow[]; polymarket: PolyRow[] } | null>(null);
   const editMode = useLayoutStore((s) => s.editMode);
+  useEffect(() => {
+    let on = true;
+    const load = () => fetch(`${BACKEND}/api/leaderboards`).then((r) => r.json()).then((j) => { if (on && Array.isArray(j.hyperliquid)) setLb(j); }).catch(() => {});
+    load();
+    const iv = setInterval(load, 600_000);
+    return () => { on = false; clearInterval(iv); };
+  }, []);
   useEffect(() => {
     let on = true;
     let timer: ReturnType<typeof setTimeout>;
@@ -279,21 +246,24 @@ export function MarketTabClassic() {
               );
             })() },
             { id: "hl", x: 0, y: 19, w: 3, h: 13, node: (
-              <Panel title="Top Hyperliquid Traders" icon={<TrendingUp size={15} className="text-up" />} right={<span className="text-[10px] uppercase tracking-wider text-faint">demo</span>}>
+              <Panel title="Top Hyperliquid Traders" icon={<TrendingUp size={15} className="text-up" />} right={<span className="text-[10px] uppercase tracking-wider text-up">● live</span>}>
                 <div className={leaderboardShell}>
                   <div className={`${leaderboardHead} grid-cols-[2rem_minmax(0,1fr)_4.7rem_3rem_4.3rem]`}>
-                    <span>#</span><span>Trader</span><span className="text-right">PNL 30D</span><span className="text-right">Win</span><span className="pl-2 text-right">Trend</span>
+                    <span>#</span><span>Trader</span><span className="text-right">PNL 30D</span><span className="text-right">ROI</span><span className="pl-2 text-right">Trend</span>
                   </div>
                   <div className={leaderboardBody} style={leaderboardRowsStyle}>
-                    {HL_TRADERS.slice(0, LEADERBOARD_LIMIT).map((t, i) => (
-                      <div key={t.name} role="button" tabIndex={0} onClick={() => setDetail({ kind: "hltrader", t })} onKeyDown={(e) => onRowKey(e, () => setDetail({ kind: "hltrader", t }))} className={`${leaderboardRow} grid-cols-[2rem_minmax(0,1fr)_4.7rem_3rem_4.3rem]`}>
+                    {(lb?.hyperliquid ?? []).slice(0, LEADERBOARD_LIMIT).map((t, i) => {
+                      const open = () => setDetail({ kind: "hltrader", t: { name: t.name, addr: t.addr, pnl: t.pnl, win: Math.round(t.roi ?? 0), trend: t.trend ?? [] } });
+                      return (
+                      <div key={t.addr ?? t.name} role="button" tabIndex={0} onClick={open} onKeyDown={(e) => onRowKey(e, open)} className={`${leaderboardRow} grid-cols-[2rem_minmax(0,1fr)_4.7rem_3rem_4.3rem]`}>
                         <span className="font-bold text-faint">{i + 1}</span>
                         <span className="min-w-0 font-semibold"><span className="inline-flex min-w-0 items-center gap-1"><span className="truncate">{t.name}</span><WatchStar item={{ key: `trader:${t.name}`, type: "trader", label: t.name, sub: "HL" }} size={11} /></span></span>
-                        <span className="text-right font-bold tabular-nums text-up">+${compact(t.pnl)}</span>
-                        <span className="text-right tabular-nums text-muted">{t.win}%</span>
-                        <span className="pl-2 text-right"><Sparkline data={t.trend} width={52} height={14} color="#16e6a4" /></span>
+                        <span className={`text-right font-bold tabular-nums ${t.pnl >= 0 ? "text-up" : "text-down"}`}>{t.pnl >= 0 ? "+" : "-"}${compact(Math.abs(t.pnl))}</span>
+                        <span className={`text-right tabular-nums ${(t.roi ?? 0) >= 0 ? "text-up" : "text-down"}`}>{(t.roi ?? 0) >= 0 ? "+" : ""}{(t.roi ?? 0).toFixed(1)}%</span>
+                        <span className="pl-2 text-right"><Sparkline data={t.trend ?? []} width={52} height={14} color={(t.roi ?? 0) >= 0 ? "#16e6a4" : "#ff5a6a"} /></span>
                       </div>
-                    ))}
+                    ); })}
+                    {!lb && <div className="py-6 text-center text-[11px] text-faint">Loading live Hyperliquid leaderboard…</div>}
                   </div>
                 </div>
               </Panel>
@@ -319,20 +289,22 @@ export function MarketTabClassic() {
               </Panel>
             ) },
             { id: "poly", x: 6, y: 19, w: 3, h: 13, node: (
-              <Panel title="Top Polymarket Traders" icon={<PolymarketMark className="h-4 w-5 text-accent" />} right={<span className="text-[10px] uppercase tracking-wider text-faint">demo</span>}>
+              <Panel title="Top Polymarket Traders" icon={<PolymarketMark className="h-4 w-5 text-accent" />} right={<span className="text-[10px] uppercase tracking-wider text-up">● live · 30d</span>}>
                 <div className={leaderboardShell}>
-                  <div className={`${leaderboardHead} grid-cols-[2rem_minmax(0,1fr)_5rem_3rem]`}>
-                    <span>#</span><span>Trader</span><span className="text-right">PNL</span><span className="text-right">Win</span>
+                  <div className={`${leaderboardHead} grid-cols-[2rem_minmax(0,1fr)_5rem]`}>
+                    <span>#</span><span>Trader</span><span className="text-right">PNL 30D</span>
                   </div>
                   <div className={leaderboardBody} style={leaderboardRowsStyle}>
-                    {POLY_TRADERS.slice(0, LEADERBOARD_LIMIT).map((t, i) => (
-                      <div key={t.name} role="button" tabIndex={0} onClick={() => setDetail({ kind: "polytrader", t })} onKeyDown={(e) => onRowKey(e, () => setDetail({ kind: "polytrader", t }))} className={`${leaderboardRow} grid-cols-[2rem_minmax(0,1fr)_5rem_3rem]`}>
+                    {(lb?.polymarket ?? []).slice(0, LEADERBOARD_LIMIT).map((t, i) => {
+                      const open = () => setDetail({ kind: "polytrader", t: { name: t.name, addr: t.addr, pnl: t.pnl, win: 0, trend: [] } });
+                      return (
+                      <div key={t.addr ?? t.name} role="button" tabIndex={0} onClick={open} onKeyDown={(e) => onRowKey(e, open)} className={`${leaderboardRow} grid-cols-[2rem_minmax(0,1fr)_5rem]`}>
                         <span className="font-bold text-faint">{i + 1}</span>
                         <span className="min-w-0 font-semibold"><span className="inline-flex min-w-0 items-center gap-1"><span className="truncate">{t.name}</span><WatchStar item={{ key: `polytrader:${t.name}`, type: "polytrader", label: t.name, sub: "Poly" }} size={11} /></span></span>
-                        <span className="text-right font-bold tabular-nums text-up">+${compact(t.pnl)}</span>
-                        <span className="text-right tabular-nums text-muted">{t.win}%</span>
+                        <span className={`text-right font-bold tabular-nums ${t.pnl >= 0 ? "text-up" : "text-down"}`}>{t.pnl >= 0 ? "+" : "-"}${compact(Math.abs(t.pnl))}</span>
                       </div>
-                    ))}
+                    ); })}
+                    {!lb && <div className="py-6 text-center text-[11px] text-faint">Loading live Polymarket leaderboard…</div>}
                   </div>
                 </div>
               </Panel>
