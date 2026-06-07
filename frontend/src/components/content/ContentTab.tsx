@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Radio, Film, Eye, Flame, TrendingUp, Play, Clapperboard, Heart, Repeat2, BadgeCheck } from "lucide-react";
+import { Radio, Film, Eye, Flame, TrendingUp, Play, Heart, Repeat2, BadgeCheck } from "lucide-react";
 import { compact } from "../../lib/format";
 import { BROADCASTS } from "../../store/broadcastStore";
 
@@ -50,16 +50,9 @@ function AnsemStream({ login }: { login: string }) {
 export function ContentTab() {
   const [posts, setPosts] = useState(() => FEED.map((p, i) => ({ ...p, id: i })));
   const idx = useRef(FEED.length);
-  const [videos, setVideos] = useState<(Clip & { channel: string; author: string })[]>([]);
 
   useEffect(() => {
     const t = setInterval(() => { const s = FEED[idx.current % FEED.length]; idx.current++; setPosts((c) => [{ ...s, id: idx.current, text: s.text }, ...c].slice(0, 30)); }, 2200);
-    Promise.all([fetch(`${BACKEND}/api/twitch/channel/blknoiz06`).then((r) => r.json()), fetch(`${BACKEND}/api/twitch/channel/banks`).then((r) => r.json())])
-      .then(([a, b]) => setVideos([
-        ...((a.clips ?? []).map((c: Clip) => ({ ...c, channel: "blknoiz06", author: "Ansem" }))),
-        ...((b.clips ?? []).map((c: Clip) => ({ ...c, channel: "banks", author: "BanKs" }))),
-      ].filter((c) => c.thumbnail).sort((x, y) => (y.viewCount ?? 0) - (x.viewCount ?? 0)).slice(0, 6)))
-      .catch(() => {});
     return () => clearInterval(t);
   }, []);
 
@@ -117,10 +110,8 @@ export function ContentTab() {
           </div>
 
           <div className="vc-glass rounded-2xl p-4">
-            <div className="mb-3 flex items-center gap-2"><Film size={14} className="text-accent" /><span className="text-[12px] font-bold uppercase tracking-[0.12em] text-muted">Market Bubble Videos</span><span className={`ml-auto ${chip}`}>episodes + clips</span></div>
+            <div className="mb-3 flex items-center gap-2"><Film size={14} className="text-accent" /><span className="text-[12px] font-bold uppercase tracking-[0.12em] text-muted">Full Episodes</span><span className={`ml-auto ${chip}`}>Market Bubble</span></div>
 
-            {/* full-version episodes */}
-            <div className="mb-2 text-[10px] font-bold uppercase tracking-wider text-faint">Full Episodes</div>
             <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
               {BROADCASTS.map((b) => (
                 <a key={b.id} href={b.src} target="_blank" rel="noreferrer" className="group overflow-hidden rounded-xl border border-white/8 bg-white/[0.02] transition hover:border-accent/50">
@@ -137,23 +128,6 @@ export function ContentTab() {
                   </div>
                 </a>
               ))}
-            </div>
-
-            {/* clips */}
-            <div className="mb-2 mt-4 text-[10px] font-bold uppercase tracking-wider text-faint">Clips</div>
-            <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
-              {videos.map((v, i) => (
-                <a key={i} href={`https://clips.twitch.tv/${v.id}`} target="_blank" rel="noreferrer" className="group overflow-hidden rounded-xl border border-white/8 bg-white/[0.02] transition hover:border-accent/50">
-                  <div className="relative aspect-video w-full bg-gradient-to-br from-black to-accent/15">
-                    {v.thumbnail ? <img src={v.thumbnail} alt="" loading="lazy" className="absolute inset-0 h-full w-full object-cover" /> : null}
-                    <span className="absolute inset-0 grid place-items-center bg-black/15 opacity-70 group-hover:opacity-100"><Clapperboard size={20} className="text-white" /></span>
-                    <span className="absolute bottom-1 right-1 flex items-center gap-0.5 rounded bg-black/70 px-1 text-[9px] font-bold"><Eye size={8} /> {compact(v.viewCount ?? 0)}</span>
-                    <span className="absolute left-1 top-1 rounded bg-black/65 px-1 text-[8px] font-bold text-muted">{v.author}</span>
-                  </div>
-                  <div className="truncate px-2 py-1.5 text-[11px] font-semibold">{v.title}</div>
-                </a>
-              ))}
-              {!videos.length && <div className="col-span-full py-6 text-center text-[12px] text-faint">Loading clips…</div>}
             </div>
           </div>
 
