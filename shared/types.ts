@@ -271,7 +271,7 @@ export interface Theme {
   glow: number;
   /** Corner radius in px. */
   radius: number;
-  font: "Inter" | "Space Grotesk" | "JetBrains Mono";
+  font: "Inter" | "Space Grotesk" | "JetBrains Mono" | "Geist";
   bubbleStyle: "flat" | "glass" | "outline";
   /** Selectable style templates (Theme Editor). Optional → back-compat. */
   tile?: TileTemplate;
@@ -291,7 +291,7 @@ export type ButtonTemplate =
   | "solid" | "pill" | "soft" | "sharp" | "square"
   | "bold" | "caps" | "ring" | "glow" | "mono";
 export type TextTemplate =
-  | "default" | "tight" | "wide" | "heavy" | "light" | "mono" | "soft" | "crisp";
+  | "default" | "tight" | "wide" | "heavy" | "light" | "mono" | "soft" | "crisp" | "serif";
 
 /* ----------------------------------- Clips ----------------------------------- */
 

@@ -97,8 +97,28 @@ export const NEON_BUBBLE_THEME: Theme = {
   bubbleStyle: "glass",
 };
 
+/** Market Bubble Green — the green + Playfair-serif look from the Market/Content
+ *  pages, as a full-app preset: flat cards, off-white text, low glow. */
+export const MARKET_BUBBLE_GREEN_THEME: Theme = {
+  name: "Market Bubble Green",
+  bg: "#0f0f0f",
+  surface: "#181818",
+  accent: "#00d872",
+  accent2: "#ff4b16",
+  text: "#e4e4e4",
+  textMuted: "#8a8a8a",
+  glow: 0.18,
+  radius: 14,
+  font: "Geist",
+  bubbleStyle: "flat",
+  tile: "flat",
+  btn: "solid",
+  textStyle: "serif",
+};
+
 export const THEME_PRESETS: Theme[] = [
   MONO_TERMINAL_THEME,
+  MARKET_BUBBLE_GREEN_THEME,
   TERMINAL_PRO_THEME,
   GLASS_AURORA_THEME,
   NEON_BUBBLE_THEME,
@@ -180,7 +200,7 @@ export const BTN_TEMPLATES = [
 ] as const;
 export const TEXT_TEMPLATES = [
   ["default", "Default"], ["tight", "Tight"], ["wide", "Wide"], ["heavy", "Heavy"],
-  ["light", "Light"], ["mono", "Mono"], ["soft", "Soft"], ["crisp", "Crisp"],
+  ["light", "Light"], ["mono", "Mono"], ["soft", "Soft"], ["crisp", "Crisp"], ["serif", "Serif Heads"],
 ] as const;
 /** Button hover/animation effects (DFM-style), layered on any button. */
 export const BTN_EFFECTS = [

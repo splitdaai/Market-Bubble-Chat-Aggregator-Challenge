@@ -65,7 +65,7 @@ export function ThemeEditor({ open, onClose }: { open: boolean; onClose: () => v
                   onChange={(e) => patch({ font: e.target.value as Theme["font"] })}
                   className="w-full rounded-md border border-white/10 bg-black/40 px-2 py-1.5 text-sm text-ink outline-none focus:border-accent"
                 >
-                  {["Space Grotesk", "Inter", "JetBrains Mono"].map((f) => (
+                  {["Space Grotesk", "Inter", "JetBrains Mono", "Geist"].map((f) => (
                     <option key={f} value={f}>{f}</option>
                   ))}
                 </select>
