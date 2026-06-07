@@ -26,7 +26,8 @@ const KOLS = [
 ];
 
 interface HlTrader { name: string; addr: string; pnl: number; roi?: number; value: number; xHandle?: string }
-interface Linked { name: string; xHandle: string; addr: string; source: string; value: number; pnl: number }
+interface Linked { name: string; xHandle: string; addr: string; chain: "hl" | "evm"; value: number; pnl: number; top?: string }
+interface Holding { sym: string; amount: number; usd: number }
 interface Position { coin: string; long: boolean; szi: number; entry: number; upnl: number; lev: number; value: number }
 interface Fill { coin: string; buy: boolean; sz: number; px: number; t: number; dir: string }
 interface WalletData { addr: string; accountValue: number; positions: Position[]; fills: Fill[]; chart: Record<string, number[]> }
@@ -157,10 +158,62 @@ function KolXModal({ kol, onClose }: { kol: { name: string; handle: string; colo
   );
 }
 
+/* Real EVM wallet holdings (ENS + Blockscout) + the trader's X feed. */
+function EvmWalletModal({ trader, onClose }: { trader: Linked; onClose: () => void }) {
+  const [w, setW] = useState<{ addr: string; ens: string; totalUsd: number; holdings: Holding[] } | null>(null);
+  useEffect(() => {
+    let on = true;
+    fetch(`${BACKEND}/api/evm-wallet?id=${trader.addr}`).then((r) => r.json()).then((j) => { if (on && j.addr) setW(j); }).catch(() => {});
+    return () => { on = false; };
+  }, [trader.addr]);
+  const total = w?.totalUsd ?? trader.value;
+  return (
+    <motion.div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/70 p-4 backdrop-blur-sm" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose}>
+      <motion.div className="mb-tab mt-10 w-full max-w-3xl rounded-2xl border border-white/10 bg-[#111]" initial={{ scale: 0.96, y: 12 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.96, opacity: 0 }} onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center gap-3 border-b border-white/8 p-4">
+          <span className="grid h-11 w-11 place-items-center rounded-full bg-accent/20 text-[14px] font-black text-accent">{trader.name[0]}</span>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2"><span className="serif text-xl font-bold">{trader.name}</span><span className="rounded bg-accent/20 px-1.5 py-0.5 text-[9px] font-bold uppercase text-accent">✓ disclosed</span></div>
+            <div className="font-mono text-[11px] text-faint"><a href={`https://etherscan.io/address/${w?.addr ?? trader.addr}`} target="_blank" rel="noreferrer" className="hover:text-accent">{(w?.ens || trader.addr).slice(0, 24)}</a> · Ethereum · <a href={`https://x.com/${trader.xHandle}`} target="_blank" rel="noreferrer" className="text-accent hover:underline">@{trader.xHandle}</a></div>
+          </div>
+          <button onClick={onClose} className="rounded-lg p-1.5 text-muted hover:bg-white/10 hover:text-ink"><XIcon size={18} /></button>
+        </div>
+        <div className="grid grid-cols-3 gap-2 p-4 pb-0">
+          {[["Portfolio value", usd(total)], ["Holdings", String(w?.holdings.length ?? "…")], ["Chain", "Ethereum"]].map(([l, v]) => (
+            <div key={l} className="rounded-xl border border-white/8 bg-white/[0.02] px-3 py-2 text-center"><div className="text-[9px] uppercase tracking-wider text-faint">{l}</div><div className="mt-0.5 text-[16px] font-extrabold tabular-nums text-accent">{v}</div></div>
+          ))}
+        </div>
+        <div className="grid grid-cols-1 gap-4 p-4 md:grid-cols-2">
+          <div>
+            <div className="mb-2 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-muted"><Wallet size={12} /> Token holdings · live</div>
+            <div className="max-h-[420px] space-y-1 overflow-y-auto pr-1">
+              {(w?.holdings ?? []).map((h, i) => (
+                <div key={i} className="flex items-center gap-2 rounded-lg bg-white/[0.02] px-2.5 py-1.5 text-[12px]">
+                  <span className="font-mono font-bold text-accent">{h.sym}</span>
+                  <span className="ml-auto tabular-nums text-muted">{compact(h.amount)}</span>
+                  <span className="w-20 text-right font-bold tabular-nums">{usd(h.usd)}</span>
+                  <span className="w-12 text-right text-[10px] text-faint">{total ? Math.round((h.usd / total) * 100) : 0}%</span>
+                </div>
+              ))}
+              {w && w.holdings.length === 0 && <div className="py-4 text-center text-[11px] text-faint">No token holdings &gt;$1 in this wallet (may hold elsewhere).</div>}
+              {!w && <div className="py-4 text-center text-[11px] text-faint">Loading live holdings…</div>}
+            </div>
+          </div>
+          <div className="min-h-0">
+            <div className="mb-2 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-muted"><XIcon size={12} /> Latest posts</div>
+            <div className="max-h-[420px] overflow-y-auto rounded-lg border border-white/8"><XPosts handle={trader.xHandle} /></div>
+          </div>
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+}
+
 export function KolTab() {
   const [hl, setHl] = useState<HlTrader[]>([]);
   const [linked, setLinked] = useState<Linked[]>([]);
   const [openWallet, setOpenWallet] = useState<HlTrader | null>(null);
+  const [openEvm, setOpenEvm] = useState<Linked | null>(null);
   const [openKol, setOpenKol] = useState<typeof KOLS[number] | null>(null);
 
   useEffect(() => {
@@ -197,13 +250,13 @@ export function KolTab() {
                 <div className="mb-1.5 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-accent"><XIcon size={11} /> Verified · X-linked wallets</div>
                 <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                   {linked.map((k) => (
-                    <div key={k.addr} role="button" tabIndex={0} onClick={() => setOpenWallet({ name: k.name, addr: k.addr, pnl: k.pnl, value: k.value, xHandle: k.xHandle })} className="group flex cursor-pointer items-center gap-3 rounded-xl border border-accent/30 bg-accent/5 p-2.5 transition hover:border-accent/60">
+                    <div key={k.addr} role="button" tabIndex={0} onClick={() => k.chain === "evm" ? setOpenEvm(k) : setOpenWallet({ name: k.name, addr: k.addr, pnl: k.pnl, value: k.value, xHandle: k.xHandle })} className="group flex cursor-pointer items-center gap-3 rounded-xl border border-accent/30 bg-accent/5 p-2.5 transition hover:border-accent/60">
                       <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-accent/20 text-[12px] font-black text-accent">{k.name[0]}</span>
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-1.5"><span className="truncate text-[13px] font-bold">{k.name}</span><span className="rounded bg-accent/20 px-1 text-[8px] font-bold uppercase text-accent">✓ disclosed</span><WatchStar item={{ key: `hlwallet:${k.addr}`, type: "trader", label: k.name, sub: "@" + k.xHandle }} size={11} /></div>
                         <a href={`https://x.com/${k.xHandle}`} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} className="text-[10px] text-accent hover:underline">@{k.xHandle}</a>
                       </div>
-                      <div className="text-right"><div className="text-[13px] font-bold tabular-nums">{usd(k.value)}</div><div className={`text-[10px] font-bold tabular-nums ${k.pnl >= 0 ? "text-up" : "text-down"}`}>{k.pnl >= 0 ? "+" : ""}{usd(k.pnl)} 30d</div></div>
+                      <div className="text-right"><div className="text-[13px] font-bold tabular-nums">{usd(k.value)}</div>{k.chain === "evm" ? <div className="text-[10px] font-bold text-faint">{k.top ? `top: ${k.top}` : "holdings"}</div> : <div className={`text-[10px] font-bold tabular-nums ${k.pnl >= 0 ? "text-up" : "text-down"}`}>{k.pnl >= 0 ? "+" : ""}{usd(k.pnl)} 30d</div>}</div>
                     </div>
                   ))}
                 </div>
@@ -251,6 +304,7 @@ export function KolTab() {
       </div>
 
       <AnimatePresence>{openWallet && <HlWalletModal key={openWallet.addr} trader={openWallet} onClose={() => setOpenWallet(null)} />}</AnimatePresence>
+      <AnimatePresence>{openEvm && <EvmWalletModal key={openEvm.addr} trader={openEvm} onClose={() => setOpenEvm(null)} />}</AnimatePresence>
       <AnimatePresence>{openKol && <KolXModal key={openKol.id} kol={openKol} onClose={() => setOpenKol(null)} />}</AnimatePresence>
     </div>
   );
