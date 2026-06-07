@@ -1,7 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Crosshair, Wallet, ArrowUpRight, ArrowDownRight, X as XIcon, Activity, TrendingUp, Copy, ExternalLink } from "lucide-react";
+import { Crosshair, Wallet, ArrowUpRight, ArrowDownRight, X as XIcon, Activity, TrendingUp, Copy, ExternalLink, UserPlus, Trophy } from "lucide-react";
 import { compact } from "../../lib/format";
+import { Sparkline } from "../Sparkline";
+
+function makeRng(seed: string) {
+  let h = 2166136261;
+  for (const c of seed) { h ^= c.charCodeAt(0); h = Math.imul(h, 16777619) >>> 0; }
+  return () => { h = (Math.imul(h, 1103515245) + 12345) & 0x7fffffff; return h / 0x7fffffff; };
+}
 
 interface Holding { sym: string; usd: number; chg: number }
 interface Kol {
@@ -149,57 +156,131 @@ export function KolTab() {
 
       {/* KOL profile modal */}
       <AnimatePresence>
-        {open && (
-          <motion.div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/70 p-4 backdrop-blur-sm" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setOpen(null)}>
-            <motion.div className="mb-tab mt-12 w-full max-w-3xl rounded-2xl border border-white/10 bg-[#121212]" initial={{ scale: 0.96, y: 10 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.96, opacity: 0 }} onClick={(e) => e.stopPropagation()}>
-              <div className="flex items-center gap-3 border-b border-white/8 p-4">
-                <span className="grid h-12 w-12 place-items-center rounded-full text-[18px] font-black text-black" style={{ background: open.color }}>{open.name[0]}</span>
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2"><span className="serif text-xl font-bold">{open.name}</span><span className="rounded bg-white/8 px-1.5 py-0.5 text-[10px] font-bold text-faint">{open.chain}</span></div>
-                  <a href={`https://x.com/${open.handle}`} target="_blank" rel="noreferrer" className="flex items-center gap-1 text-[12px] text-accent hover:underline">@{open.handle} <ExternalLink size={11} /></a>
-                </div>
-                <button onClick={() => setOpen(null)} className="rounded-lg p-1.5 text-muted hover:bg-white/10 hover:text-ink"><XIcon size={18} /></button>
-              </div>
-
-              <div className="grid grid-cols-3 gap-px bg-white/8 text-center">
-                {[["Balance", usd(open.balance)], ["24h PnL", `${open.pnl24h >= 0 ? "+" : ""}${open.pnl24h}%`], ["Wallet", short(open.wallet)]].map(([l, v]) => (
-                  <div key={l} className="bg-[#121212] py-3"><div className="text-[9px] uppercase tracking-wider text-faint">{l}</div><div className={`mt-0.5 text-[15px] font-bold tabular-nums ${l === "24h PnL" ? (open.pnl24h >= 0 ? "text-up" : "text-down") : ""}`}>{v}</div></div>
-                ))}
-              </div>
-
-              <div className="grid grid-cols-1 gap-4 p-4 md:grid-cols-2">
-                <div>
-                  <div className="mb-2 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-muted"><Wallet size={12} /> Top Holdings</div>
-                  <div className="space-y-1.5">
-                    {open.holdings.map((h) => (
-                      <div key={h.sym} className="flex items-center gap-2 rounded-lg border border-white/8 bg-white/[0.02] px-2.5 py-2">
-                        <span className="font-mono text-[12px] font-bold text-accent">${h.sym}</span>
-                        <span className="ml-auto text-[12px] font-bold tabular-nums">{usd(h.usd)}</span>
-                        <span className={`w-14 text-right text-[11px] font-bold tabular-nums ${h.chg >= 0 ? "text-up" : "text-down"}`}>{h.chg >= 0 ? "+" : ""}{h.chg}%</span>
-                      </div>
-                    ))}
-                  </div>
-                  <div className="mt-3 mb-2 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-muted"><TrendingUp size={12} /> Recent Trades</div>
-                  <div className="space-y-1">
-                    {feed.filter((t) => t.kol.id === open.id).slice(0, 6).map((t) => (
-                      <div key={t.id} className="flex items-center gap-2 rounded-lg bg-white/[0.02] px-2.5 py-1.5 text-[11.5px]">
-                        <span className={`font-bold ${t.side === "buy" ? "text-up" : "text-down"}`}>{t.side.toUpperCase()}</span>
-                        <span className="font-mono font-bold text-accent">${t.token}</span>
-                        <span className="ml-auto tabular-nums">{usd(t.usd)}</span>
-                      </div>
-                    ))}
-                    {feed.filter((t) => t.kol.id === open.id).length === 0 && <div className="py-2 text-center text-[11px] text-faint">waiting for live trades…</div>}
-                  </div>
-                </div>
-                <div className="min-h-0">
-                  <div className="mb-2 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-muted"><XIcon size={12} /> Latest Posts</div>
-                  <div className="max-h-[420px] overflow-y-auto rounded-lg border border-white/8"><XPosts handle={open.handle} /></div>
-                </div>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
+        {open && <KolProfile key={open.id} kol={open} onClose={() => setOpen(null)} />}
       </AnimatePresence>
     </div>
+  );
+}
+
+/** Big, detailed KOL profile dashboard — KPIs, balance graph, allocation, live trades, X posts. */
+function KolProfile({ kol, onClose }: { kol: Kol; onClose: () => void }) {
+  const [feed, setFeed] = useState<{ id: number; token: string; side: "buy" | "sell"; usd: number; ts: number }[]>([]);
+  const idRef = useRef(1);
+
+  const d = useMemo(() => {
+    const r = makeRng(kol.id);
+    const win = 55 + Math.floor(r() * 22);
+    const trades = 80 + Math.floor(r() * 220);
+    const realized = Math.round(kol.balance * (0.4 + r() * 1.6));
+    const pnl7d = +(kol.pnl24h * 1.4 + (r() * 28 - 11)).toFixed(1);
+    const pnl30d = +(kol.pnl24h * 2.2 + (r() * 60 - 18)).toFixed(1);
+    const equity = Array.from({ length: 34 }, (_, i) => 50 + i * (kol.pnl24h / 7) + Math.sin(i / 3) * 7 + r() * 12);
+    const followers = Math.round(40 + r() * 950) * 1000;
+    const allocOther = Math.max(0, kol.balance - kol.holdings.reduce((s, h) => s + h.usd, 0));
+    return { win, trades, wins: Math.round((trades * win) / 100), realized, pnl7d, pnl30d, equity, followers, allocOther };
+  }, [kol]);
+
+  useEffect(() => {
+    const tokens = [...kol.holdings.map((h) => h.sym), ...TOKENS];
+    const r = makeRng(kol.id + "live");
+    const tick = () => {
+      const side: "buy" | "sell" = r() > 0.45 ? "buy" : "sell";
+      const amount = Math.round((4000 + r() * 480000) / 1000) * 1000;
+      setFeed((f) => [{ id: idRef.current++, token: tokens[Math.floor(r() * tokens.length)], side, usd: amount, ts: Date.now() }, ...f].slice(0, 18));
+    };
+    tick(); tick(); const iv = setInterval(tick, 2100);
+    return () => clearInterval(iv);
+  }, [kol]);
+
+  const kpis: [string, string, "up" | "down" | "accent" | ""][] = [
+    ["Balance", usd(kol.balance), "accent"],
+    ["24h PnL", `${kol.pnl24h >= 0 ? "+" : ""}${kol.pnl24h}%`, kol.pnl24h >= 0 ? "up" : "down"],
+    ["7d PnL", `${d.pnl7d >= 0 ? "+" : ""}${d.pnl7d}%`, d.pnl7d >= 0 ? "up" : "down"],
+    ["30d PnL", `${d.pnl30d >= 0 ? "+" : ""}${d.pnl30d}%`, d.pnl30d >= 0 ? "up" : "down"],
+    ["Realized", "+" + usd(d.realized), "up"],
+    ["Win rate", d.win + "%", "accent"],
+    ["Trades", String(d.trades), ""],
+    ["Followers", compact(d.followers), ""],
+  ];
+
+  return (
+    <motion.div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/70 p-4 backdrop-blur-sm" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose}>
+      <motion.div className="mb-tab mt-8 w-full max-w-5xl rounded-2xl border border-white/10 bg-[#111]" initial={{ scale: 0.96, y: 12 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.96, opacity: 0 }} onClick={(e) => e.stopPropagation()}>
+        {/* header */}
+        <div className="flex items-center gap-3 border-b border-white/8 p-4">
+          <span className="grid h-12 w-12 place-items-center rounded-full text-[18px] font-black text-black" style={{ background: kol.color }}>{kol.name[0]}</span>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2"><span className="serif text-xl font-bold">{kol.name}</span><span className="rounded bg-white/8 px-1.5 py-0.5 text-[10px] font-bold text-faint">{kol.chain}</span><span className="font-mono text-[11px] text-faint">{short(kol.wallet)}</span></div>
+            <a href={`https://x.com/${kol.handle}`} target="_blank" rel="noreferrer" className="flex items-center gap-1 text-[12px] text-accent hover:underline">@{kol.handle} <ExternalLink size={11} /></a>
+          </div>
+          <div className="hidden gap-2 sm:flex">
+            <motion.button whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.96 }} className="flex items-center gap-1.5 rounded-xl bg-accent px-3 py-1.5 text-[12px] font-bold text-black shadow-neon"><Copy size={13} /> Copy wallet</motion.button>
+            <motion.button whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.96 }} className="flex items-center gap-1.5 rounded-xl border border-white/15 px-3 py-1.5 text-[12px] font-bold text-ink hover:border-white/30"><UserPlus size={13} /> Follow</motion.button>
+          </div>
+          <button onClick={onClose} className="rounded-lg p-1.5 text-muted hover:bg-white/10 hover:text-ink"><XIcon size={18} /></button>
+        </div>
+
+        {/* KPI grid */}
+        <div className="grid grid-cols-2 gap-2 p-4 pb-0 sm:grid-cols-4 lg:grid-cols-8">
+          {kpis.map(([l, v, tone]) => (
+            <div key={l} className="rounded-xl border border-white/8 bg-white/[0.02] px-2.5 py-2 text-center">
+              <div className="text-[9px] uppercase tracking-wider text-faint">{l}</div>
+              <div className={`mt-0.5 text-[15px] font-extrabold tabular-nums ${tone === "up" ? "text-up" : tone === "down" ? "text-down" : tone === "accent" ? "text-accent" : ""}`}>{v}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* balance equity curve */}
+        <div className="px-4 pt-3">
+          <div className="rounded-xl border border-white/8 bg-black/20 p-3">
+            <div className="mb-1 flex items-center justify-between text-[10px] uppercase tracking-wider text-faint"><span className="flex items-center gap-1"><Trophy size={12} className="text-gold" /> Portfolio value · 30d</span><span className={d.pnl30d >= 0 ? "text-up" : "text-down"}>{d.pnl30d >= 0 ? "▲" : "▼"} {Math.abs(d.pnl30d)}%</span></div>
+            <Sparkline data={d.equity} width={900} height={130} color={kol.pnl24h >= 0 ? "#16e6a4" : "#ff5a6a"} />
+          </div>
+        </div>
+
+        {/* holdings + live trades + posts */}
+        <div className="grid grid-cols-1 gap-4 p-4 lg:grid-cols-[1fr_1fr_0.9fr]">
+          {/* holdings with allocation bars */}
+          <div>
+            <div className="mb-2 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-muted"><Wallet size={12} /> Holdings</div>
+            <div className="space-y-1.5">
+              {kol.holdings.map((h) => {
+                const wt = (h.usd / kol.balance) * 100;
+                return (
+                  <div key={h.sym} className="rounded-lg border border-white/8 bg-white/[0.02] px-2.5 py-2">
+                    <div className="flex items-center gap-2 text-[12px]"><span className="font-mono font-bold text-accent">${h.sym}</span><span className="ml-auto font-bold tabular-nums">{usd(h.usd)}</span><span className={`w-12 text-right text-[11px] font-bold tabular-nums ${h.chg >= 0 ? "text-up" : "text-down"}`}>{h.chg >= 0 ? "+" : ""}{h.chg}%</span></div>
+                    <div className="mt-1 flex items-center gap-2"><div className="h-1.5 flex-1 overflow-hidden rounded-full bg-white/8"><div className="h-full rounded-full bg-accent" style={{ width: `${Math.min(100, wt)}%` }} /></div><span className="w-9 text-right text-[9px] text-faint">{wt.toFixed(0)}%</span></div>
+                  </div>
+                );
+              })}
+              {d.allocOther > 0 && <div className="px-2.5 text-[10px] text-faint">+ {usd(d.allocOther)} in other assets / stables</div>}
+            </div>
+          </div>
+
+          {/* live trades */}
+          <div>
+            <div className="mb-2 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-muted"><Activity size={12} className="text-up" /> Live Trades <span className="ml-1 h-1.5 w-1.5 animate-pulse rounded-full bg-up" /></div>
+            <div className="max-h-[360px] space-y-1 overflow-y-auto pr-1">
+              <AnimatePresence initial={false}>
+                {feed.map((t) => (
+                  <motion.div key={t.id} initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="flex items-center gap-2 rounded-lg bg-white/[0.02] px-2.5 py-1.5 text-[11.5px]">
+                    <span className={`flex items-center gap-0.5 font-bold ${t.side === "buy" ? "text-up" : "text-down"}`}>{t.side === "buy" ? <ArrowUpRight size={12} /> : <ArrowDownRight size={12} />}{t.side.toUpperCase()}</span>
+                    <span className="font-mono font-bold text-accent">${t.token}</span>
+                    <span className="ml-auto tabular-nums text-muted">{usd(t.usd)}</span>
+                    <span className="w-12 text-right text-[9px] tabular-nums text-faint">{fmtTime(t.ts)}</span>
+                  </motion.div>
+                ))}
+              </AnimatePresence>
+            </div>
+          </div>
+
+          {/* latest posts */}
+          <div className="min-h-0">
+            <div className="mb-2 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-muted"><XIcon size={12} /> Latest Posts</div>
+            <div className="max-h-[360px] overflow-y-auto rounded-lg border border-white/8"><XPosts handle={kol.handle} /></div>
+          </div>
+        </div>
+      </motion.div>
+    </motion.div>
   );
 }
