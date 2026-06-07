@@ -54,6 +54,12 @@ function Avatar({ name, platform, color }: { name: string; platform: Platform; c
  * history, totals, stacking-timeout moderation and — if they've linked an EVM
  * wallet — a one-tap tip button.
  */
+const SYNTH_LINES = [
+  "lets go 🚀", "GG", "bullish af", "what's the play here?", "🔥🔥🔥", "first time catching live",
+  "W stream", "this is wild", "chat moving fast", "real time zero lag 🫡", "to the moon", "ngmi",
+  "based", "clip that", "LFG", "ser when", "hodl", "+EV", "🐂 szn", "respect", "big if true", "🤝",
+];
+
 export function UserCard() {
   const open = useUserCardStore((s) => s.open);
   const close = useUserCardStore((s) => s.close);
@@ -91,6 +97,27 @@ export function UserCard() {
     () => (open ? listUsers().find((u) => u.name === open.name && u.platform === open.platform) : undefined),
     [open, listUsers],
   );
+
+  // Messages to show. Real chatters have stored history. Demo users seeded by
+  // the warm-start have a message count but no stored history — synthesize that
+  // many timestamped lines (deterministic) so the list matches the count.
+  const displayMessages = useMemo(() => {
+    if (userMessages.length || !open) return userMessages;
+    const n = Math.min(row?.count ?? 0, 30);
+    if (!n) return [];
+    const last = row?.last ?? Date.now();
+    let seed = 0;
+    for (const ch of open.name) seed = (seed * 31 + ch.charCodeAt(0)) >>> 0;
+    const rnd = () => { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff; };
+    const span = 50 * 60 * 1000; // spread over ~50 min before "last"
+    return Array.from({ length: n }, (_, i) => ({
+      id: `${open.platform}:${open.name}:${i}`,
+      platform: open.platform,
+      username: open.name,
+      message: SYNTH_LINES[Math.floor(rnd() * SYNTH_LINES.length)],
+      timestamp: Math.round(last - (i / n) * span - rnd() * 30000),
+    })).sort((a, b) => a.timestamp - b.timestamp);
+  }, [userMessages, row, open]);
 
   if (!open) return null;
 
@@ -267,13 +294,13 @@ export function UserCard() {
         {/* message history */}
         <div className="vc-scroll min-h-0 flex-1 overflow-y-auto p-3">
           <div className="mb-2 text-[10px] font-bold uppercase tracking-widest text-muted">
-            All messages ({userMessages.length})
+            All messages ({displayMessages.length})
           </div>
-          {userMessages.length === 0 ? (
+          {displayMessages.length === 0 ? (
             <div className="py-6 text-center text-sm text-muted opacity-70">No messages from this user yet this session.</div>
           ) : (
             <div className="flex flex-col gap-1">
-              {[...userMessages].reverse().map((m) => (
+              {[...displayMessages].reverse().map((m) => (
                 <div key={m.id} className="flex items-baseline gap-2 rounded-lg bg-white/[0.02] px-2.5 py-1.5">
                   <span className="shrink-0"><SourceBadge platform={m.platform} compact /></span>
                   <span className="shrink-0 whitespace-nowrap text-[10px] tabular-nums text-muted opacity-60">{fmtTime(m.timestamp)}</span>
