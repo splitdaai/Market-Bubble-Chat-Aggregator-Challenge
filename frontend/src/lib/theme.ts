@@ -164,6 +164,7 @@ export function applyTheme(theme: Theme): void {
   // Style templates → data attributes consumed by index.css.
   r.setAttribute("data-tile", theme.tile ?? "glass");
   r.setAttribute("data-btn", theme.btn ?? "solid");
+  r.setAttribute("data-btn-fx", theme.btnFx ?? "none");
   r.setAttribute("data-text", theme.textStyle ?? "default");
 }
 
@@ -180,4 +181,11 @@ export const BTN_TEMPLATES = [
 export const TEXT_TEMPLATES = [
   ["default", "Default"], ["tight", "Tight"], ["wide", "Wide"], ["heavy", "Heavy"],
   ["light", "Light"], ["mono", "Mono"], ["soft", "Soft"], ["crisp", "Crisp"],
+] as const;
+/** Button hover/animation effects (DFM-style), layered on any button. */
+export const BTN_EFFECTS = [
+  ["none", "None"], ["lift", "Lift"], ["glow", "Glow"], ["halo", "Halo"],
+  ["pop", "Pop"], ["press", "Press"], ["sheen", "Sheen"], ["sweep", "Sweep"],
+  ["fill", "Fill"], ["pulse", "Pulse"], ["ring", "Ring"], ["underline", "Underline"],
+  ["spin", "Spin"],
 ] as const;

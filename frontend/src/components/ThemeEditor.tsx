@@ -1,7 +1,7 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { X } from "lucide-react";
 import { useThemeStore } from "@/store/themeStore";
-import { THEME_PRESETS, TILE_TEMPLATES, BTN_TEMPLATES, TEXT_TEMPLATES } from "@/lib/theme";
+import { THEME_PRESETS, TILE_TEMPLATES, BTN_TEMPLATES, BTN_EFFECTS, TEXT_TEMPLATES } from "@/lib/theme";
 import type { Theme } from "@shared/types";
 
 /** Live theme editor — every change writes to :root immediately. */
@@ -98,6 +98,12 @@ export function ThemeEditor({ open, onClose }: { open: boolean; onClose: () => v
                 options={BTN_TEMPLATES}
                 value={theme.btn ?? "solid"}
                 onPick={(id) => patch({ btn: id as Theme["btn"] })}
+              />
+              <ChipGrid
+                label="Button effect (hover)"
+                options={BTN_EFFECTS}
+                value={theme.btnFx ?? "none"}
+                onPick={(id) => patch({ btnFx: id as Theme["btnFx"] })}
               />
               <ChipGrid
                 label="Text template"

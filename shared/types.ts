@@ -276,8 +276,13 @@ export interface Theme {
   /** Selectable style templates (Theme Editor). Optional → back-compat. */
   tile?: TileTemplate;
   btn?: ButtonTemplate;
+  btnFx?: ButtonEffect;
   textStyle?: TextTemplate;
 }
+
+export type ButtonEffect =
+  | "none" | "lift" | "glow" | "halo" | "pop" | "press"
+  | "sheen" | "sweep" | "fill" | "pulse" | "ring" | "underline" | "spin";
 
 export type TileTemplate =
   | "glass" | "flat" | "outline" | "elevated" | "neon"
