@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Radio, Film, TrendingUp, Play } from "lucide-react";
 import { compact } from "../../lib/format";
 import { BROADCASTS } from "../../store/broadcastStore";
+import { BubbleScroll } from "../BubbleScroll";
 
 const BACKEND = (import.meta.env.VITE_BACKEND_URL as string | undefined) ?? "https://3-213-104-77.nip.io";
 
@@ -93,7 +94,7 @@ export function ContentTab() {
 
       <div className="mt-5 grid grid-cols-1 gap-4 lg:grid-cols-12">
         {/* live feed — real X timeline (Ansem / Banks / Market Bubble) */}
-        <div className="vc-glass flex flex-col rounded-2xl p-3 lg:col-span-4" style={{ height: 760 }}>
+        <div className="vc-glass flex flex-col rounded-2xl p-3 lg:col-span-4" style={{ height: 920 }}>
           <div className="mb-2 flex items-center gap-2"><Radio size={14} className="text-down" /><span className="text-[12px] font-bold uppercase tracking-[0.12em] text-muted">Live Feed</span></div>
           <div className="mb-2 flex flex-wrap gap-1">
             {feedTabs.map((a) => (
@@ -106,7 +107,7 @@ export function ContentTab() {
               </button>
             ))}
           </div>
-          <div className="scroll min-h-0 flex-1 overflow-y-auto pr-1">
+          <BubbleScroll className="flex-1">
             {feedHandle === "all" ? (
               FEED_LIST_ID ? (
                 <XTimeline list={FEED_LIST_ID} limit={20} />
@@ -121,7 +122,7 @@ export function ContentTab() {
             ) : (
               <XTimeline key={feedHandle} handle={feedHandle} limit={14} />
             )}
-          </div>
+          </BubbleScroll>
         </div>
 
         {/* right column */}

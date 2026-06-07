@@ -23,6 +23,11 @@
   color: #e4e4e4;
 }
 .mb-tab .font-mono { font-family: "Geist Mono", ui-monospace, "SF Mono", monospace; }
+
+/* BubbleScroll: hide the native scrollbar so only the custom bubble thumb shows. */
+.bubble-scroll-area::-webkit-scrollbar { width: 0; height: 0; }
+.bubble-scroll-area { scrollbar-width: none; -ms-overflow-style: none; }
+
 .mb-tab .vc-glass {
   background: rgba(255, 255, 255, 0.02) !important;
   border: 1px solid rgba(255, 255, 255, 0.06) !important;

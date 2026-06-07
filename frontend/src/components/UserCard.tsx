@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { X, Wallet, Clock, MessageSquare, DollarSign, Gift, Ban, TimerReset, Plus, Minus, ShieldOff } from "lucide-react";
+import { BubbleScroll } from "./BubbleScroll";
 import { useChatStore, userKey } from "@/store/chatStore";
 import { useStatsStore } from "@/store/statsStore";
 import { useModeStore } from "@/store/modeStore";
@@ -292,22 +293,24 @@ export function UserCard() {
         </div>
 
         {/* message history */}
-        <div className="vc-scroll min-h-0 flex-1 overflow-y-auto p-3">
+        <div className="flex min-h-0 flex-1 flex-col p-3">
           <div className="mb-2 text-[10px] font-bold uppercase tracking-widest text-muted">
             All messages ({displayMessages.length})
           </div>
           {displayMessages.length === 0 ? (
             <div className="py-6 text-center text-sm text-muted opacity-70">No messages from this user yet this session.</div>
           ) : (
-            <div className="flex flex-col gap-1">
-              {[...displayMessages].reverse().map((m) => (
-                <div key={m.id} className="flex items-baseline gap-2 rounded-lg bg-white/[0.02] px-2.5 py-1.5">
-                  <span className="shrink-0"><SourceBadge platform={m.platform} compact /></span>
-                  <span className="shrink-0 whitespace-nowrap text-[10px] tabular-nums text-muted opacity-60">{fmtTime(m.timestamp)}</span>
-                  <span className="break-words text-[13px] leading-snug text-ink/90">{m.message}</span>
-                </div>
-              ))}
-            </div>
+            <BubbleScroll className="flex-1">
+              <div className="flex flex-col gap-1">
+                {[...displayMessages].reverse().map((m) => (
+                  <div key={m.id} className="flex items-baseline gap-2 rounded-lg bg-white/[0.02] px-2.5 py-1.5">
+                    <span className="shrink-0"><SourceBadge platform={m.platform} compact /></span>
+                    <span className="shrink-0 whitespace-nowrap text-[10px] tabular-nums text-muted opacity-60">{fmtTime(m.timestamp)}</span>
+                    <span className="break-words text-[13px] leading-snug text-ink/90">{m.message}</span>
+                  </div>
+                ))}
+              </div>
+            </BubbleScroll>
           )}
         </div>
       </motion.div>
