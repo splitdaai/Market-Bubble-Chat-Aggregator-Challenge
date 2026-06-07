@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Palette, Pencil, Eye, RotateCcw, Monitor, Radio, BarChart3, Plug, Sparkles, MousePointerClick, X, TrendingUp, Clapperboard, Crosshair, UserCircle2 } from "lucide-react";
+import { Palette, Pencil, Eye, RotateCcw, Monitor, Radio, BarChart3, Plug, Sparkles, MousePointerClick, X, TrendingUp, Clapperboard, Crosshair, UserCircle2, Star } from "lucide-react";
 import { useLayoutStore } from "@/store/layoutStore";
 import { useModeStore } from "@/store/modeStore";
 import { useOverlayStore } from "@/store/overlayStore";
@@ -200,6 +200,15 @@ export function Topbar({ onOpenTheme, onOpenConnections, onOpenFeatures }: { onO
         <IconBtn onClick={onOpenTheme} title="Theme editor">
           <Palette size={16} />
         </IconBtn>
+
+        <motion.button
+          whileTap={{ scale: 0.95 }}
+          onClick={() => setDashOpen(true)}
+          title="Watchlist dashboard"
+          className="ml-1 flex items-center gap-1.5 rounded-xl border border-white/15 bg-white/[0.04] px-3 py-2 text-sm font-bold text-ink transition hover:border-gold/50 hover:text-gold"
+        >
+          <Star size={16} /> <span className="hidden sm:inline">Watchlist</span>
+        </motion.button>
 
         <motion.button
           whileTap={{ scale: 0.95 }}
