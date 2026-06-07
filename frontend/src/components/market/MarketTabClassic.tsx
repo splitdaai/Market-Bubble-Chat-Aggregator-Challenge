@@ -238,7 +238,7 @@ export function MarketTabClassic() {
         <p className="mt-1 text-[13px] text-muted">Classic layout — global markets, narratives, smart money, portfolios &amp; Polymarket in one terminal.</p>
 
         <PageGrid
-          pageKey="market-classic"
+          pageKey="market-classic-v2"
           editMode={editMode}
           items={[
             { id: "global", x: 0, y: 0, w: 12, h: 12, node: (
