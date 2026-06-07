@@ -191,3 +191,33 @@ export async function getLeaderboards() {
   lbCache = { exp: Date.now() + 900_000, data };
   return data;
 }
+
+/* ---- Real per-wallet Hyperliquid data (positions + fills + portfolio chart) ---- */
+const hlWalletCache = new Map<string, { exp: number; data: unknown }>();
+
+export async function getHlWallet(addr: string) {
+  const key = addr.toLowerCase();
+  const hit = hlWalletCache.get(key);
+  if (hit && Date.now() < hit.exp) return hit.data;
+  const post = (body: unknown) => jget("https://api.hyperliquid.xyz/info", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  const out: { addr: string; accountValue: number; positions: unknown[]; fills: unknown[]; chart: Record<string, number[]> } = { addr, accountValue: 0, positions: [], fills: [], chart: {} };
+  try {
+    const [cs, pf, uf] = await Promise.all([
+      post({ type: "clearinghouseState", user: addr }),
+      post({ type: "portfolio", user: addr }),
+      post({ type: "userFills", user: addr }),
+    ]);
+    out.accountValue = +(cs?.marginSummary?.accountValue ?? 0);
+    out.positions = (cs?.assetPositions ?? []).map((p: { position: Record<string, string & { value: string }> }) => {
+      const pos = p.position as Record<string, string> & { leverage?: { value: number } };
+      const szi = +pos.szi;
+      return { coin: pos.coin, long: szi >= 0, szi, entry: +(pos.entryPx ?? 0), upnl: +(pos.unrealizedPnl ?? 0), lev: pos.leverage?.value ?? 0, value: Math.abs(+(pos.positionValue ?? 0)) };
+    });
+    const pmap: Record<string, { accountValueHistory?: [number, string][] }> = Object.fromEntries(pf as [string, { accountValueHistory?: [number, string][] }][]);
+    const series = (w: string) => (pmap[w]?.accountValueHistory ?? []).map((x) => +x[1]);
+    out.chart = { day: series("day"), week: series("week"), month: series("month"), allTime: series("allTime") };
+    out.fills = (uf as { coin: string; side: string; sz: string; px: string; time: number; dir?: string }[] ?? []).slice(0, 40).map((f) => ({ coin: f.coin, buy: f.side === "B", sz: +f.sz, px: +f.px, t: f.time, dir: f.dir ?? "" }));
+  } catch { /* leave empty */ }
+  hlWalletCache.set(key, { exp: Date.now() + 120_000, data: out });
+  return out;
+}

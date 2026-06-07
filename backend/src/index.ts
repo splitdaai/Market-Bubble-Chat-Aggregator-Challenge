@@ -15,7 +15,7 @@ import { HistoryStore } from "./history/store.ts";
 import { twitchViewers, kickViewers, youtubeViewers } from "./stats/viewers.ts";
 import { mountAuth, getAccounts, getToken, refreshToken } from "./auth.ts";
 import { getTwitchChannel } from "./twitchChannel.ts";
-import { getMarketData, getPriceHistory, getLeaderboards } from "./marketData.ts";
+import { getMarketData, getPriceHistory, getLeaderboards, getHlWallet } from "./marketData.ts";
 
 const PORT = Number(process.env.PORT ?? 4000);
 // Non-wildcard CORS allowlist in production (comma-separated origins); "*" only
@@ -53,6 +53,17 @@ app.get("/api/market", async (_req, res) => {
     res.json(data);
   } catch {
     res.status(502).json({ error: "market fetch failed" });
+  }
+});
+
+app.get("/api/hl-wallet", async (req, res) => {
+  try {
+    const addr = String(req.query.addr ?? "");
+    if (!/^0x[a-fA-F0-9]{40}$/.test(addr)) return res.status(400).json({ error: "valid addr required" });
+    res.set("Cache-Control", "public, max-age=120");
+    res.json(await getHlWallet(addr));
+  } catch {
+    res.status(502).json({ error: "wallet fetch failed" });
   }
 });
 
