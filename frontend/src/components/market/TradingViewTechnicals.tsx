@@ -30,6 +30,13 @@ const TOP: { label: string; symbol: string }[] = [
   { label: "OIL", symbol: "TVC:USOIL" }, { label: "NATGAS", symbol: "TVC:NATURALGAS" },
 ];
 
+/** Map a plain ticker label (BTC, SPX, GOLD…) to a TradingView symbol. */
+export function tvSymbolFor(label: string): string {
+  const up = label.trim().toUpperCase();
+  const known = TOP.find((t) => t.label === up);
+  return known ? known.symbol : resolveSymbol(up);
+}
+
 /** Build a TradingView symbol from free-text input. */
 function resolveSymbol(q: string): string {
   const s = q.trim().toUpperCase();
@@ -50,7 +57,7 @@ function tvWidget(el: HTMLDivElement, src: string, config: Record<string, unknow
   el.appendChild(s);
 }
 
-function MiniChart({ symbol }: { symbol: string }) {
+export function MiniChart({ symbol }: { symbol: string }) {
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (ref.current) tvWidget(ref.current, "https://s3.tradingview.com/external-embedding/embed-widget-mini-symbol-overview.js", {
@@ -60,7 +67,7 @@ function MiniChart({ symbol }: { symbol: string }) {
   return <div ref={ref} className="tradingview-widget-container" />;
 }
 
-function TechWidget({ symbol }: { symbol: string }) {
+export function TechWidget({ symbol }: { symbol: string }) {
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (ref.current) tvWidget(ref.current, "https://s3.tradingview.com/external-embedding/embed-widget-technical-analysis.js", {

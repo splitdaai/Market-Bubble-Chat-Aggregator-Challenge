@@ -1,9 +1,60 @@
 import { useEffect, useState } from "react";
-import { Globe, Flame, Newspaper, Activity, Briefcase, TrendingUp } from "lucide-react";
+import { Globe, Flame, Newspaper, Activity, Briefcase, TrendingUp, X as XIcon } from "lucide-react";
 import { Sparkline } from "../Sparkline";
 import { PolymarketMark } from "../Brand";
-import { TradingViewTechnicals } from "./TradingViewTechnicals";
+import { TradingViewTechnicals, MiniChart, TechWidget, tvSymbolFor } from "./TradingViewTechnicals";
 import { compact } from "../../lib/format";
+
+type Detail =
+  | { kind: "asset"; label: string }
+  | { kind: "trader"; name: string; pnl: number; win: number; trend: number[] }
+  | { kind: "portfolio"; fund: string; top: string; value: number; chg: number };
+
+function DetailModal({ detail, onClose }: { detail: Detail; onClose: () => void }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/70 p-4 backdrop-blur-sm" onClick={onClose}>
+      <div className="mb-tab mt-10 w-full max-w-3xl rounded-2xl border border-white/10 bg-[#121212]" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between border-b border-white/8 p-4">
+          <div className="serif text-xl font-bold">
+            {detail.kind === "asset" ? detail.label : detail.kind === "trader" ? detail.name : detail.fund}
+            <span className="ml-2 text-[11px] font-normal uppercase tracking-wider text-faint">{detail.kind === "asset" ? "technicals" : detail.kind === "trader" ? "Hyperliquid trader" : "13F portfolio"}</span>
+          </div>
+          <button onClick={onClose} className="rounded-lg p-1.5 text-muted hover:bg-white/10 hover:text-ink"><XIcon size={18} /></button>
+        </div>
+        <div className="p-4">
+          {detail.kind === "asset" ? (
+            <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+              <div className="overflow-hidden rounded-xl border border-white/8 bg-black/20"><MiniChart symbol={tvSymbolFor(detail.label)} /></div>
+              <div className="overflow-hidden rounded-xl border border-white/8 bg-black/20"><TechWidget symbol={tvSymbolFor(detail.label)} /></div>
+            </div>
+          ) : detail.kind === "trader" ? (
+            <div>
+              <div className="grid grid-cols-3 gap-px overflow-hidden rounded-xl bg-white/8 text-center">
+                {[["30D PnL", "+$" + compact(detail.pnl)], ["Win rate", detail.win + "%"], ["Status", detail.pnl > 1e6 ? "🔥 Hot" : "Active"]].map(([l, v]) => (
+                  <div key={l} className="bg-[#121212] py-3"><div className="text-[9px] uppercase tracking-wider text-faint">{l}</div><div className="mt-0.5 text-[15px] font-bold tabular-nums text-up">{v}</div></div>
+                ))}
+              </div>
+              <div className="mt-3 rounded-xl border border-white/8 bg-black/20 p-4">
+                <div className="mb-2 text-[10px] font-bold uppercase tracking-wider text-faint">30-day equity curve</div>
+                <Sparkline data={detail.trend} width={620} height={120} color="#16e6a4" />
+              </div>
+            </div>
+          ) : (
+            <div>
+              <div className="grid grid-cols-2 gap-px overflow-hidden rounded-xl bg-white/8 text-center">
+                {[["AUM", "$" + compact(detail.value)], ["24h", (detail.chg >= 0 ? "+" : "") + detail.chg + "%"]].map(([l, v]) => (
+                  <div key={l} className="bg-[#121212] py-3"><div className="text-[9px] uppercase tracking-wider text-faint">{l}</div><div className={`mt-0.5 text-[15px] font-bold tabular-nums ${detail.chg >= 0 ? "text-up" : "text-down"}`}>{v}</div></div>
+                ))}
+              </div>
+              <div className="mt-3 mb-2 text-[10px] font-bold uppercase tracking-wider text-faint">Top conviction</div>
+              <div className="overflow-hidden rounded-xl border border-white/8 bg-black/20"><TechWidget symbol={tvSymbolFor(detail.top)} /></div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 const BACKEND = (import.meta.env.VITE_BACKEND_URL as string | undefined) ?? "https://3-213-104-77.nip.io";
 
@@ -99,7 +150,7 @@ function Panel({ title, icon, right, children, className = "" }: { title: string
   );
 }
 
-function MarketTable({ title, rows }: { title: string; rows: MarketData["global"] }) {
+function MarketTable({ title, rows, onPick }: { title: string; rows: MarketData["global"]; onPick?: (sym: string) => void }) {
   return (
     <div>
       <div className="mb-1.5 text-[10px] font-bold uppercase tracking-wider text-faint">{title}</div>
@@ -116,7 +167,7 @@ function MarketTable({ title, rows }: { title: string; rows: MarketData["global"
           {rows.map((m) => {
             const up = m.chg >= 0;
             return (
-              <tr key={m.sym} className="border-t border-white/6">
+              <tr key={m.sym} onClick={() => onPick?.(m.sym)} className="cursor-pointer border-t border-white/6 transition hover:bg-white/5">
                 <td className="py-1.5 font-bold">{m.sym}</td>
                 <td className="py-1.5 text-right font-mono tabular-nums text-muted">{price(m.price)}</td>
                 <td className={`py-1.5 text-right font-bold tabular-nums ${up ? "text-up" : "text-down"}`}>{pct(m.chg)}</td>
@@ -152,6 +203,7 @@ export function MarketTabClassic() {
   const [d, setD] = useState<MarketData | null>(null);
   const [tries, setTries] = useState(0);
   const [pulse, setPulse] = useState(0);
+  const [detail, setDetail] = useState<Detail | null>(null);
   useEffect(() => {
     let on = true;
     let timer: ReturnType<typeof setTimeout>;
@@ -186,9 +238,9 @@ export function MarketTabClassic() {
         <div className="mt-5">
           <Panel title="Global Markets" icon={<Globe size={15} className="text-accent" />}>
             <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
-              <MarketTable title="Stock Indices" rows={indices} />
-              <MarketTable title="Crypto" rows={crypto} />
-              <MarketTable title="Commodities" rows={commodities} />
+              <MarketTable title="Stock Indices" rows={indices} onPick={(sym) => setDetail({ kind: "asset", label: sym })} />
+              <MarketTable title="Crypto" rows={crypto} onPick={(sym) => setDetail({ kind: "asset", label: sym })} />
+              <MarketTable title="Commodities" rows={commodities} onPick={(sym) => setDetail({ kind: "asset", label: sym })} />
             </div>
           </Panel>
         </div>
@@ -245,7 +297,7 @@ export function MarketTabClassic() {
               <thead><tr className="text-[9px] uppercase tracking-wider text-faint"><th className="pb-1 text-left">#</th><th className="pb-1 text-left">Trader</th><th className="pb-1 text-right">PNL 30D</th><th className="pb-1 text-right">Win</th><th className="pb-1 pl-2 text-right">Trend</th></tr></thead>
               <tbody>
                 {HL_TRADERS.map((t, i) => (
-                  <tr key={t.name} className="border-t border-white/6">
+                  <tr key={t.name} onClick={() => setDetail({ kind: "trader", name: t.name, pnl: t.pnl, win: t.win, trend: t.trend })} className="cursor-pointer border-t border-white/6 transition hover:bg-white/5">
                     <td className="py-1.5 font-bold text-faint">{i + 1}</td>
                     <td className="py-1.5 font-semibold">{t.name}</td>
                     <td className="py-1.5 text-right font-bold tabular-nums text-up">+${compact(t.pnl)}</td>
@@ -261,7 +313,7 @@ export function MarketTabClassic() {
           <Panel title="Influential Portfolios" icon={<Briefcase size={15} className="text-accent" />} right={<span className="text-[10px] uppercase tracking-wider text-faint">13F · demo</span>} className="lg:col-span-4">
             <div className="space-y-1.5">
               {PORTFOLIOS.map((p) => (
-                <div key={p.fund} className="flex items-center gap-2 rounded-lg border border-white/8 bg-white/[0.02] px-2.5 py-2">
+                <div key={p.fund} onClick={() => setDetail({ kind: "portfolio", fund: p.fund, top: p.top, value: p.value, chg: p.chg })} className="flex cursor-pointer items-center gap-2 rounded-lg border border-white/8 bg-white/[0.02] px-2.5 py-2 transition hover:border-accent/40 hover:bg-accent/5">
                   <div className="min-w-0 flex-1"><div className="truncate text-[12px] font-bold">{p.fund}</div><div className="text-[10px] text-faint">top: {p.top}</div></div>
                   <div className="text-right"><div className="text-[12px] font-bold tabular-nums">${compact(p.value)}</div><div className={`text-[10px] font-bold ${p.chg >= 0 ? "text-up" : "text-down"}`}>{pct(p.chg)}</div></div>
                 </div>
@@ -275,7 +327,7 @@ export function MarketTabClassic() {
               <thead><tr className="text-[9px] uppercase tracking-wider text-faint"><th className="pb-1 text-left">#</th><th className="pb-1 text-left">Trader</th><th className="pb-1 text-right">PNL</th><th className="pb-1 text-right">Win</th></tr></thead>
               <tbody>
                 {POLY_TRADERS.map((t, i) => (
-                  <tr key={t.name} className="border-t border-white/6">
+                  <tr key={t.name} onClick={() => setDetail({ kind: "trader", name: t.name, pnl: t.pnl, win: t.win, trend: t.trend })} className="cursor-pointer border-t border-white/6 transition hover:bg-white/5">
                     <td className="py-1.5 font-bold text-faint">{i + 1}</td>
                     <td className="truncate py-1.5 font-semibold">{t.name}</td>
                     <td className="py-1.5 text-right font-bold tabular-nums text-up">+${compact(t.pnl)}</td>
@@ -304,6 +356,7 @@ export function MarketTabClassic() {
 
         <p className="mt-5 text-center text-[11px] text-faint">Classic reference layout · <span className="font-bold text-up">● Live</span> markets (CoinGecko · Yahoo · alternative.me · Polymarket). Hyperliquid traders &amp; 13F portfolios are demo.</p>
       </div>
+      {detail && <DetailModal detail={detail} onClose={() => setDetail(null)} />}
     </div>
   );
 }
