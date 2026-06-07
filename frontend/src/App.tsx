@@ -13,6 +13,7 @@ const EditorCanvas = lazy(() => import("./components/EditorCanvas").then((m) => 
 const MarketTab = lazy(() => import("./components/market/MarketTab").then((m) => ({ default: m.MarketTab })));
 const MarketTabClassic = lazy(() => import("./components/market/MarketTabClassic").then((m) => ({ default: m.MarketTabClassic })));
 const ContentTab = lazy(() => import("./components/content/ContentTab").then((m) => ({ default: m.ContentTab })));
+const KolTab = lazy(() => import("./components/kol/KolTab").then((m) => ({ default: m.KolTab })));
 const ThemeEditor = lazy(() => import("./components/ThemeEditor").then((m) => ({ default: m.ThemeEditor })));
 const ButtonEditor = lazy(() => import("./components/ButtonEditor").then((m) => ({ default: m.ButtonEditor })));
 const OverlayPage = lazy(() => import("./components/OverlayPage").then((m) => ({ default: m.OverlayPage })));
@@ -63,6 +64,8 @@ export default function App() {
             marketTemplate === "classic" ? <MarketTabClassic /> : <MarketTab />
           ) : view === "content" ? (
             <ContentTab />
+          ) : view === "kol" ? (
+            <KolTab />
           ) : (
             <EditorCanvas onEditButton={(b) => setBtnEditor({ open: true, editing: b ?? null })} />
           )}

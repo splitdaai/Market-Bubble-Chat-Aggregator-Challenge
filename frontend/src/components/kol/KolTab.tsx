@@ -1,0 +1,205 @@
+import { useEffect, useMemo, useRef, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Crosshair, Wallet, ArrowUpRight, ArrowDownRight, X as XIcon, Activity, TrendingUp, Copy, ExternalLink } from "lucide-react";
+import { compact } from "../../lib/format";
+
+interface Holding { sym: string; usd: number; chg: number }
+interface Kol {
+  id: string; name: string; handle: string; wallet: string; color: string;
+  balance: number; pnl24h: number; chain: "SOL" | "ETH" | "BASE"; holdings: Holding[];
+}
+
+const KOLS: Kol[] = [
+  { id: "ansem", name: "Ansem", handle: "blknoiz06", wallet: "BEr…7nMq", color: "#f59e0b", balance: 41.8e6, pnl24h: 12.4, chain: "SOL", holdings: [{ sym: "WIF", usd: 9.2e6, chg: 14 }, { sym: "SOL", usd: 18e6, chg: 5 }, { sym: "POPCAT", usd: 6.1e6, chg: 22 }, { sym: "JUP", usd: 4.4e6, chg: -3 }] },
+  { id: "cobie", name: "Cobie", handle: "cobie", wallet: "0x9a…4f1c", color: "#22d3ee", balance: 28.3e6, pnl24h: -2.1, chain: "ETH", holdings: [{ sym: "ETH", usd: 14e6, chg: 4 }, { sym: "ONDO", usd: 5.2e6, chg: -6 }, { sym: "AAVE", usd: 3.8e6, chg: 2 }] },
+  { id: "gcr", name: "GCR", handle: "GiganticRebirth", wallet: "0x21…9ad3", color: "#a78bfa", balance: 63.1e6, pnl24h: 8.7, chain: "ETH", holdings: [{ sym: "BTC", usd: 30e6, chg: 3 }, { sym: "ETH", usd: 18e6, chg: 4 }, { sym: "HYPE", usd: 9e6, chg: 19 }] },
+  { id: "hsaka", name: "Hsaka", handle: "HsakaTrades", wallet: "0x77…2bb8", color: "#34d399", balance: 19.7e6, pnl24h: 5.2, chain: "ETH", holdings: [{ sym: "SOL", usd: 8e6, chg: 5 }, { sym: "ARB", usd: 3e6, chg: -2 }, { sym: "PENDLE", usd: 2.4e6, chg: 7 }] },
+  { id: "pentoshi", name: "Pentoshi", handle: "Pentosh1", wallet: "0x4c…8e0a", color: "#60a5fa", balance: 22.5e6, pnl24h: 3.1, chain: "ETH", holdings: [{ sym: "BTC", usd: 12e6, chg: 3 }, { sym: "SOL", usd: 6e6, chg: 5 }, { sym: "LINK", usd: 2.2e6, chg: 1 }] },
+  { id: "murad", name: "Murad", handle: "MustStopMurad", wallet: "0x3d…1c47", color: "#f472b6", balance: 34.9e6, pnl24h: 18.9, chain: "SOL", holdings: [{ sym: "SPX", usd: 14e6, chg: 28 }, { sym: "GIGA", usd: 8e6, chg: 33 }, { sym: "MOG", usd: 5e6, chg: 12 }] },
+  { id: "tetra", name: "Tetranode", handle: "Tetranode", wallet: "0x88…5d2e", color: "#fbbf24", balance: 51.2e6, pnl24h: -4.4, chain: "ETH", holdings: [{ sym: "ETH", usd: 26e6, chg: 4 }, { sym: "UNI", usd: 6e6, chg: -5 }, { sym: "AAVE", usd: 5e6, chg: 2 }] },
+  { id: "unipcs", name: "Bonk Guy", handle: "theunipcs", wallet: "9xQ…eaP3", color: "#fb923c", balance: 17.3e6, pnl24h: 24.1, chain: "SOL", holdings: [{ sym: "BONK", usd: 9e6, chg: 26 }, { sym: "WIF", usd: 4e6, chg: 14 }, { sym: "PNUT", usd: 2.5e6, chg: 41 }] },
+  { id: "inverse", name: "Inversebrah", handle: "inversebrah", wallet: "0x12…7f4d", color: "#c084fc", balance: 11.8e6, pnl24h: 1.2, chain: "ETH", holdings: [{ sym: "ETH", usd: 5e6, chg: 4 }, { sym: "PEPE", usd: 3e6, chg: 9 }] },
+  { id: "mando", name: "Mando", handle: "mando_ftw", wallet: "0x55…3a9c", color: "#2dd4bf", balance: 14.6e6, pnl24h: 6.6, chain: "BASE", holdings: [{ sym: "VIRTUAL", usd: 5e6, chg: 16 }, { sym: "AERO", usd: 3e6, chg: 8 }] },
+  { id: "cupsey", name: "Cupsey", handle: "cupseyy", wallet: "7mK…2vZ9", color: "#4ade80", balance: 9.4e6, pnl24h: 31.5, chain: "SOL", holdings: [{ sym: "POPCAT", usd: 4e6, chg: 22 }, { sym: "GOAT", usd: 2.5e6, chg: 48 }] },
+  { id: "degen", name: "DegenSpartan", handle: "DegenSpartan", wallet: "0x66…1d8b", color: "#facc15", balance: 26.1e6, pnl24h: -1.8, chain: "ETH", holdings: [{ sym: "ETH", usd: 12e6, chg: 4 }, { sym: "INJ", usd: 4e6, chg: -3 }, { sym: "FET", usd: 3e6, chg: 6 }] },
+];
+
+const TOKENS = ["WIF", "BONK", "JUP", "SOL", "ETH", "POPCAT", "PNUT", "ONDO", "VIRTUAL", "FET", "PEPE", "TON", "INJ", "RENDER", "GOAT", "GIGA", "MOG", "SPX", "HYPE"];
+
+interface Trade { id: number; kol: Kol; token: string; side: "buy" | "sell"; usd: number; ts: number }
+
+const usd = (n: number) => "$" + compact(n);
+const short = (h: string) => h;
+
+/** Embedded X timeline for a KOL's recent posts. */
+function XPosts({ handle }: { handle: string }) {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = ref.current; if (!el) return;
+    el.innerHTML = `<a class="twitter-timeline" data-theme="dark" data-chrome="noheader nofooter noborders transparent" data-tweet-limit="6" href="https://twitter.com/${handle}">Posts by @${handle}</a>`;
+    const w = window as unknown as { twttr?: { widgets: { load: (e?: HTMLElement) => void } } };
+    if (w.twttr?.widgets) w.twttr.widgets.load(el);
+    else if (!document.getElementById("twttr-wjs")) { const s = document.createElement("script"); s.id = "twttr-wjs"; s.src = "https://platform.twitter.com/widgets.js"; s.async = true; document.body.appendChild(s); }
+    else { const iv = setInterval(() => { const ww = (window as unknown as { twttr?: { widgets: { load: (e?: HTMLElement) => void } } }).twttr; if (ww?.widgets) { ww.widgets.load(el); clearInterval(iv); } }, 300); setTimeout(() => clearInterval(iv), 6000); }
+  }, [handle]);
+  return <div ref={ref} />;
+}
+
+function fmtTime(ts: number) { return new Date(ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" }); }
+
+export function KolTab() {
+  const [feed, setFeed] = useState<Trade[]>([]);
+  const [open, setOpen] = useState<Kol | null>(null);
+  const idRef = useRef(1);
+
+  // simulated live trade firehose across all tracked KOLs
+  useEffect(() => {
+    const tick = () => {
+      const kol = KOLS[Math.floor(Math.random() * KOLS.length)];
+      const token = TOKENS[Math.floor(Math.random() * TOKENS.length)];
+      const side: "buy" | "sell" = Math.random() > 0.42 ? "buy" : "sell";
+      const amount = Math.round((8000 + Math.random() * 900000) / 1000) * 1000;
+      setFeed((f) => [{ id: idRef.current++, kol, token, side, usd: amount, ts: Date.now() }, ...f].slice(0, 60));
+    };
+    tick(); tick(); tick();
+    const iv = setInterval(tick, 2200 + Math.random() * 1600);
+    return () => clearInterval(iv);
+  }, []);
+
+  const ranked = useMemo(() => [...KOLS].sort((a, b) => b.balance - a.balance), []);
+  const totalAum = useMemo(() => KOLS.reduce((s, k) => s + k.balance, 0), []);
+  const netFlow = useMemo(() => feed.reduce((s, t) => s + (t.side === "buy" ? t.usd : -t.usd), 0), [feed]);
+  const hotToken = useMemo(() => {
+    const m = new Map<string, number>();
+    feed.filter((t) => t.side === "buy").forEach((t) => m.set(t.token, (m.get(t.token) ?? 0) + t.usd));
+    return [...m.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? "—";
+  }, [feed]);
+
+  return (
+    <div className="mb-tab">
+      <div className="mx-auto max-w-[1500px] px-4 py-6 sm:px-6">
+        <h1 className="serif text-3xl font-bold tracking-tight sm:text-4xl">KOL Tracker</h1>
+        <p className="mt-1 text-[13px] text-muted">On-chain wallets of the biggest crypto voices — balances, holdings, and a live buy/sell firehose. Click a profile for their latest posts.</p>
+
+        {/* aggregate stats */}
+        <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
+          {[
+            ["Tracked KOLs", String(KOLS.length), "wallets"],
+            ["Total AUM", usd(totalAum), "across all"],
+            ["Net flow (live)", (netFlow >= 0 ? "+" : "−") + usd(Math.abs(netFlow)), netFlow >= 0 ? "accumulating" : "distributing"],
+            ["Hot token", hotToken, "most bought"],
+          ].map(([l, v, s]) => (
+            <div key={l} className="vc-glass rounded-2xl p-3">
+              <div className="text-[9px] uppercase tracking-wider text-faint">{l}</div>
+              <div className="mt-0.5 text-[22px] font-extrabold tabular-nums text-accent">{v}</div>
+              <div className="text-[10px] text-muted">{s}</div>
+            </div>
+          ))}
+        </div>
+
+        <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-12">
+          {/* KOL leaderboard */}
+          <div className="vc-glass rounded-2xl p-4 lg:col-span-7">
+            <div className="mb-3 flex items-center gap-2"><Crosshair size={15} className="text-accent" /><span className="serif text-[16px] font-bold">Tracked Wallets</span><span className="ml-auto text-[10px] uppercase tracking-wider text-faint">by balance</span></div>
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+              {ranked.map((k, i) => (
+                <button key={k.id} onClick={() => setOpen(k)} className="group flex items-center gap-3 rounded-xl border border-white/8 bg-white/[0.02] p-2.5 text-left transition hover:border-accent/40 hover:bg-accent/5">
+                  <span className="w-4 text-[11px] font-bold tabular-nums text-faint">{i + 1}</span>
+                  <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-[13px] font-black text-black" style={{ background: k.color }}>{k.name[0]}</span>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-1.5"><span className="truncate text-[13px] font-bold">{k.name}</span><span className="rounded bg-white/8 px-1 text-[9px] font-bold text-faint">{k.chain}</span></div>
+                    <div className="truncate text-[10px] text-muted">@{k.handle} · {short(k.wallet)}</div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-[13px] font-bold tabular-nums">{usd(k.balance)}</div>
+                    <div className={`text-[10px] font-bold tabular-nums ${k.pnl24h >= 0 ? "text-up" : "text-down"}`}>{k.pnl24h >= 0 ? "+" : ""}{k.pnl24h}% 24h</div>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* live trade firehose */}
+          <div className="vc-glass flex flex-col rounded-2xl p-4 lg:col-span-5" style={{ height: 620 }}>
+            <div className="mb-3 flex items-center gap-2"><Activity size={15} className="text-up" /><span className="serif text-[16px] font-bold">Live Activity</span><span className="ml-auto flex items-center gap-1 text-[10px] uppercase tracking-wider text-up"><span className="h-1.5 w-1.5 animate-pulse rounded-full bg-up" />live</span></div>
+            <div className="min-h-0 flex-1 space-y-1.5 overflow-y-auto pr-1">
+              <AnimatePresence initial={false}>
+                {feed.map((t) => (
+                  <motion.button
+                    key={t.id}
+                    onClick={() => setOpen(t.kol)}
+                    initial={{ opacity: 0, y: -8, scale: 0.98 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.25 }}
+                    className="flex w-full items-center gap-2 rounded-lg border border-white/6 bg-white/[0.02] px-2.5 py-1.5 text-left hover:border-white/20"
+                  >
+                    <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full text-[10px] font-black text-black" style={{ background: t.kol.color }}>{t.kol.name[0]}</span>
+                    <span className={`flex shrink-0 items-center gap-0.5 text-[11px] font-bold ${t.side === "buy" ? "text-up" : "text-down"}`}>{t.side === "buy" ? <ArrowUpRight size={12} /> : <ArrowDownRight size={12} />}{t.side.toUpperCase()}</span>
+                    <span className="min-w-0 flex-1 truncate text-[12px]"><span className="font-bold">{t.kol.name}</span> <span className="text-muted">{t.side === "buy" ? "bought" : "sold"}</span> <span className="font-mono font-bold text-accent">${t.token}</span></span>
+                    <span className="shrink-0 text-right text-[11px] font-bold tabular-nums">{usd(t.usd)}</span>
+                    <span className="shrink-0 text-[9px] tabular-nums text-faint">{fmtTime(t.ts)}</span>
+                  </motion.button>
+                ))}
+              </AnimatePresence>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* KOL profile modal */}
+      <AnimatePresence>
+        {open && (
+          <motion.div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/70 p-4 backdrop-blur-sm" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setOpen(null)}>
+            <motion.div className="mb-tab mt-12 w-full max-w-3xl rounded-2xl border border-white/10 bg-[#121212]" initial={{ scale: 0.96, y: 10 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.96, opacity: 0 }} onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-center gap-3 border-b border-white/8 p-4">
+                <span className="grid h-12 w-12 place-items-center rounded-full text-[18px] font-black text-black" style={{ background: open.color }}>{open.name[0]}</span>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2"><span className="serif text-xl font-bold">{open.name}</span><span className="rounded bg-white/8 px-1.5 py-0.5 text-[10px] font-bold text-faint">{open.chain}</span></div>
+                  <a href={`https://x.com/${open.handle}`} target="_blank" rel="noreferrer" className="flex items-center gap-1 text-[12px] text-accent hover:underline">@{open.handle} <ExternalLink size={11} /></a>
+                </div>
+                <button onClick={() => setOpen(null)} className="rounded-lg p-1.5 text-muted hover:bg-white/10 hover:text-ink"><XIcon size={18} /></button>
+              </div>
+
+              <div className="grid grid-cols-3 gap-px bg-white/8 text-center">
+                {[["Balance", usd(open.balance)], ["24h PnL", `${open.pnl24h >= 0 ? "+" : ""}${open.pnl24h}%`], ["Wallet", short(open.wallet)]].map(([l, v]) => (
+                  <div key={l} className="bg-[#121212] py-3"><div className="text-[9px] uppercase tracking-wider text-faint">{l}</div><div className={`mt-0.5 text-[15px] font-bold tabular-nums ${l === "24h PnL" ? (open.pnl24h >= 0 ? "text-up" : "text-down") : ""}`}>{v}</div></div>
+                ))}
+              </div>
+
+              <div className="grid grid-cols-1 gap-4 p-4 md:grid-cols-2">
+                <div>
+                  <div className="mb-2 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-muted"><Wallet size={12} /> Top Holdings</div>
+                  <div className="space-y-1.5">
+                    {open.holdings.map((h) => (
+                      <div key={h.sym} className="flex items-center gap-2 rounded-lg border border-white/8 bg-white/[0.02] px-2.5 py-2">
+                        <span className="font-mono text-[12px] font-bold text-accent">${h.sym}</span>
+                        <span className="ml-auto text-[12px] font-bold tabular-nums">{usd(h.usd)}</span>
+                        <span className={`w-14 text-right text-[11px] font-bold tabular-nums ${h.chg >= 0 ? "text-up" : "text-down"}`}>{h.chg >= 0 ? "+" : ""}{h.chg}%</span>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="mt-3 mb-2 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-muted"><TrendingUp size={12} /> Recent Trades</div>
+                  <div className="space-y-1">
+                    {feed.filter((t) => t.kol.id === open.id).slice(0, 6).map((t) => (
+                      <div key={t.id} className="flex items-center gap-2 rounded-lg bg-white/[0.02] px-2.5 py-1.5 text-[11.5px]">
+                        <span className={`font-bold ${t.side === "buy" ? "text-up" : "text-down"}`}>{t.side.toUpperCase()}</span>
+                        <span className="font-mono font-bold text-accent">${t.token}</span>
+                        <span className="ml-auto tabular-nums">{usd(t.usd)}</span>
+                      </div>
+                    ))}
+                    {feed.filter((t) => t.kol.id === open.id).length === 0 && <div className="py-2 text-center text-[11px] text-faint">waiting for live trades…</div>}
+                  </div>
+                </div>
+                <div className="min-h-0">
+                  <div className="mb-2 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-muted"><XIcon size={12} /> Latest Posts</div>
+                  <div className="max-h-[420px] overflow-y-auto rounded-lg border border-white/8"><XPosts handle={open.handle} /></div>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}

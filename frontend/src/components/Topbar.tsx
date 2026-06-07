@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Palette, Pencil, Eye, RotateCcw, Monitor, Radio, BarChart3, Plug, Sparkles, MousePointerClick, X, TrendingUp, Clapperboard } from "lucide-react";
+import { Palette, Pencil, Eye, RotateCcw, Monitor, Radio, BarChart3, Plug, Sparkles, MousePointerClick, X, TrendingUp, Clapperboard, Crosshair } from "lucide-react";
 import { useLayoutStore } from "@/store/layoutStore";
 import { useModeStore } from "@/store/modeStore";
 import { useOverlayStore } from "@/store/overlayStore";
@@ -50,6 +50,7 @@ export function Topbar({ onOpenTheme, onOpenConnections, onOpenFeatures }: { onO
           ["live", "Live", Radio],
           ["market", "Market", TrendingUp],
           ["content", "Content", Clapperboard],
+          ["kol", "KOL", Crosshair],
           ["analytics", "Analytics", BarChart3],
         ] as const).map(([v, label, Icon]) => (
           <button
