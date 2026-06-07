@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { Globe, Flame, Newspaper, Activity, Briefcase, TrendingUp, X as XIcon } from "lucide-react";
 import { Sparkline } from "../Sparkline";
+import { PageGrid } from "../PageGrid";
+import { useLayoutStore } from "../../store/layoutStore";
 import { PolymarketMark } from "../Brand";
 import { TradingViewTechnicals, MiniChart, TechWidget, tvSymbolFor } from "./TradingViewTechnicals";
 import { compact } from "../../lib/format";
@@ -204,6 +206,7 @@ export function MarketTabClassic() {
   const [tries, setTries] = useState(0);
   const [pulse, setPulse] = useState(0);
   const [detail, setDetail] = useState<Detail | null>(null);
+  const editMode = useLayoutStore((s) => s.editMode);
   useEffect(() => {
     let on = true;
     let timer: ReturnType<typeof setTimeout>;
@@ -234,125 +237,124 @@ export function MarketTabClassic() {
         <h1 className="serif text-3xl font-bold tracking-tight sm:text-4xl">Market</h1>
         <p className="mt-1 text-[13px] text-muted">Classic layout — global markets, narratives, smart money, portfolios &amp; Polymarket in one terminal.</p>
 
-        {/* Global Markets — three tables */}
-        <div className="mt-5">
-          <Panel title="Global Markets" icon={<Globe size={15} className="text-accent" />}>
-            <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
-              <MarketTable title="Stock Indices" rows={indices} onPick={(sym) => setDetail({ kind: "asset", label: sym })} />
-              <MarketTable title="Crypto" rows={crypto} onPick={(sym) => setDetail({ kind: "asset", label: sym })} />
-              <MarketTable title="Commodities" rows={commodities} onPick={(sym) => setDetail({ kind: "asset", label: sym })} />
-            </div>
-          </Panel>
-        </div>
-
-        <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-12">
-          {/* Narrative Monitor */}
-          <Panel title="Market Narrative Monitor" icon={<Flame size={15} className="text-gold" />} className="lg:col-span-8">
-            <div className="space-y-1.5">
-              {d.narratives.map((n, i) => (
-                <div key={n.name} className="grid grid-cols-[1.4rem_1fr_auto] items-center gap-3 rounded-lg border border-white/8 bg-white/[0.02] px-3 py-2">
-                  <span className="text-[12px] font-bold tabular-nums text-faint">{i + 1}</span>
-                  <div className="min-w-0">
-                    <div className="truncate text-[13px] font-bold">{n.name}</div>
-                    <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-white/8"><div className="h-full rounded-full" style={{ width: `${n.heat}%`, background: "linear-gradient(90deg,var(--vc-accent),#ff4b16)" }} /></div>
-                  </div>
-                  <div className="flex items-center gap-3 text-right">
-                    <div className="hidden text-right sm:block"><div className="text-[11px] tabular-nums text-muted">{compact(n.views)}</div><div className="text-[9px] uppercase text-faint">views</div></div>
-                    <span className={`w-14 rounded px-1.5 py-0.5 text-right text-[11px] font-bold tabular-nums ${n.chg24h >= 0 ? "bg-up/15 text-up" : "bg-down/15 text-down"}`}>{pct(n.chg24h)}</span>
-                  </div>
+        <PageGrid
+          pageKey="market-classic"
+          editMode={editMode}
+          items={[
+            { id: "global", x: 0, y: 0, w: 12, h: 12, node: (
+              <Panel title="Global Markets" icon={<Globe size={15} className="text-accent" />}>
+                <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
+                  <MarketTable title="Stock Indices" rows={indices} onPick={(sym) => setDetail({ kind: "asset", label: sym })} />
+                  <MarketTable title="Crypto" rows={crypto} onPick={(sym) => setDetail({ kind: "asset", label: sym })} />
+                  <MarketTable title="Commodities" rows={commodities} onPick={(sym) => setDetail({ kind: "asset", label: sym })} />
                 </div>
-              ))}
-            </div>
-          </Panel>
-
-          {/* Market Pulse — selectable meter */}
-          {(() => {
-            const g = d.gauges;
-            const fgColor = g.fearGreed < 25 ? "#ff5a6a" : g.fearGreed < 45 ? "#ff9f43" : g.fearGreed < 75 ? "#a8e05f" : "#16e6a4";
-            const PULSE = [
-              { key: "Fear & Greed", val: g.fearGreed, label: String(g.fearGreed), sub: g.fearGreedLabel, color: fgColor },
-              { key: "BTC Dominance", val: g.btcDominance, label: g.btcDominance.toFixed(1) + "%", sub: "of total cap", color: "#f7931a" },
-              { key: "Alt Season", val: g.altSeason, label: g.altSeason + "/100", sub: g.altSeason > 50 ? "alts leading" : "BTC-led", color: "#34d6ff" },
-              { key: "Total Mcap", val: Math.min(100, (g.totalMcap / 4e12) * 100), label: "$" + compact(g.totalMcap), sub: "all crypto", color: "#00d872" },
-            ];
-            const sel = PULSE[pulse] ?? PULSE[0];
-            return (
-              <Panel title="Market Pulse" icon={<Activity size={15} className="text-up" />} right={<span className="text-[10px] uppercase tracking-wider text-faint">live</span>} className="lg:col-span-4">
-                <div className="mb-2 grid grid-cols-2 gap-1.5">
-                  {PULSE.map((p, i) => (
-                    <button key={p.key} onClick={() => setPulse(i)} className={`rounded-lg border px-2 py-1.5 text-left transition ${pulse === i ? "border-accent/50 bg-accent/10" : "border-white/8 bg-white/[0.02] hover:border-white/20"}`}>
-                      <div className="text-[9px] uppercase tracking-wider text-faint">{p.key}</div>
-                      <div className="text-[13px] font-bold tabular-nums" style={{ color: pulse === i ? p.color : "var(--vc-text)" }}>{p.label}</div>
-                    </button>
+              </Panel>
+            ) },
+            { id: "narrative", x: 0, y: 12, w: 8, h: 10, node: (
+              <Panel title="Market Narrative Monitor" icon={<Flame size={15} className="text-gold" />}>
+                <div className="space-y-1.5">
+                  {d.narratives.map((n, i) => (
+                    <div key={n.name} className="grid grid-cols-[1.4rem_1fr_auto] items-center gap-3 rounded-lg border border-white/8 bg-white/[0.02] px-3 py-2">
+                      <span className="text-[12px] font-bold tabular-nums text-faint">{i + 1}</span>
+                      <div className="min-w-0">
+                        <div className="truncate text-[13px] font-bold">{n.name}</div>
+                        <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-white/8"><div className="h-full rounded-full" style={{ width: `${n.heat}%`, background: "linear-gradient(90deg,var(--vc-accent),#ff4b16)" }} /></div>
+                      </div>
+                      <div className="flex items-center gap-3 text-right">
+                        <div className="hidden text-right sm:block"><div className="text-[11px] tabular-nums text-muted">{compact(n.views)}</div><div className="text-[9px] uppercase text-faint">views</div></div>
+                        <span className={`w-14 rounded px-1.5 py-0.5 text-right text-[11px] font-bold tabular-nums ${n.chg24h >= 0 ? "bg-up/15 text-up" : "bg-down/15 text-down"}`}>{pct(n.chg24h)}</span>
+                      </div>
+                    </div>
                   ))}
                 </div>
-                <Meter value={sel.val} label={sel.label} sub={`${sel.key} · ${sel.sub}`} color={sel.color} />
               </Panel>
-            );
-          })()}
-
-          {/* Smart Money — Top Hyperliquid Traders */}
-          <Panel title="Top Hyperliquid Traders" icon={<TrendingUp size={15} className="text-up" />} right={<span className="text-[10px] uppercase tracking-wider text-faint">demo</span>} className="lg:col-span-5">
-            <table className="w-full text-[12px]">
-              <thead><tr className="text-[9px] uppercase tracking-wider text-faint"><th className="pb-1 text-left">#</th><th className="pb-1 text-left">Trader</th><th className="pb-1 text-right">PNL 30D</th><th className="pb-1 text-right">Win</th><th className="pb-1 pl-2 text-right">Trend</th></tr></thead>
-              <tbody>
-                {HL_TRADERS.map((t, i) => (
-                  <tr key={t.name} onClick={() => setDetail({ kind: "trader", name: t.name, pnl: t.pnl, win: t.win, trend: t.trend })} className="cursor-pointer border-t border-white/6 transition hover:bg-white/5">
-                    <td className="py-1.5 font-bold text-faint">{i + 1}</td>
-                    <td className="py-1.5 font-semibold">{t.name}</td>
-                    <td className="py-1.5 text-right font-bold tabular-nums text-up">+${compact(t.pnl)}</td>
-                    <td className="py-1.5 text-right tabular-nums text-muted">{t.win}%</td>
-                    <td className="py-1.5 pl-2 text-right"><span className="inline-block"><Sparkline data={t.trend} width={56} height={16} color="#16e6a4" /></span></td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </Panel>
-
-          {/* Influential Portfolios (13F) */}
-          <Panel title="Influential Portfolios" icon={<Briefcase size={15} className="text-accent" />} right={<span className="text-[10px] uppercase tracking-wider text-faint">13F · demo</span>} className="lg:col-span-4">
-            <div className="space-y-1.5">
-              {PORTFOLIOS.map((p) => (
-                <div key={p.fund} onClick={() => setDetail({ kind: "portfolio", fund: p.fund, top: p.top, value: p.value, chg: p.chg })} className="flex cursor-pointer items-center gap-2 rounded-lg border border-white/8 bg-white/[0.02] px-2.5 py-2 transition hover:border-accent/40 hover:bg-accent/5">
-                  <div className="min-w-0 flex-1"><div className="truncate text-[12px] font-bold">{p.fund}</div><div className="text-[10px] text-faint">top: {p.top}</div></div>
-                  <div className="text-right"><div className="text-[12px] font-bold tabular-nums">${compact(p.value)}</div><div className={`text-[10px] font-bold ${p.chg >= 0 ? "text-up" : "text-down"}`}>{pct(p.chg)}</div></div>
+            ) },
+            { id: "pulse", x: 8, y: 12, w: 4, h: 10, node: (() => {
+              const g = d.gauges;
+              const fgColor = g.fearGreed < 25 ? "#ff5a6a" : g.fearGreed < 45 ? "#ff9f43" : g.fearGreed < 75 ? "#a8e05f" : "#16e6a4";
+              const PULSE = [
+                { key: "Fear & Greed", val: g.fearGreed, label: String(g.fearGreed), sub: g.fearGreedLabel, color: fgColor },
+                { key: "BTC Dominance", val: g.btcDominance, label: g.btcDominance.toFixed(1) + "%", sub: "of total cap", color: "#f7931a" },
+                { key: "Alt Season", val: g.altSeason, label: g.altSeason + "/100", sub: g.altSeason > 50 ? "alts leading" : "BTC-led", color: "#34d6ff" },
+                { key: "Total Mcap", val: Math.min(100, (g.totalMcap / 4e12) * 100), label: "$" + compact(g.totalMcap), sub: "all crypto", color: "#00d872" },
+              ];
+              const sel = PULSE[pulse] ?? PULSE[0];
+              return (
+                <Panel title="Market Pulse" icon={<Activity size={15} className="text-up" />} right={<span className="text-[10px] uppercase tracking-wider text-faint">live</span>}>
+                  <div className="mb-2 grid grid-cols-2 gap-1.5">
+                    {PULSE.map((p, i) => (
+                      <button key={p.key} onClick={() => setPulse(i)} className={`rounded-lg border px-2 py-1.5 text-left transition ${pulse === i ? "border-accent/50 bg-accent/10" : "border-white/8 bg-white/[0.02] hover:border-white/20"}`}>
+                        <div className="text-[9px] uppercase tracking-wider text-faint">{p.key}</div>
+                        <div className="text-[13px] font-bold tabular-nums" style={{ color: pulse === i ? p.color : "var(--vc-text)" }}>{p.label}</div>
+                      </button>
+                    ))}
+                  </div>
+                  <Meter value={sel.val} label={sel.label} sub={`${sel.key} · ${sel.sub}`} color={sel.color} />
+                </Panel>
+              );
+            })() },
+            { id: "hl", x: 0, y: 22, w: 5, h: 16, node: (
+              <Panel title="Top Hyperliquid Traders" icon={<TrendingUp size={15} className="text-up" />} right={<span className="text-[10px] uppercase tracking-wider text-faint">demo</span>}>
+                <table className="w-full text-[12px]">
+                  <thead><tr className="text-[9px] uppercase tracking-wider text-faint"><th className="pb-1 text-left">#</th><th className="pb-1 text-left">Trader</th><th className="pb-1 text-right">PNL 30D</th><th className="pb-1 text-right">Win</th><th className="pb-1 pl-2 text-right">Trend</th></tr></thead>
+                  <tbody>
+                    {HL_TRADERS.map((t, i) => (
+                      <tr key={t.name} onClick={() => setDetail({ kind: "trader", name: t.name, pnl: t.pnl, win: t.win, trend: t.trend })} className="cursor-pointer border-t border-white/6 transition hover:bg-white/5">
+                        <td className="py-1.5 font-bold text-faint">{i + 1}</td>
+                        <td className="py-1.5 font-semibold">{t.name}</td>
+                        <td className="py-1.5 text-right font-bold tabular-nums text-up">+${compact(t.pnl)}</td>
+                        <td className="py-1.5 text-right tabular-nums text-muted">{t.win}%</td>
+                        <td className="py-1.5 pl-2 text-right"><span className="inline-block"><Sparkline data={t.trend} width={56} height={16} color="#16e6a4" /></span></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </Panel>
+            ) },
+            { id: "portfolios", x: 5, y: 22, w: 4, h: 13, node: (
+              <Panel title="Influential Portfolios" icon={<Briefcase size={15} className="text-accent" />} right={<span className="text-[10px] uppercase tracking-wider text-faint">13F · demo</span>}>
+                <div className="space-y-1.5">
+                  {PORTFOLIOS.map((p) => (
+                    <div key={p.fund} onClick={() => setDetail({ kind: "portfolio", fund: p.fund, top: p.top, value: p.value, chg: p.chg })} className="flex cursor-pointer items-center gap-2 rounded-lg border border-white/8 bg-white/[0.02] px-2.5 py-2 transition hover:border-accent/40 hover:bg-accent/5">
+                      <div className="min-w-0 flex-1"><div className="truncate text-[12px] font-bold">{p.fund}</div><div className="text-[10px] text-faint">top: {p.top}</div></div>
+                      <div className="text-right"><div className="text-[12px] font-bold tabular-nums">${compact(p.value)}</div><div className={`text-[10px] font-bold ${p.chg >= 0 ? "text-up" : "text-down"}`}>{pct(p.chg)}</div></div>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
-          </Panel>
-
-          {/* Top Polymarket Traders */}
-          <Panel title="Top Polymarket Traders" icon={<PolymarketMark className="h-4 w-5 text-accent" />} right={<span className="text-[10px] uppercase tracking-wider text-faint">demo</span>} className="lg:col-span-3">
-            <table className="w-full text-[12px]">
-              <thead><tr className="text-[9px] uppercase tracking-wider text-faint"><th className="pb-1 text-left">#</th><th className="pb-1 text-left">Trader</th><th className="pb-1 text-right">PNL</th><th className="pb-1 text-right">Win</th></tr></thead>
-              <tbody>
-                {POLY_TRADERS.map((t, i) => (
-                  <tr key={t.name} onClick={() => setDetail({ kind: "trader", name: t.name, pnl: t.pnl, win: t.win, trend: t.trend })} className="cursor-pointer border-t border-white/6 transition hover:bg-white/5">
-                    <td className="py-1.5 font-bold text-faint">{i + 1}</td>
-                    <td className="truncate py-1.5 font-semibold">{t.name}</td>
-                    <td className="py-1.5 text-right font-bold tabular-nums text-up">+${compact(t.pnl)}</td>
-                    <td className="py-1.5 text-right tabular-nums text-muted">{t.win}%</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </Panel>
-
-          {/* Intelligence Feed (news) */}
-          <Panel title="Intelligence Feed" icon={<Newspaper size={15} className="text-accent" />} className="lg:col-span-12">
-            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
-              {NEWS.map((n, i) => (
-                <div key={i} className="rounded-lg border border-white/8 bg-white/[0.02] p-2.5">
-                  <div className="mb-1 flex items-center gap-2 text-[10px] text-faint"><span className="font-bold text-muted">{n.src}</span><span>· {n.t}</span><span className={`ml-auto rounded px-1 font-bold uppercase ${toneColor[n.tone]}`}>{n.tone}</span></div>
-                  <div className="text-[12.5px] font-medium leading-snug">{n.title}</div>
+              </Panel>
+            ) },
+            { id: "poly", x: 9, y: 22, w: 3, h: 16, node: (
+              <Panel title="Top Polymarket Traders" icon={<PolymarketMark className="h-4 w-5 text-accent" />} right={<span className="text-[10px] uppercase tracking-wider text-faint">demo</span>}>
+                <table className="w-full text-[12px]">
+                  <thead><tr className="text-[9px] uppercase tracking-wider text-faint"><th className="pb-1 text-left">#</th><th className="pb-1 text-left">Trader</th><th className="pb-1 text-right">PNL</th><th className="pb-1 text-right">Win</th></tr></thead>
+                  <tbody>
+                    {POLY_TRADERS.map((t, i) => (
+                      <tr key={t.name} onClick={() => setDetail({ kind: "trader", name: t.name, pnl: t.pnl, win: t.win, trend: t.trend })} className="cursor-pointer border-t border-white/6 transition hover:bg-white/5">
+                        <td className="py-1.5 font-bold text-faint">{i + 1}</td>
+                        <td className="truncate py-1.5 font-semibold">{t.name}</td>
+                        <td className="py-1.5 text-right font-bold tabular-nums text-up">+${compact(t.pnl)}</td>
+                        <td className="py-1.5 text-right tabular-nums text-muted">{t.win}%</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </Panel>
+            ) },
+            { id: "intel", x: 0, y: 38, w: 12, h: 6, node: (
+              <Panel title="Intelligence Feed" icon={<Newspaper size={15} className="text-accent" />}>
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                  {NEWS.map((n, i) => (
+                    <div key={i} className="rounded-lg border border-white/8 bg-white/[0.02] p-2.5">
+                      <div className="mb-1 flex items-center gap-2 text-[10px] text-faint"><span className="font-bold text-muted">{n.src}</span><span>· {n.t}</span><span className={`ml-auto rounded px-1 font-bold uppercase ${toneColor[n.tone]}`}>{n.tone}</span></div>
+                      <div className="text-[12.5px] font-medium leading-snug">{n.title}</div>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
-          </Panel>
-
-          {/* TradingView technicals */}
-          <div className="lg:col-span-12"><TradingViewTechnicals /></div>
-        </div>
+              </Panel>
+            ) },
+            { id: "technicals", x: 0, y: 44, w: 12, h: 16, node: <TradingViewTechnicals /> },
+          ]}
+        />
 
         <p className="mt-5 text-center text-[11px] text-faint">Classic reference layout · <span className="font-bold text-up">● Live</span> markets (CoinGecko · Yahoo · alternative.me · Polymarket). Hyperliquid traders &amp; 13F portfolios are demo.</p>
       </div>
