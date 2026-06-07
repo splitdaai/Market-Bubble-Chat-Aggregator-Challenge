@@ -130,10 +130,19 @@ async function main() {
   // uses the account's OAuth token to find its own active live broadcast. X is a
   // tweet filtered-stream (app-level), so it stays env-configured.
   const linked = new Set<string>(); // account ids that already have a live chat reader
+  // Channels already watched by an env-configured connector — so the OAuth
+  // account flow never double-subscribes (which would show every message twice).
+  const watched = new Set<string>();
+  if (process.env.TWITCH_CHANNEL) watched.add(`twitch:${process.env.TWITCH_CHANNEL.toLowerCase()}`);
+  if (process.env.KICK_CHANNEL) watched.add(`kick:${process.env.KICK_CHANNEL.toLowerCase()}`);
   const syncAccountConnectors = () => {
     for (const a of getAccounts()) {
       if (!a.connected || linked.has(a.id)) continue;
       const channel = a.handle.replace(/^@/, "").toLowerCase();
+      if ((a.platform === "twitch" || a.platform === "kick") && watched.has(`${a.platform}:${channel}`)) {
+        linked.add(a.id); // already covered by an env connector — don't duplicate
+        continue;
+      }
       let connector: Connector | null = null;
       if (a.platform === "twitch") connector = new TwitchConnector(channel);
       else if (a.platform === "kick") connector = new KickConnector(channel);
@@ -146,6 +155,7 @@ async function main() {
       }
       if (!connector) continue;
       linked.add(a.id); // each connected account gets its own reader
+      if (a.platform === "twitch" || a.platform === "kick") watched.add(`${a.platform}:${channel}`);
       void hub.addConnector(connector);
     }
   };

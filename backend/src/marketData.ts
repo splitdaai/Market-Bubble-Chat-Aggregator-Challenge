@@ -8,7 +8,7 @@ const CG = "https://api.coingecko.com/api/v3";
 let cache: { exp: number; data: MarketData } | null = null;
 
 export interface MarketData {
-  global: { sym: string; name: string; price: number; chg: number; spark: number[] }[];
+  global: { sym: string; name: string; price: number; chg: number; spark: number[]; cls: "crypto" | "index" | "commodity" }[];
   narratives: { name: string; chg24h: number; views: number; heat: number }[];
   movers: { sym: string; price: number; chg: number; vol: number }[];
   gauges: { fearGreed: number; fearGreedLabel: string; btcDominance: number; totalMcap: number; altSeason: number };
@@ -34,20 +34,28 @@ const estViews = (name: string) => {
 };
 
 async function yahoo() {
-  const syms: [string, string, string][] = [
-    ["%5EGSPC", "SPX", "S&P 500"], ["%5ENDX", "NDX", "Nasdaq 100"], ["DX-Y.NYB", "DXY", "Dollar Index"],
-    ["GC=F", "GOLD", "Gold"], ["CL=F", "OIL", "WTI Crude"], ["%5ETNX", "US10Y", "10Y Yield"],
+  // [yahooSymbol, ticker, name, class]
+  const syms: [string, string, string, "index" | "commodity"][] = [
+    ["%5EGSPC", "SPX", "S&P 500", "index"], ["%5ENDX", "NDX", "Nasdaq 100", "index"],
+    ["%5EDJI", "DJI", "Dow Jones", "index"], ["%5ERUT", "RUT", "Russell 2000", "index"],
+    ["%5EVIX", "VIX", "Volatility", "index"], ["DX-Y.NYB", "DXY", "Dollar Index", "index"],
+    ["%5ETNX", "US10Y", "10Y Yield", "index"], ["%5ETYX", "US30Y", "30Y Yield", "index"],
+    ["%5EFTSE", "FTSE", "FTSE 100", "index"], ["%5EN225", "N225", "Nikkei 225", "index"],
+    ["GC=F", "GOLD", "Gold", "commodity"], ["SI=F", "SILVER", "Silver", "commodity"],
+    ["CL=F", "OIL", "WTI Crude", "commodity"], ["NG=F", "NATGAS", "Nat Gas", "commodity"],
+    ["HG=F", "COPPER", "Copper", "commodity"], ["PL=F", "PLAT", "Platinum", "commodity"],
+    ["ZC=F", "CORN", "Corn", "commodity"], ["KC=F", "COFFEE", "Coffee", "commodity"],
   ];
   const out: MarketData["global"] = [];
-  await Promise.all(syms.map(async ([y, sym, name]) => {
+  await Promise.all(syms.map(async ([y, sym, name, cls]) => {
     try {
       const j = await jget(`https://query1.finance.yahoo.com/v8/finance/chart/${y}?range=5d&interval=1d`, { headers: { "User-Agent": "Mozilla/5.0" } });
       const res = j.chart.result[0];
       let price = res.meta.regularMarketPrice;
       const prev = res.meta.chartPreviousClose ?? res.meta.previousClose ?? price;
-      if (sym === "US10Y" && price > 20) price /= 10;
+      if ((sym === "US10Y" || sym === "US30Y") && price > 20) price /= 10;
       const closes = (res.indicators.quote[0].close ?? []).filter((x: number) => x != null);
-      out.push({ sym, name, price, chg: ((price - prev) / prev) * 100, spark: sample(closes, 12) });
+      out.push({ sym, name, price, chg: ((price - prev) / prev) * 100, spark: sample(closes, 12), cls });
     } catch { /* skip */ }
   }));
   return out;
@@ -58,13 +66,13 @@ export async function getMarketData(): Promise<MarketData> {
 
   const data: MarketData = { global: [], narratives: [], movers: [], gauges: { fearGreed: 50, fearGreedLabel: "—", btcDominance: 0, totalMcap: 0, altSeason: 0 }, polymarket: [] };
 
-  // Global markets
+  // Global markets — top 10 crypto by mcap + indices + commodities
   try {
-    const cg = await jget(`${CG}/coins/markets?vs_currency=usd&ids=bitcoin,ethereum,solana&price_change_percentage=24h&sparkline=true`);
+    const cg = await jget(`${CG}/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=10&page=1&price_change_percentage=24h&sparkline=true`);
     data.global = cg.map((c: Record<string, number & string & { price: number[] }>) => ({
       sym: (c.symbol as unknown as string).toUpperCase(), name: c.name as unknown as string,
       price: c.current_price as unknown as number, chg: (c.price_change_percentage_24h as unknown as number) ?? 0,
-      spark: sample((c.sparkline_in_7d as unknown as { price: number[] })?.price ?? []),
+      spark: sample((c.sparkline_in_7d as unknown as { price: number[] })?.price ?? []), cls: "crypto" as const,
     }));
   } catch { /* leave empty */ }
   data.global = [...data.global, ...(await yahoo())];
