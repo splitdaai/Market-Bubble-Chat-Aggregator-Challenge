@@ -155,9 +155,14 @@ export async function getPriceHistory(sym: string): Promise<{ sym: string; point
 /* ---- Real trader leaderboards (Hyperliquid + Polymarket) ---- */
 let lbCache: { exp: number; data: { hyperliquid: unknown[]; polymarket: unknown[]; updated: number } } | null = null;
 
+/** Curated, publicly-disclosed trader wallets linked to their X accounts (verified). */
+const LINKED_WALLETS: { name: string; xHandle: string; addr: string; source: string }[] = [
+  { name: "James Wynn", xHandle: "JamesWynnReal", addr: "0x5078c2fbea2b2ad61bc840bc023e35fce56bedb6", source: "self-disclosed" },
+];
+
 export async function getLeaderboards() {
   if (lbCache && Date.now() < lbCache.exp) return lbCache.data;
-  const data = { hyperliquid: [] as unknown[], polymarket: [] as unknown[], updated: Date.now() };
+  const data = { hyperliquid: [] as unknown[], polymarket: [] as unknown[], linked: [] as unknown[], updated: Date.now() };
 
   // Hyperliquid — real top traders by 30d (month) PnL
   try {
@@ -185,6 +190,21 @@ export async function getLeaderboards() {
       name: p.name || p.pseudonym || p.proxyWallet.slice(0, 6) + "…" + p.proxyWallet.slice(-4),
       addr: p.proxyWallet,
       pnl: p.amount,
+    }));
+  } catch { /* leave empty */ }
+
+  // Curated verified wallets — real account value + 30d PnL, with X handle linked
+  try {
+    const post = (body: unknown) => jget("https://api.hyperliquid.xyz/info", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+    data.linked = await Promise.all(LINKED_WALLETS.map(async (k) => {
+      try {
+        const [cs, pf] = await Promise.all([post({ type: "clearinghouseState", user: k.addr }), post({ type: "portfolio", user: k.addr })]);
+        const value = +(cs?.marginSummary?.accountValue ?? 0);
+        const pmap: Record<string, { pnlHistory?: [number, string][] }> = Object.fromEntries(pf as [string, { pnlHistory?: [number, string][] }][]);
+        const ph = pmap.month?.pnlHistory ?? [];
+        const pnl = ph.length ? +ph[ph.length - 1][1] : 0;
+        return { ...k, value, pnl };
+      } catch { return { ...k, value: 0, pnl: 0 }; }
     }));
   } catch { /* leave empty */ }
 
