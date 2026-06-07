@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { X, Wallet, Clock, MessageSquare, DollarSign, Gift, Ban, TimerReset, Plus, Minus, ShieldOff } from "lucide-react";
-import { useChatStore } from "@/store/chatStore";
+import { useChatStore, userKey } from "@/store/chatStore";
 import { useStatsStore } from "@/store/statsStore";
 import { useModeStore } from "@/store/modeStore";
 import { useWalletStore } from "@/store/walletStore";
@@ -19,7 +19,9 @@ import type { Platform } from "@shared/types";
 
 function fmtTime(ts: number): string {
   const d = new Date(ts);
-  return `${d.getHours().toString().padStart(2, "0")}:${d.getMinutes().toString().padStart(2, "0")}`;
+  const date = d.toLocaleDateString([], { month: "short", day: "numeric" });
+  const time = d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+  return `${date} · ${time}`;
 }
 
 /** Avatar — real X PFP via unavatar for X users, else a colored initial. */
@@ -55,7 +57,7 @@ function Avatar({ name, platform, color }: { name: string; platform: Platform; c
 export function UserCard() {
   const open = useUserCardStore((s) => s.open);
   const close = useUserCardStore((s) => s.close);
-  const messages = useChatStore((s) => s.messages);
+  const history = useChatStore((s) => s.history);
   const listUsers = useStatsStore((s) => s.listUsers);
   const demo = useModeStore((s) => s.demo);
   const tipEnabled = useWalletStore((s) => s.tipEnabled);
@@ -74,12 +76,10 @@ export function UserCard() {
   // Reset the moderation sub-panel whenever a different viewer's card opens.
   useEffect(() => { setMoMode("none"); setTipping(false); }, [open?.name, open?.platform]);
 
+  // All of this user's messages this session (full per-user history, newest last).
   const userMessages = useMemo(
-    () =>
-      open
-        ? messages.filter((m) => m.username === open.name && m.platform === open.platform).slice(-100)
-        : [],
-    [messages, open],
+    () => (open ? history[userKey(open.platform, open.name)] ?? [] : []),
+    [history, open],
   );
 
   const row = useMemo(
@@ -262,15 +262,15 @@ export function UserCard() {
         {/* message history */}
         <div className="vc-scroll min-h-0 flex-1 overflow-y-auto p-3">
           <div className="mb-2 text-[10px] font-bold uppercase tracking-widest text-muted">
-            Recent messages ({userMessages.length})
+            All messages ({userMessages.length})
           </div>
           {userMessages.length === 0 ? (
-            <div className="py-6 text-center text-sm text-muted opacity-70">No messages in the current session buffer.</div>
+            <div className="py-6 text-center text-sm text-muted opacity-70">No messages from this user yet this session.</div>
           ) : (
             <div className="flex flex-col gap-1">
               {[...userMessages].reverse().map((m) => (
                 <div key={m.id} className="flex items-baseline gap-2 rounded-lg bg-white/[0.02] px-2.5 py-1.5">
-                  <span className="shrink-0 text-[10px] tabular-nums text-muted opacity-60">{fmtTime(m.timestamp)}</span>
+                  <span className="shrink-0 whitespace-nowrap text-[10px] tabular-nums text-muted opacity-60">{fmtTime(m.timestamp)}</span>
                   <span className="break-words text-[13px] leading-snug text-ink/90">{m.message}</span>
                 </div>
               ))}
