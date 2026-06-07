@@ -20,7 +20,7 @@ export function Topbar({ onOpenTheme, onOpenConnections, onOpenFeatures }: { onO
   const view = useViewStore((s) => s.view);
   const setView = useViewStore((s) => s.setView);
   const isLive = view === "live";
-  const canEdit = isLive || view === "market" || view === "content" || view === "analytics";
+  const canEdit = isLive || view === "market";
 
   // Proactive nudge on the Demo/Live toggle — dismissed once the user clicks it
   // (or the ✕). Session-only so a fresh load shows it again for the next viewer.
