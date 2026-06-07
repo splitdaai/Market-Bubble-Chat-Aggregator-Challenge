@@ -49,8 +49,59 @@ export const MONO_TERMINAL_THEME: Theme = {
 /** Active default theme. */
 export const DEFAULT_THEME: Theme = MONO_TERMINAL_THEME;
 
+/** Terminal Pro — dense Bloomberg-style: mono everywhere, sharp corners,
+ *  hairline borders, electric blue, minimal glow. */
+export const TERMINAL_PRO_THEME: Theme = {
+  name: "Terminal Pro",
+  bg: "#060608",
+  surface: "rgba(14, 14, 18, 0.88)",
+  accent: "#00aaff",
+  accent2: "#7c5cff",
+  text: "#f2f4f7",
+  textMuted: "#7f8693",
+  glow: 0.28,
+  radius: 7,
+  font: "JetBrains Mono",
+  bubbleStyle: "outline",
+};
+
+/** Glass Aurora — soft modern-SaaS glassmorphism: translucent panels, aurora
+ *  glow, generous rounded corners, Inter. */
+export const GLASS_AURORA_THEME: Theme = {
+  name: "Glass Aurora",
+  bg: "#070b14",
+  surface: "rgba(18, 24, 38, 0.66)",
+  accent: "#38bdf8",
+  accent2: "#a78bfa",
+  text: "#eef3fb",
+  textMuted: "#93a0b8",
+  glow: 0.72,
+  radius: 18,
+  font: "Inter",
+  bubbleStyle: "glass",
+};
+
+/** Neon Bubble — Market Bubble brand: mint + cyan on deep green-black, bubbly
+ *  rounded corners, neon glow, Space Grotesk. */
+export const NEON_BUBBLE_THEME: Theme = {
+  name: "Neon Bubble",
+  bg: "#04100c",
+  surface: "rgba(9, 27, 21, 0.6)",
+  accent: "#16e6a4",
+  accent2: "#34d6ff",
+  text: "#eafff6",
+  textMuted: "#78b6a4",
+  glow: 0.85,
+  radius: 16,
+  font: "Space Grotesk",
+  bubbleStyle: "glass",
+};
+
 export const THEME_PRESETS: Theme[] = [
   MONO_TERMINAL_THEME,
+  TERMINAL_PRO_THEME,
+  GLASS_AURORA_THEME,
+  NEON_BUBBLE_THEME,
   MARKET_BUBBLE_THEME,
   NEON_VOID_THEME,
   {
