@@ -6,7 +6,6 @@ import { useModeStore } from "@/store/modeStore";
 import { useOverlayStore } from "@/store/overlayStore";
 import { useViewStore } from "@/store/viewStore";
 import { AudioControl } from "./AudioControl";
-import { LiveTimer } from "./LiveTimer";
 import { MarketBubbleMark } from "./Brand";
 
 /** Top command bar — view tabs, edit-mode toggle, theme editor, sound, reset. */
@@ -36,16 +35,8 @@ export function Topbar({ onOpenTheme, onOpenConnections, onOpenFeatures }: { onO
           <MarketBubbleMark className="h-7 w-7 text-accent" />
         </div>
         <div>
-          <h1 className="flex items-center gap-2 text-lg font-extrabold leading-none tracking-tight">
+          <h1 className="serif flex items-center gap-2 text-lg font-extrabold leading-none tracking-tight">
             Market <span className="text-white">Bubble</span>
-            <span className="flex items-center gap-1.5 rounded-md border border-red-500/50 bg-red-500/15 px-1.5 py-0.5 text-[10px] font-black uppercase tracking-wider text-red-400">
-              <span className="relative flex h-1.5 w-1.5">
-                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-500/70" />
-                <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-red-500" />
-              </span>
-              Live
-              <LiveTimer className="tabular-nums text-red-200/90" />
-            </span>
           </h1>
           <p className="mt-1 text-[10px] font-medium uppercase tracking-[0.2em] text-muted">
             Make Money. Command Attention. Leverage AI

@@ -47,7 +47,25 @@ export const MONO_TERMINAL_THEME: Theme = {
 };
 
 /** Active default theme. */
-export const DEFAULT_THEME: Theme = MONO_TERMINAL_THEME;
+/** Market Bubble Green — green + Playfair-serif, flat cards. The app default. */
+export const MARKET_BUBBLE_GREEN_THEME: Theme = {
+  name: "Market Bubble Green",
+  bg: "#0f0f0f",
+  surface: "#181818",
+  accent: "#00d872",
+  accent2: "#ff4b16",
+  text: "#e4e4e4",
+  textMuted: "#8a8a8a",
+  glow: 0.18,
+  radius: 14,
+  font: "Geist",
+  bubbleStyle: "flat",
+  tile: "flat",
+  btn: "solid",
+  textStyle: "serif",
+};
+
+export const DEFAULT_THEME: Theme = MARKET_BUBBLE_GREEN_THEME;
 
 /** Terminal Pro — dense Bloomberg-style: mono everywhere, sharp corners,
  *  hairline borders, electric blue, minimal glow. */
@@ -97,24 +115,6 @@ export const NEON_BUBBLE_THEME: Theme = {
   bubbleStyle: "glass",
 };
 
-/** Market Bubble Green — the green + Playfair-serif look from the Market/Content
- *  pages, as a full-app preset: flat cards, off-white text, low glow. */
-export const MARKET_BUBBLE_GREEN_THEME: Theme = {
-  name: "Market Bubble Green",
-  bg: "#0f0f0f",
-  surface: "#181818",
-  accent: "#00d872",
-  accent2: "#ff4b16",
-  text: "#e4e4e4",
-  textMuted: "#8a8a8a",
-  glow: 0.18,
-  radius: 14,
-  font: "Geist",
-  bubbleStyle: "flat",
-  tile: "flat",
-  btn: "solid",
-  textStyle: "serif",
-};
 
 export const THEME_PRESETS: Theme[] = [
   MONO_TERMINAL_THEME,

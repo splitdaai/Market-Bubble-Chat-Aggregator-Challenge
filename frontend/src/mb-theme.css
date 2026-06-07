@@ -1,6 +1,19 @@
-/* Green + Playfair-serif look, scoped to the Market Intelligence + Content Radar
-   tabs only (the rest of the app keeps its active theme). Remaps the theme vars
-   so existing text-accent / text-ink / vc-glass classes render in this palette. */
+/* Market Bubble look — Playfair-serif headings used app-wide, plus the green
+   palette + flat cards for the Market/Content tabs. No distinct canvas bg, so
+   those pages blend onto the page like Live/Analytics. */
+
+/* Serif headings everywhere (wordmark + page titles), so the font matches across all pages. */
+.serif {
+  font-family: "Playfair Display", Georgia, "Times New Roman", serif;
+  letter-spacing: -0.01em;
+}
+[data-text="serif"] h1,
+[data-text="serif"] .mb-serif-head {
+  font-family: "Playfair Display", Georgia, "Times New Roman", serif !important;
+  letter-spacing: -0.01em;
+}
+
+/* Market/Content content wrapper — green palette + Geist body, transparent bg. */
 .mb-tab {
   --vc-accent: #00d872;
   --vc-accent2: #ff4b16;
@@ -8,28 +21,12 @@
   --vc-text-muted: #8a8a8a;
   font-family: "Geist", ui-sans-serif, system-ui, sans-serif;
   color: #e4e4e4;
-  background: #0d0d0d;
-  min-height: calc(100vh - 64px);
 }
-.mb-tab .serif {
-  font-family: "Playfair Display", Georgia, "Times New Roman", serif;
-  letter-spacing: -0.01em;
-}
-.mb-tab .font-mono {
-  font-family: "Geist Mono", ui-monospace, "SF Mono", monospace;
-}
+.mb-tab .font-mono { font-family: "Geist Mono", ui-monospace, "SF Mono", monospace; }
 .mb-tab .vc-glass {
-  background: #181818 !important;
+  background: rgba(255, 255, 255, 0.02) !important;
   border: 1px solid rgba(255, 255, 255, 0.06) !important;
   border-radius: 14px !important;
   backdrop-filter: none !important;
   box-shadow: none !important;
-}
-
-/* "Serif Heads" text style (used by the Market Bubble Green preset): Playfair on
-   the main app headings — applied app-wide when the theme sets data-text="serif". */
-[data-text="serif"] h1,
-[data-text="serif"] .mb-serif-head {
-  font-family: "Playfair Display", Georgia, "Times New Roman", serif !important;
-  letter-spacing: -0.01em;
 }

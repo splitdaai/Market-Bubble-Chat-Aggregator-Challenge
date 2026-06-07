@@ -35,6 +35,33 @@ const HL_TRADERS = [
   { name: "0xNomad", pnl: 0.44e6, win: 57, trend: [3, 4, 4, 5, 5, 5, 6] },
   { name: "degenharry", pnl: 0.38e6, win: 64, trend: [4, 4, 5, 5, 6, 6, 7] },
   { name: "0xPepe", pnl: 0.29e6, win: 51, trend: [5, 4, 4, 4, 5, 4, 5] },
+  { name: "0xLiquid", pnl: 0.24e6, win: 60, trend: [3, 4, 4, 5, 5, 6, 6] },
+  { name: "smartmoney.eth", pnl: 0.21e6, win: 67, trend: [2, 3, 4, 4, 5, 6, 7] },
+  { name: "0xVega", pnl: 0.18e6, win: 54, trend: [4, 4, 4, 5, 4, 5, 5] },
+  { name: "perpqueen", pnl: 0.14e6, win: 63, trend: [3, 4, 5, 5, 5, 6, 6] },
+  { name: "0xGamma", pnl: 0.09e6, win: 52, trend: [5, 4, 4, 4, 5, 4, 4] },
+];
+const POLY_TRADERS = [
+  { name: "0xPolyKing", pnl: 2.1e6, win: 74, trend: [3, 5, 4, 6, 7, 8, 9] },
+  { name: "domer.eth", pnl: 1.6e6, win: 69, trend: [4, 4, 6, 5, 7, 7, 8] },
+  { name: "0xOracle", pnl: 1.2e6, win: 66, trend: [2, 4, 5, 5, 6, 7, 7] },
+  { name: "electionmaxi", pnl: 0.94e6, win: 71, trend: [3, 5, 5, 6, 6, 7, 8] },
+  { name: "0xEdge", pnl: 0.81e6, win: 62, trend: [4, 4, 5, 5, 6, 6, 7] },
+  { name: "sportsdegen", pnl: 0.73e6, win: 58, trend: [5, 4, 5, 4, 5, 6, 6] },
+  { name: "0xSharp", pnl: 0.66e6, win: 64, trend: [3, 4, 5, 5, 5, 6, 7] },
+  { name: "marketmaker.eth", pnl: 0.58e6, win: 60, trend: [4, 5, 4, 6, 5, 6, 6] },
+  { name: "0xResolve", pnl: 0.49e6, win: 67, trend: [2, 3, 4, 5, 6, 6, 7] },
+  { name: "fadethepublic", pnl: 0.42e6, win: 55, trend: [5, 4, 4, 5, 4, 5, 5] },
+  { name: "0xKalshi", pnl: 0.37e6, win: 61, trend: [3, 4, 5, 5, 6, 6, 6] },
+  { name: "binarybets", pnl: 0.31e6, win: 59, trend: [4, 4, 4, 5, 5, 5, 6] },
+  { name: "0xParlay", pnl: 0.27e6, win: 63, trend: [3, 4, 4, 5, 5, 6, 6] },
+  { name: "oddsmaker.eth", pnl: 0.22e6, win: 57, trend: [4, 4, 5, 4, 5, 5, 6] },
+  { name: "0xHedge", pnl: 0.19e6, win: 65, trend: [2, 3, 4, 4, 5, 6, 6] },
+  { name: "vigilante", pnl: 0.15e6, win: 53, trend: [5, 4, 4, 4, 5, 4, 5] },
+  { name: "0xConviction", pnl: 0.12e6, win: 60, trend: [3, 4, 4, 5, 5, 5, 6] },
+  { name: "longshot.eth", pnl: 0.09e6, win: 56, trend: [4, 4, 5, 5, 5, 6, 6] },
+  { name: "0xConsensus", pnl: 0.07e6, win: 62, trend: [3, 4, 4, 5, 5, 6, 6] },
+  { name: "pollpredictor", pnl: 0.05e6, win: 58, trend: [4, 4, 4, 5, 5, 5, 5] },
 ];
 const PORTFOLIOS = [
   { fund: "ARK Invest", top: "COIN", value: 1.2e9, chg: 8.4 },
@@ -103,9 +130,28 @@ function MarketTable({ title, rows }: { title: string; rows: MarketData["global"
   );
 }
 
+/** Radial half-gauge meter (0–100). */
+function Meter({ value, label, sub, color = "#00d872" }: { value: number; label: string; sub: string; color?: string }) {
+  const v = Math.max(0, Math.min(100, value));
+  const C = Math.PI * 54; // semicircle arc length for r=54
+  return (
+    <div className="flex flex-col items-center pb-1 pt-2">
+      <svg viewBox="0 0 140 78" className="w-full max-w-[230px]">
+        <path d="M16 72 A54 54 0 0 1 124 72" fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="11" strokeLinecap="round" />
+        <path d="M16 72 A54 54 0 0 1 124 72" fill="none" stroke={color} strokeWidth="11" strokeLinecap="round" strokeDasharray={C} strokeDashoffset={C * (1 - v / 100)} style={{ transition: "stroke-dashoffset .5s ease, stroke .3s" }} />
+      </svg>
+      <div className="-mt-7 text-center">
+        <div className="text-[28px] font-extrabold leading-none tabular-nums" style={{ color }}>{label}</div>
+        <div className="mt-1 text-[11px] text-muted">{sub}</div>
+      </div>
+    </div>
+  );
+}
+
 export function MarketTabClassic() {
   const [d, setD] = useState<MarketData | null>(null);
   const [tries, setTries] = useState(0);
+  const [pulse, setPulse] = useState(0);
   useEffect(() => {
     let on = true;
     let timer: ReturnType<typeof setTimeout>;
@@ -129,7 +175,6 @@ export function MarketTabClassic() {
   const crypto = d.global.filter((m) => m.cls === "crypto").slice(0, 10);
   const indices = d.global.filter((m) => m.cls === "index").slice(0, 10);
   const commodities = d.global.filter((m) => m.cls === "commodity").slice(0, 10);
-  const topPoly = [...d.polymarket].sort((a, b) => b.vol - a.vol);
 
   return (
     <div className="mb-tab" data-text="serif">
@@ -168,23 +213,31 @@ export function MarketTabClassic() {
             </div>
           </Panel>
 
-          {/* Market Pulse KPIs */}
-          <Panel title="Market Pulse" icon={<Activity size={15} className="text-up" />} right={<span className="text-[10px] uppercase tracking-wider text-faint">live</span>} className="lg:col-span-4">
-            <div className="grid grid-cols-2 gap-2">
-              {[
-                ["Fear & Greed", String(d.gauges.fearGreed), d.gauges.fearGreedLabel],
-                ["BTC Dominance", d.gauges.btcDominance.toFixed(1) + "%", "of total cap"],
-                ["Total Mcap", "$" + compact(d.gauges.totalMcap), "all crypto"],
-                ["Alt Season", d.gauges.altSeason + "/100", d.gauges.altSeason > 50 ? "alts leading" : "BTC-led"],
-              ].map(([l, v, s]) => (
-                <div key={l} className="rounded-lg border border-white/8 bg-white/[0.02] p-3 text-center">
-                  <div className="text-[9px] uppercase tracking-wider text-faint">{l}</div>
-                  <div className="mt-0.5 text-[20px] font-extrabold tabular-nums text-accent">{v}</div>
-                  <div className="text-[9px] text-muted">{s}</div>
+          {/* Market Pulse — selectable meter */}
+          {(() => {
+            const g = d.gauges;
+            const fgColor = g.fearGreed < 25 ? "#ff5a6a" : g.fearGreed < 45 ? "#ff9f43" : g.fearGreed < 75 ? "#a8e05f" : "#16e6a4";
+            const PULSE = [
+              { key: "Fear & Greed", val: g.fearGreed, label: String(g.fearGreed), sub: g.fearGreedLabel, color: fgColor },
+              { key: "BTC Dominance", val: g.btcDominance, label: g.btcDominance.toFixed(1) + "%", sub: "of total cap", color: "#f7931a" },
+              { key: "Alt Season", val: g.altSeason, label: g.altSeason + "/100", sub: g.altSeason > 50 ? "alts leading" : "BTC-led", color: "#34d6ff" },
+              { key: "Total Mcap", val: Math.min(100, (g.totalMcap / 4e12) * 100), label: "$" + compact(g.totalMcap), sub: "all crypto", color: "#00d872" },
+            ];
+            const sel = PULSE[pulse] ?? PULSE[0];
+            return (
+              <Panel title="Market Pulse" icon={<Activity size={15} className="text-up" />} right={<span className="text-[10px] uppercase tracking-wider text-faint">live</span>} className="lg:col-span-4">
+                <div className="mb-2 grid grid-cols-2 gap-1.5">
+                  {PULSE.map((p, i) => (
+                    <button key={p.key} onClick={() => setPulse(i)} className={`rounded-lg border px-2 py-1.5 text-left transition ${pulse === i ? "border-accent/50 bg-accent/10" : "border-white/8 bg-white/[0.02] hover:border-white/20"}`}>
+                      <div className="text-[9px] uppercase tracking-wider text-faint">{p.key}</div>
+                      <div className="text-[13px] font-bold tabular-nums" style={{ color: pulse === i ? p.color : "var(--vc-text)" }}>{p.label}</div>
+                    </button>
+                  ))}
                 </div>
-              ))}
-            </div>
-          </Panel>
+                <Meter value={sel.val} label={sel.label} sub={`${sel.key} · ${sel.sub}`} color={sel.color} />
+              </Panel>
+            );
+          })()}
 
           {/* Smart Money — Top Hyperliquid Traders */}
           <Panel title="Top Hyperliquid Traders" icon={<TrendingUp size={15} className="text-up" />} right={<span className="text-[10px] uppercase tracking-wider text-faint">demo</span>} className="lg:col-span-5">
@@ -216,18 +269,21 @@ export function MarketTabClassic() {
             </div>
           </Panel>
 
-          {/* Top Polymarket Volume */}
-          <Panel title="Top Polymarket Volume" icon={<PolymarketMark className="h-4 w-5 text-accent" />} className="lg:col-span-3">
-            <div className="space-y-2">
-              {topPoly.slice(0, 5).map((m) => (
-                <div key={m.q} className="rounded-lg border border-white/8 bg-white/[0.02] p-2">
-                  <div className="line-clamp-2 text-[11.5px] font-semibold leading-snug">{m.q}</div>
-                  <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-down/30"><div className="h-full rounded-full bg-up" style={{ width: `${m.yes}%` }} /></div>
-                  <div className="mt-1 flex items-center justify-between text-[10px] font-bold"><span className="text-up">Yes {m.yes}%</span><span className="text-down">No {100 - m.yes}%</span></div>
-                  <div className="mt-0.5 text-[9px] text-faint">${compact(m.vol)} vol</div>
-                </div>
-              ))}
-            </div>
+          {/* Top Polymarket Traders */}
+          <Panel title="Top Polymarket Traders" icon={<PolymarketMark className="h-4 w-5 text-accent" />} right={<span className="text-[10px] uppercase tracking-wider text-faint">demo</span>} className="lg:col-span-3">
+            <table className="w-full text-[12px]">
+              <thead><tr className="text-[9px] uppercase tracking-wider text-faint"><th className="pb-1 text-left">#</th><th className="pb-1 text-left">Trader</th><th className="pb-1 text-right">PNL</th><th className="pb-1 text-right">Win</th></tr></thead>
+              <tbody>
+                {POLY_TRADERS.map((t, i) => (
+                  <tr key={t.name} className="border-t border-white/6">
+                    <td className="py-1.5 font-bold text-faint">{i + 1}</td>
+                    <td className="truncate py-1.5 font-semibold">{t.name}</td>
+                    <td className="py-1.5 text-right font-bold tabular-nums text-up">+${compact(t.pnl)}</td>
+                    <td className="py-1.5 text-right tabular-nums text-muted">{t.win}%</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </Panel>
 
           {/* Intelligence Feed (news) */}

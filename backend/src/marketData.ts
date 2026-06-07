@@ -45,6 +45,7 @@ async function yahoo() {
     ["CL=F", "OIL", "WTI Crude", "commodity"], ["NG=F", "NATGAS", "Nat Gas", "commodity"],
     ["HG=F", "COPPER", "Copper", "commodity"], ["PL=F", "PLAT", "Platinum", "commodity"],
     ["ZC=F", "CORN", "Corn", "commodity"], ["KC=F", "COFFEE", "Coffee", "commodity"],
+    ["ZW=F", "WHEAT", "Wheat", "commodity"], ["SB=F", "SUGAR", "Sugar", "commodity"],
   ];
   const out: MarketData["global"] = [];
   await Promise.all(syms.map(async ([y, sym, name, cls]) => {
