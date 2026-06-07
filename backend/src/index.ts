@@ -15,7 +15,7 @@ import { HistoryStore } from "./history/store.ts";
 import { twitchViewers, kickViewers, youtubeViewers } from "./stats/viewers.ts";
 import { mountAuth, getAccounts, getToken, refreshToken } from "./auth.ts";
 import { getTwitchChannel } from "./twitchChannel.ts";
-import { getMarketData, getPriceHistory } from "./marketData.ts";
+import { getMarketData, getPriceHistory, getLeaderboards } from "./marketData.ts";
 
 const PORT = Number(process.env.PORT ?? 4000);
 // Non-wildcard CORS allowlist in production (comma-separated origins); "*" only
@@ -53,6 +53,15 @@ app.get("/api/market", async (_req, res) => {
     res.json(data);
   } catch {
     res.status(502).json({ error: "market fetch failed" });
+  }
+});
+
+app.get("/api/leaderboards", async (_req, res) => {
+  try {
+    res.set("Cache-Control", "public, max-age=600");
+    res.json(await getLeaderboards());
+  } catch {
+    res.status(502).json({ error: "leaderboards fetch failed" });
   }
 });
 

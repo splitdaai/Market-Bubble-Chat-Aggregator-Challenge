@@ -151,3 +151,43 @@ export async function getPriceHistory(sym: string): Promise<{ sym: string; point
   if (points.length) histCache.set(up, { exp: Date.now() + 1_800_000, points });
   return { sym: up, points };
 }
+
+/* ---- Real trader leaderboards (Hyperliquid + Polymarket) ---- */
+let lbCache: { exp: number; data: { hyperliquid: unknown[]; polymarket: unknown[]; updated: number } } | null = null;
+
+export async function getLeaderboards() {
+  if (lbCache && Date.now() < lbCache.exp) return lbCache.data;
+  const data = { hyperliquid: [] as unknown[], polymarket: [] as unknown[], updated: Date.now() };
+
+  // Hyperliquid — real top traders by 30d (month) PnL
+  try {
+    const hl = await jget("https://stats-data.hyperliquid.xyz/Mainnet/leaderboard");
+    const rows: Array<{ ethAddress: string; displayName?: string; accountValue: string; windowPerformances: [string, { pnl: string; roi: string; vlm: string }][] }> = hl.leaderboardRows ?? [];
+    const perf = (r: typeof rows[number], w: string) => { const e = r.windowPerformances.find((p) => p[0] === w); return e ? { pnl: +e[1].pnl, roi: +e[1].roi } : { pnl: 0, roi: 0 }; };
+    data.hyperliquid = rows
+      .map((r) => ({ r, m: perf(r, "month") }))
+      .sort((a, b) => b.m.pnl - a.m.pnl)
+      .slice(0, 20)
+      .map(({ r, m }) => ({
+        name: r.displayName || r.ethAddress.slice(0, 6) + "…" + r.ethAddress.slice(-4),
+        addr: r.ethAddress,
+        pnl: m.pnl,
+        roi: m.roi * 100,
+        value: +r.accountValue,
+        trend: [perf(r, "day").roi, perf(r, "week").roi, m.roi, perf(r, "allTime").roi].map((x) => x * 100),
+      }));
+  } catch { /* leave empty */ }
+
+  // Polymarket — real top traders by 30d profit
+  try {
+    const pm: Array<{ proxyWallet: string; amount: number; name?: string; pseudonym?: string }> = await jget("https://lb-api.polymarket.com/profit?window=30d&limit=20");
+    data.polymarket = (pm ?? []).map((p) => ({
+      name: p.name || p.pseudonym || p.proxyWallet.slice(0, 6) + "…" + p.proxyWallet.slice(-4),
+      addr: p.proxyWallet,
+      pnl: p.amount,
+    }));
+  } catch { /* leave empty */ }
+
+  lbCache = { exp: Date.now() + 900_000, data };
+  return data;
+}
