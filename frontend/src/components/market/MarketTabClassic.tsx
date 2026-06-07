@@ -8,7 +8,7 @@ import { compact } from "../../lib/format";
 const BACKEND = (import.meta.env.VITE_BACKEND_URL as string | undefined) ?? "https://3-213-104-77.nip.io";
 
 interface MarketData {
-  global: { sym: string; name: string; price: number; chg: number; spark: number[] }[];
+  global: { sym: string; name: string; price: number; chg: number; spark: number[]; cls?: "crypto" | "index" | "commodity" }[];
   narratives: { name: string; chg24h: number; views: number; heat: number }[];
   movers: { sym: string; price: number; chg: number; vol: number }[];
   gauges: { fearGreed: number; fearGreedLabel: string; btcDominance: number; totalMcap: number; altSeason: number };
@@ -26,6 +26,15 @@ const HL_TRADERS = [
   { name: "Tetra", pnl: 1.9e6, win: 59, trend: [4, 3, 5, 4, 6, 5, 6] },
   { name: "cupsey.sol", pnl: 1.42e6, win: 73, trend: [3, 5, 6, 5, 7, 8, 9] },
   { name: "0xFrank", pnl: 0.98e6, win: 55, trend: [5, 4, 4, 5, 3, 4, 5] },
+  { name: "perpgod.eth", pnl: 0.91e6, win: 62, trend: [4, 5, 5, 6, 5, 7, 8] },
+  { name: "0xMachi", pnl: 0.84e6, win: 58, trend: [6, 5, 7, 6, 5, 6, 7] },
+  { name: "liquidated.eth", pnl: 0.77e6, win: 66, trend: [3, 4, 5, 4, 5, 6, 6] },
+  { name: "hsaka.hl", pnl: 0.69e6, win: 70, trend: [2, 3, 4, 5, 6, 7, 8] },
+  { name: "0xSisyphus", pnl: 0.58e6, win: 53, trend: [5, 4, 5, 4, 4, 5, 5] },
+  { name: "cobie.eth", pnl: 0.51e6, win: 61, trend: [4, 5, 4, 6, 5, 6, 7] },
+  { name: "0xNomad", pnl: 0.44e6, win: 57, trend: [3, 4, 4, 5, 5, 5, 6] },
+  { name: "degenharry", pnl: 0.38e6, win: 64, trend: [4, 4, 5, 5, 6, 6, 7] },
+  { name: "0xPepe", pnl: 0.29e6, win: 51, trend: [5, 4, 4, 4, 5, 4, 5] },
 ];
 const PORTFOLIOS = [
   { fund: "ARK Invest", top: "COIN", value: 1.2e9, chg: 8.4 },
@@ -33,6 +42,13 @@ const PORTFOLIOS = [
   { fund: "a16z", top: "Solana", value: 2.1e9, chg: -3.2 },
   { fund: "Pantera", top: "BTC", value: 0.9e9, chg: 5.6 },
   { fund: "Galaxy Digital", top: "ETH", value: 1.4e9, chg: -1.8 },
+  { fund: "Grayscale", top: "GBTC", value: 3.6e9, chg: 4.2 },
+  { fund: "Paradigm", top: "Uniswap", value: 1.8e9, chg: 6.9 },
+  { fund: "Multicoin", top: "SOL", value: 1.1e9, chg: 9.1 },
+  { fund: "Jump Crypto", top: "BTC", value: 2.4e9, chg: -0.7 },
+  { fund: "Polychain", top: "ETH", value: 1.3e9, chg: 3.4 },
+  { fund: "Fidelity 13F", top: "FBTC", value: 2.9e9, chg: 5.1 },
+  { fund: "VanEck", top: "HODL", value: 0.7e9, chg: 2.3 },
 ];
 const NEWS = [
   { src: "CoinDesk", t: "8m", tone: "bull", title: "Solana DEX volume hits new ATH as memecoin activity surges" },
@@ -87,18 +103,6 @@ function MarketTable({ title, rows }: { title: string; rows: MarketData["global"
   );
 }
 
-function BanksStream() {
-  const [host, setHost] = useState<string | null>(null);
-  useEffect(() => setHost(location.hostname), []);
-  return (
-    <div className="relative aspect-video w-full overflow-hidden rounded-xl border border-white/10 bg-black">
-      {host
-        ? <iframe key={host} src={`https://player.twitch.tv/?channel=banks&parent=${host}&muted=true`} title="Banks" allow="autoplay; fullscreen" allowFullScreen className="absolute inset-0 h-full w-full" />
-        : null}
-    </div>
-  );
-}
-
 export function MarketTabClassic() {
   const [d, setD] = useState<MarketData | null>(null);
   const [tries, setTries] = useState(0);
@@ -122,9 +126,9 @@ export function MarketTabClassic() {
     </div>
   );
 
-  const crypto = d.global.filter((m) => ["BTC", "ETH", "SOL"].includes(m.sym));
-  const indices = d.global.filter((m) => ["SPX", "NDX", "DXY", "US10Y"].includes(m.sym));
-  const commodities = d.global.filter((m) => ["GOLD", "OIL"].includes(m.sym));
+  const crypto = d.global.filter((m) => m.cls === "crypto").slice(0, 10);
+  const indices = d.global.filter((m) => m.cls === "index").slice(0, 10);
+  const commodities = d.global.filter((m) => m.cls === "commodity").slice(0, 10);
   const topPoly = [...d.polymarket].sort((a, b) => b.vol - a.vol);
 
   return (
@@ -164,9 +168,22 @@ export function MarketTabClassic() {
             </div>
           </Panel>
 
-          {/* Banks Twitch Stream */}
-          <Panel title="Banks Twitch Stream" icon={<Activity size={15} className="text-twitch" />} className="lg:col-span-4">
-            <BanksStream />
+          {/* Market Pulse KPIs */}
+          <Panel title="Market Pulse" icon={<Activity size={15} className="text-up" />} right={<span className="text-[10px] uppercase tracking-wider text-faint">live</span>} className="lg:col-span-4">
+            <div className="grid grid-cols-2 gap-2">
+              {[
+                ["Fear & Greed", String(d.gauges.fearGreed), d.gauges.fearGreedLabel],
+                ["BTC Dominance", d.gauges.btcDominance.toFixed(1) + "%", "of total cap"],
+                ["Total Mcap", "$" + compact(d.gauges.totalMcap), "all crypto"],
+                ["Alt Season", d.gauges.altSeason + "/100", d.gauges.altSeason > 50 ? "alts leading" : "BTC-led"],
+              ].map(([l, v, s]) => (
+                <div key={l} className="rounded-lg border border-white/8 bg-white/[0.02] p-3 text-center">
+                  <div className="text-[9px] uppercase tracking-wider text-faint">{l}</div>
+                  <div className="mt-0.5 text-[20px] font-extrabold tabular-nums text-accent">{v}</div>
+                  <div className="text-[9px] text-muted">{s}</div>
+                </div>
+              ))}
+            </div>
           </Panel>
 
           {/* Smart Money — Top Hyperliquid Traders */}
