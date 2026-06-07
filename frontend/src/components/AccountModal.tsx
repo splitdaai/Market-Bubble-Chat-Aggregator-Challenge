@@ -9,7 +9,7 @@ import { WalletButtons } from "./WalletButtons";
 
 const trunc = (a: string) => a.slice(0, 6) + "…" + a.slice(-4);
 
-export function AccountModal({ open, onClose }: { open: boolean; onClose: () => void }) {
+export function AccountModal({ open, onClose, onOpenDashboard }: { open: boolean; onClose: () => void; onOpenDashboard?: () => void }) {
   const { xHandle, xName, connectX, disconnectX } = useViewerStore();
   const address = useWalletStore((s) => s.address);
   const chainId = useWalletStore((s) => s.chainId);
@@ -67,7 +67,9 @@ export function AccountModal({ open, onClose }: { open: boolean; onClose: () => 
 
               {/* Watchlist */}
               <div>
-                <div className="mb-1.5 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-muted"><Star size={12} className="text-gold" /> Watchlist ({items.length})</div>
+                <div className="mb-1.5 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-muted"><Star size={12} className="text-gold" /> Watchlist ({items.length})
+                  {items.length > 0 && onOpenDashboard && <button onClick={() => { onClose(); onOpenDashboard(); }} className="ml-auto rounded-md bg-accent/15 px-2 py-0.5 text-[10px] font-bold text-accent hover:bg-accent/25">Open dashboard →</button>}
+                </div>
                 {items.length === 0 ? (
                   <div className="rounded-xl border border-white/8 bg-white/[0.02] px-3 py-4 text-center text-[12px] text-muted">Tap the ☆ on any asset, trader, portfolio or KOL to add it here.</div>
                 ) : (

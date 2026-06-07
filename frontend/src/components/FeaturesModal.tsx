@@ -2,6 +2,7 @@ import { motion, AnimatePresence, type Variants } from "framer-motion";
 import {
   X, Sparkles, MessagesSquare, Activity, BarChart3, Trophy, Monitor, Flame,
   Wallet, Gift, Scissors, Film, ShieldCheck, Palette, LayoutGrid, Users,
+  Crosshair, LineChart, Star, Calculator, AtSign,
 } from "lucide-react";
 
 /** One feature card's data. `tint` drives the icon chip + hover glow color. */
@@ -9,6 +10,11 @@ type Feature = { icon: typeof Sparkles; title: string; desc: string; tint: strin
 
 const FEATURES: Feature[] = [
   { icon: MessagesSquare, title: "Unified Chat", desc: "Twitch, YouTube, Kick & X chat merged into one live, color-coded feed.", tint: "#16e6a4" },
+  { icon: AtSign, title: "Chat as You", desc: "Connect your X account and post into the unified feed as your own handle.", tint: "#1d9bf0" },
+  { icon: Crosshair, title: "KOL Tracker", desc: "Top crypto KOLs' wallets — balances, holdings, a live buy/sell firehose & their X posts.", tint: "#fb923c" },
+  { icon: LineChart, title: "Market Terminal", desc: "Live global markets, narratives, TradingView technicals & deep-dive trader/portfolio dashboards.", tint: "#16e6a4" },
+  { icon: Star, title: "Watchlist", desc: "Star any asset, trader, portfolio or KOL — saved to your connected account.", tint: "#fbbf24" },
+  { icon: Calculator, title: "Watchlist Dashboard", desc: "Model your watchlist: combined P&L, performance graph & a 'what if I'd bought on…' calculator.", tint: "#34d6ff" },
   { icon: Users, title: "Multi-Account", desc: "Link up to 5 accounts per platform — every channel aggregates together.", tint: "#34d6ff" },
   { icon: Activity, title: "Live Stats", desc: "Real-time viewers, watch time & message velocity, per platform & combined.", tint: "#22d3ee" },
   { icon: BarChart3, title: "Analytics", desc: "Historical sessions: revenue, subs as $, trend lines & time filters.", tint: "#a78bfa" },

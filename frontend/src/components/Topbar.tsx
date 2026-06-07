@@ -9,6 +9,7 @@ import { useViewerStore } from "@/store/viewerStore";
 import { useWalletStore } from "@/store/walletStore";
 import { AudioControl } from "./AudioControl";
 import { AccountModal } from "./AccountModal";
+import { WatchlistDashboard } from "./WatchlistDashboard";
 import { MarketBubbleMark } from "./Brand";
 
 /** Top command bar — view tabs, edit-mode toggle, theme editor, sound, reset. */
@@ -22,6 +23,7 @@ export function Topbar({ onOpenTheme, onOpenConnections, onOpenFeatures }: { onO
   const toggleOverlay = useOverlayStore((s) => s.toggleEnabled);
   const view = useViewStore((s) => s.view);
   const [accountOpen, setAccountOpen] = useState(false);
+  const [dashOpen, setDashOpen] = useState(false);
   const xHandle = useViewerStore((s) => s.xHandle);
   const address = useWalletStore((s) => s.address);
   const accountLabel = xHandle ? `@${xHandle}` : address ? address.slice(0, 5) + "…" + address.slice(-3) : "Connect";
@@ -225,7 +227,8 @@ export function Topbar({ onOpenTheme, onOpenConnections, onOpenFeatures }: { onO
           </motion.button>
         )}
       </div>
-      <AccountModal open={accountOpen} onClose={() => setAccountOpen(false)} />
+      <AccountModal open={accountOpen} onClose={() => setAccountOpen(false)} onOpenDashboard={() => setDashOpen(true)} />
+      <WatchlistDashboard open={dashOpen} onClose={() => setDashOpen(false)} />
     </header>
   );
 }

@@ -133,10 +133,7 @@ export function TradingViewTechnicals() {
       {/* big interactive chart (RSI + MACD) + analysis gauge */}
       <div className="grid grid-cols-1 gap-3 lg:grid-cols-[1.7fr_1fr]">
         <div className="h-[420px] overflow-hidden rounded-xl border border-white/8 bg-black/20"><AdvancedChart key={"a" + sym.symbol} symbol={sym.symbol} /></div>
-        <div className="flex flex-col gap-3">
-          <div className="overflow-hidden rounded-xl border border-white/8 bg-black/20"><TechWidget key={"t" + sym.symbol} symbol={sym.symbol} /></div>
-          <div className="overflow-hidden rounded-xl border border-white/8 bg-black/20"><MiniChart key={"m" + sym.symbol} symbol={sym.symbol} /></div>
-        </div>
+        <div className="h-[420px] overflow-hidden rounded-xl border border-white/8 bg-black/20"><TechWidget key={"t" + sym.symbol} symbol={sym.symbol} /></div>
       </div>
     </div>
   );

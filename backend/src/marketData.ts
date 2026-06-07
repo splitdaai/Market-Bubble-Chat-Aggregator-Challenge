@@ -116,3 +116,38 @@ export async function getMarketData(): Promise<MarketData> {
   cache = { exp: Date.now() + 300_000, data };
   return data;
 }
+
+/* ---- Price history (for the Watchlist Dashboard "bought at date" calculator) ---- */
+const CRYPTO_IDS: Record<string, string> = {
+  BTC: "bitcoin", ETH: "ethereum", USDT: "tether", BNB: "binancecoin", USDC: "usd-coin", XRP: "ripple",
+  SOL: "solana", TRX: "tron", DOGE: "dogecoin", ADA: "cardano", AVAX: "avalanche-2", LINK: "chainlink",
+  HYPE: "hyperliquid", SUI: "sui", TON: "the-open-network", LTC: "litecoin", DOT: "polkadot",
+};
+const YH_HIST: Record<string, string> = {
+  SPX: "%5EGSPC", NDX: "%5ENDX", DJI: "%5EDJI", RUT: "%5ERUT", VIX: "%5EVIX", DXY: "DX-Y.NYB",
+  US10Y: "%5ETNX", US30Y: "%5ETYX", FTSE: "%5EFTSE", N225: "%5EN225",
+  GOLD: "GC=F", SILVER: "SI=F", OIL: "CL=F", NATGAS: "NG=F", COPPER: "HG=F", PLAT: "PL=F",
+  CORN: "ZC=F", COFFEE: "KC=F", WHEAT: "ZW=F", SUGAR: "SB=F",
+};
+const histCache = new Map<string, { exp: number; points: { t: number; c: number }[] }>();
+
+export async function getPriceHistory(sym: string): Promise<{ sym: string; points: { t: number; c: number }[] }> {
+  const up = sym.toUpperCase();
+  const hit = histCache.get(up);
+  if (hit && Date.now() < hit.exp) return { sym: up, points: hit.points };
+  let points: { t: number; c: number }[] = [];
+  try {
+    if (CRYPTO_IDS[up]) {
+      const j = await jget(`${CG}/coins/${CRYPTO_IDS[up]}/market_chart?vs_currency=usd&days=365&interval=daily`);
+      points = ((j.prices as number[][]) ?? []).map((p) => ({ t: p[0], c: p[1] }));
+    } else if (YH_HIST[up]) {
+      const j = await jget(`https://query1.finance.yahoo.com/v8/finance/chart/${YH_HIST[up]}?range=1y&interval=1d`, { headers: { "User-Agent": "Mozilla/5.0" } });
+      const res = j.chart.result[0];
+      const ts: number[] = res.timestamp ?? [];
+      const cl: number[] = res.indicators.quote[0].close ?? [];
+      points = ts.map((t, i) => ({ t: t * 1000, c: (up === "US10Y" || up === "US30Y") && cl[i] > 20 ? cl[i] / 10 : cl[i] })).filter((p) => p.c != null);
+    }
+  } catch { /* leave empty */ }
+  if (points.length) histCache.set(up, { exp: Date.now() + 1_800_000, points });
+  return { sym: up, points };
+}

@@ -215,8 +215,8 @@ function KolProfile({ kol, onClose }: { kol: Kol; onClose: () => void }) {
             <a href={`https://x.com/${kol.handle}`} target="_blank" rel="noreferrer" className="flex items-center gap-1 text-[12px] text-accent hover:underline">@{kol.handle} <ExternalLink size={11} /></a>
           </div>
           <div className="hidden gap-2 sm:flex">
-            <motion.button whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.96 }} className="flex items-center gap-1.5 rounded-xl bg-accent px-3 py-1.5 text-[12px] font-bold text-black shadow-neon"><Copy size={13} /> Copy wallet</motion.button>
-            <motion.button whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.96 }} className="flex items-center gap-1.5 rounded-xl border border-white/15 px-3 py-1.5 text-[12px] font-bold text-ink hover:border-white/30"><UserPlus size={13} /> Follow</motion.button>
+            <motion.button whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.96 }} onClick={() => navigator.clipboard?.writeText(kol.wallet)} className="flex items-center gap-1.5 rounded-xl bg-accent px-3 py-1.5 text-[12px] font-bold text-black shadow-neon"><Copy size={13} /> Copy wallet</motion.button>
+            <motion.a whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.96 }} href={`https://x.com/intent/follow?screen_name=${kol.handle}`} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 rounded-xl border border-white/15 px-3 py-1.5 text-[12px] font-bold text-ink hover:border-accent/50 hover:text-accent"><UserPlus size={13} /> Follow on X</motion.a>
           </div>
           <button onClick={onClose} className="rounded-lg p-1.5 text-muted hover:bg-white/10 hover:text-ink"><XIcon size={18} /></button>
         </div>

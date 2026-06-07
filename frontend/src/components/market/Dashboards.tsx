@@ -1,10 +1,18 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X as XIcon, ArrowUpRight, ArrowDownRight, Activity, TrendingUp, Wallet, Copy, UserPlus, Trophy, Search, ExternalLink } from "lucide-react";
+import { X as XIcon, ArrowUpRight, ArrowDownRight, Activity, TrendingUp, Wallet, UserPlus, Trophy, Search, ExternalLink } from "lucide-react";
 import { Sparkline } from "../Sparkline";
 import { compact } from "../../lib/format";
 
 const usd = (n: number) => (n < 0 ? "-$" : "$") + compact(Math.abs(n));
+
+/** Best-effort X handle for a trader name (known KOLs mapped; else cleaned name). */
+const X_HANDLES: Record<string, string> = {
+  "ansem.eth": "blknoiz06", "cobie.eth": "cobie", "GiganticRebirth": "GCRClassic", "hsaka.hl": "HsakaTrades",
+  "cupsey.sol": "cupseyy", "0xWhale": "0xWh4le", "perpgod.eth": "perpdex", "0xMachi": "machibigbrother",
+};
+function xHandleFor(name: string): string { return X_HANDLES[name] ?? name.replace(/\.(eth|sol|hl)$/i, "").replace(/[^A-Za-z0-9_]/g, ""); }
+const follow = (name: string) => window.open(`https://x.com/intent/follow?screen_name=${xHandleFor(name)}`, "_blank");
 const TOKENS = ["BTC", "ETH", "SOL", "WIF", "BONK", "JUP", "POPCAT", "PNUT", "ONDO", "HYPE", "PEPE", "TON", "INJ", "ARB", "SUI", "GOAT", "VIRTUAL"];
 const MARKETS = [
   "Will BTC close above $100k this month?", "Fed cuts rates in the next meeting?", "ETH ETF net inflow positive this week?",
@@ -101,9 +109,8 @@ export function HlTraderModal({ trader, color, onClose }: { trader: { name: stri
     <ModalShell title={trader.name} tag="Hyperliquid trader · account dashboard" color={color} onClose={onClose} href={`https://app.hyperliquid.xyz/explorer/address/${encodeURIComponent(trader.name)}`} hrefLabel="View on Hyperliquid">
       <div className="p-4">
         <div className="mb-3 flex flex-wrap gap-2">
-          <CoolBtn primary><Copy size={13} /> Copy trader</CoolBtn>
-          <CoolBtn><UserPlus size={13} /> Follow</CoolBtn>
-          <CoolBtn><Wallet size={13} /> View wallet</CoolBtn>
+          <CoolBtn primary onClick={() => follow(trader.name)}><UserPlus size={13} /> Follow on X</CoolBtn>
+          <CoolBtn onClick={() => window.open(`https://app.hyperliquid.xyz/explorer/address/${encodeURIComponent(trader.name)}`, "_blank")}><Wallet size={13} /> View on Hyperliquid</CoolBtn>
         </div>
         <div className="grid grid-cols-3 gap-2 sm:grid-cols-6">
           <Stat label="30D PnL" value={"+" + usd(trader.pnl)} tone="up" />
@@ -262,6 +269,10 @@ export function PolyTraderModal({ trader, color, onClose }: { trader: { name: st
   return (
     <ModalShell title={trader.name} tag="Polymarket trader · positions & history" color={color} onClose={onClose} href={`https://polymarket.com/profile/${encodeURIComponent(trader.name)}`} hrefLabel="View on Polymarket">
       <div className="p-4">
+        <div className="mb-3 flex flex-wrap gap-2">
+          <CoolBtn primary onClick={() => follow(trader.name)}><UserPlus size={13} /> Follow on X</CoolBtn>
+          <CoolBtn onClick={() => window.open(`https://polymarket.com/profile/${encodeURIComponent(trader.name)}`, "_blank")}><ExternalLink size={13} /> View on Polymarket</CoolBtn>
+        </div>
         <div className="grid grid-cols-4 gap-2">
           <Stat label="Realized PnL" value={"+" + usd(trader.pnl)} tone="up" />
           <Stat label="Win rate" value={trader.win + "%"} tone="accent" />
