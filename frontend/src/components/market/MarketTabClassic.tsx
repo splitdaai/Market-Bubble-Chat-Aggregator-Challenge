@@ -100,14 +100,26 @@ function BanksStream() {
 
 export function MarketTabClassic() {
   const [d, setD] = useState<MarketData | null>(null);
+  const [tries, setTries] = useState(0);
   useEffect(() => {
     let on = true;
-    const load = () => fetch(`${BACKEND}/api/market`).then((r) => r.json()).then((j) => on && setD(j)).catch(() => {});
+    let timer: ReturnType<typeof setTimeout>;
+    let fails = 0;
+    const schedule = (ms: number) => { timer = setTimeout(load, ms); };
+    const load = () => {
+      fetch(`${BACKEND}/api/market`)
+        .then((r) => { if (!r.ok) throw new Error(String(r.status)); return r.json(); })
+        .then((j) => { if (!on) return; if (!j || !Array.isArray(j.global)) throw new Error("bad shape"); fails = 0; setD(j); schedule(120_000); })
+        .catch(() => { if (!on) return; fails += 1; setTries(fails); schedule(Math.min(1500 * fails, 12_000)); });
+    };
     load();
-    const t = setInterval(load, 120_000);
-    return () => { on = false; clearInterval(t); };
+    return () => { on = false; clearTimeout(timer); };
   }, []);
-  if (!d) return <div className="mb-tab p-10 text-center text-muted">Loading market data…</div>;
+  if (!d) return (
+    <div className="mb-tab p-10 text-center text-muted">
+      {tries >= 3 ? `Market feed slow to respond — retrying… (attempt ${tries})` : "Loading market data…"}
+    </div>
+  );
 
   const crypto = d.global.filter((m) => ["BTC", "ETH", "SOL"].includes(m.sym));
   const indices = d.global.filter((m) => ["SPX", "NDX", "DXY", "US10Y"].includes(m.sym));
