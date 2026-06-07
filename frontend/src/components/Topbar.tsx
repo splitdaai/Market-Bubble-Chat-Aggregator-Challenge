@@ -48,7 +48,7 @@ export function Topbar({ onOpenTheme, onOpenConnections, onOpenFeatures }: { onO
             </span>
           </h1>
           <p className="mt-1 text-[10px] font-medium uppercase tracking-[0.2em] text-muted">
-            Multi-Stream Market Chat {demo && "· Demo Mode"}
+            Make Money. Command Attention. Leverage AI
           </p>
         </div>
       </div>
