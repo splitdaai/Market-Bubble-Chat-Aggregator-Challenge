@@ -37,7 +37,7 @@ export function Topbar({ onOpenTheme, onOpenConnections, onOpenFeatures }: { onO
         </div>
         <div>
           <h1 className="flex items-center gap-2 text-lg font-extrabold leading-none tracking-tight">
-            Market <span className="text-accent">Bubble</span>
+            Market <span className="text-white">Bubble</span>
             <span className="flex items-center gap-1.5 rounded-md border border-red-500/50 bg-red-500/15 px-1.5 py-0.5 text-[10px] font-black uppercase tracking-wider text-red-400">
               <span className="relative flex h-1.5 w-1.5">
                 <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-500/70" />
