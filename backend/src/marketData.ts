@@ -178,9 +178,16 @@ export async function getEvmWallet(idOrEns: string) {
   try {
     const tb = await jget(`https://eth.blockscout.com/api/v2/addresses/${addr}/token-balances`);
     const items: Array<{ value: string; token: { symbol?: string; decimals?: string; exchange_rate?: string } }> = Array.isArray(tb) ? tb : (tb.items ?? []);
-    const hold = items.map((t) => { const tok = t.token ?? {}; const dec = +(tok.decimals ?? 0); const amt = +t.value / (10 ** dec || 1); const rate = +(tok.exchange_rate ?? 0); return { sym: tok.symbol ?? "?", amount: amt, usd: amt * rate }; }).filter((h) => h.usd > 1).sort((a, b) => b.usd - a.usd).slice(0, 15);
-    out.holdings = hold;
-    out.totalUsd = hold.reduce((s, h) => s + h.usd, 0);
+    const hold = items.map((t) => { const tok = t.token ?? {}; const dec = +(tok.decimals ?? 0); const amt = +t.value / (10 ** dec || 1); const rate = +(tok.exchange_rate ?? 0); return { sym: tok.symbol ?? "?", amount: amt, usd: amt * rate }; }).filter((h) => h.usd > 1);
+    // native ETH (token-balances excludes it)
+    try {
+      const [info, stats] = await Promise.all([jget(`https://eth.blockscout.com/api/v2/addresses/${addr}`), jget(`https://eth.blockscout.com/api/v2/stats`)]);
+      const ethAmt = +(info?.coin_balance ?? 0) / 1e18;
+      const ethUsd = ethAmt * +(stats?.coin_price ?? 0);
+      if (ethUsd > 1) hold.push({ sym: "ETH", amount: ethAmt, usd: ethUsd });
+    } catch { /* ignore */ }
+    out.holdings = hold.sort((a, b) => b.usd - a.usd).slice(0, 15);
+    out.totalUsd = out.holdings.reduce((s, h) => s + h.usd, 0);
   } catch { /* leave empty */ }
   evmCache.set(key, { exp: Date.now() + 300_000, data: out });
   return out;
