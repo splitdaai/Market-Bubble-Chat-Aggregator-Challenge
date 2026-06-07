@@ -103,6 +103,14 @@ const PORTFOLIOS = [
   { fund: "Polychain", top: "ETH", value: 1.3e9, chg: 3.4 },
   { fund: "Fidelity 13F", top: "FBTC", value: 2.9e9, chg: 5.1 },
   { fund: "VanEck", top: "HODL", value: 0.7e9, chg: 2.3 },
+  { fund: "Pantera Cap II", top: "TIA", value: 1.05e9, chg: 7.7 },
+  { fund: "Dragonfly", top: "SOL", value: 0.95e9, chg: 4.8 },
+  { fund: "Coinbase Vent.", top: "BASE", value: 1.6e9, chg: 3.1 },
+  { fund: "Bitwise", top: "BITB", value: 1.25e9, chg: 5.4 },
+  { fund: "Franklin T.", top: "EZBC", value: 0.82e9, chg: 2.0 },
+  { fund: "Brevan Howard", top: "BTC", value: 2.2e9, chg: -1.1 },
+  { fund: "Tiger Global", top: "COIN", value: 1.45e9, chg: 6.2 },
+  { fund: "Polygon Vent.", top: "MATIC", value: 0.6e9, chg: -2.4 },
 ];
 const NEWS = [
   { src: "CoinDesk", t: "8m", tone: "bull", title: "Solana DEX volume hits new ATH as memecoin activity surges" },
@@ -214,6 +222,7 @@ export function MarketTabClassic() {
         <PageGrid
           pageKey="market-classic-v2"
           editMode={editMode}
+          titles={{ global: "Global Markets", tech: "Technicals", pulse: "Market Pulse", hl: "Top Hyperliquid Traders", portfolios: "Influential Portfolios", poly: "Top Polymarket Traders", intel: "Intelligence Feed" }}
           items={[
             { id: "global", x: 0, y: 0, w: 12, h: 12, node: (
               <Panel title="Global Markets" icon={<Globe size={15} className="text-accent" />}>
@@ -276,16 +285,22 @@ export function MarketTabClassic() {
                 </table>
               </Panel>
             ) },
-            { id: "portfolios", x: 5, y: 30, w: 4, h: 13, node: (
+            { id: "portfolios", x: 5, y: 30, w: 4, h: 16, node: (
               <Panel title="Influential Portfolios" icon={<Briefcase size={15} className="text-accent" />} right={<span className="text-[10px] uppercase tracking-wider text-faint">13F · demo</span>}>
-                <div className="space-y-1.5">
-                  {PORTFOLIOS.map((p) => (
-                    <div key={p.fund} onClick={() => setDetail({ kind: "portfolio", p })} className="flex cursor-pointer items-center gap-2 rounded-lg border border-white/8 bg-white/[0.02] px-2.5 py-2 transition hover:border-accent/40 hover:bg-accent/5">
-                      <div className="min-w-0 flex-1"><div className="flex items-center gap-1 text-[12px] font-bold"><span className="truncate">{p.fund}</span><WatchStar item={{ key: `portfolio:${p.fund}`, type: "portfolio", label: p.fund }} size={11} /></div><div className="text-[10px] text-faint">top: {p.top}</div></div>
-                      <div className="text-right"><div className="text-[12px] font-bold tabular-nums">${compact(p.value)}</div><div className={`text-[10px] font-bold ${p.chg >= 0 ? "text-up" : "text-down"}`}>{pct(p.chg)}</div></div>
-                    </div>
-                  ))}
-                </div>
+                <table className="w-full text-[12px]">
+                  <thead><tr className="text-[9px] uppercase tracking-wider text-faint"><th className="pb-1 text-left">#</th><th className="pb-1 text-left">Fund</th><th className="pb-1 text-left">Top</th><th className="pb-1 text-right">AUM</th><th className="pb-1 text-right">24h</th></tr></thead>
+                  <tbody>
+                    {PORTFOLIOS.map((p, i) => (
+                      <tr key={p.fund} onClick={() => setDetail({ kind: "portfolio", p })} className="cursor-pointer border-t border-white/6 transition hover:bg-white/5">
+                        <td className="py-1.5 font-bold text-faint">{i + 1}</td>
+                        <td className="py-1.5 font-semibold"><span className="inline-flex items-center gap-1"><span className="max-w-[110px] truncate">{p.fund}</span><WatchStar item={{ key: `portfolio:${p.fund}`, type: "portfolio", label: p.fund }} size={11} /></span></td>
+                        <td className="py-1.5 text-faint">{p.top}</td>
+                        <td className="py-1.5 text-right font-bold tabular-nums">${compact(p.value)}</td>
+                        <td className={`py-1.5 text-right font-bold tabular-nums ${p.chg >= 0 ? "text-up" : "text-down"}`}>{pct(p.chg)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </Panel>
             ) },
             { id: "poly", x: 9, y: 30, w: 3, h: 16, node: (

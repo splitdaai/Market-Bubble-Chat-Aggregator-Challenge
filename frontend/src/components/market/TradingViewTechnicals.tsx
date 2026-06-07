@@ -77,16 +77,6 @@ export function TechWidget({ symbol }: { symbol: string }) {
   return <div ref={ref} className="tradingview-widget-container" />;
 }
 
-function SymbolInfo({ symbol }: { symbol: string }) {
-  const ref = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (ref.current) tvWidget(ref.current, "https://s3.tradingview.com/external-embedding/embed-widget-symbol-info.js", {
-      symbol, width: "100%", locale: "en", colorTheme: "dark", isTransparent: true,
-    });
-  }, [symbol]);
-  return <div ref={ref} className="tradingview-widget-container" />;
-}
-
 function AdvancedChart({ symbol }: { symbol: string }) {
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -126,9 +116,6 @@ export function TradingViewTechnicals() {
           <button key={a.symbol} onClick={() => setSym(a)} className={`shrink-0 rounded-md px-2 py-1 text-[11px] font-bold transition ${sym.symbol === a.symbol ? "bg-accent/15 text-accent" : "text-muted hover:text-ink"}`}>{a.label}</button>
         ))}
       </div>
-
-      {/* live price + key stats */}
-      <div className="mb-3 overflow-hidden rounded-xl border border-white/8 bg-black/20"><SymbolInfo key={"s" + sym.symbol} symbol={sym.symbol} /></div>
 
       {/* big interactive chart (RSI + MACD) + analysis gauge */}
       <div className="grid grid-cols-1 gap-3 lg:grid-cols-[1.7fr_1fr]">

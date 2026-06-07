@@ -426,12 +426,12 @@ export const useStatsStore = create<StatsState>((set, get) => ({
     const all = [...chatters.values()];
     const topChatters = all
       .sort((x, y) => y.count - x.count)
-      .slice(0, 8)
+      .slice(0, 25)
       .map((c) => ({ name: c.name, platform: c.platform, count: c.count, channel: c.channel }));
     const topSubs = all
       .filter((c) => c.subs > 0)
       .sort((x, y) => y.subs - x.subs)
-      .slice(0, 8)
+      .slice(0, 25)
       .map((c) => ({ name: c.name, platform: c.platform, subs: c.subs, channel: c.channel }));
     const totalDonated = all.reduce((s, c) => s + c.donated, 0);
     const totalSubs = all.reduce((s, c) => s + c.subs, 0);

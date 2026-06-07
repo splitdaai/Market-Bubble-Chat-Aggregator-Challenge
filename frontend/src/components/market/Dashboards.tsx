@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X as XIcon, ArrowUpRight, ArrowDownRight, Activity, TrendingUp, Wallet, UserPlus, Trophy, Search, ExternalLink } from "lucide-react";
-import { Sparkline } from "../Sparkline";
+import { RangeChart } from "../RangeChart";
 import { compact } from "../../lib/format";
 
 const usd = (n: number) => (n < 0 ? "-$" : "$") + compact(Math.abs(n));
@@ -122,11 +122,8 @@ export function HlTraderModal({ trader, color, onClose }: { trader: { name: stri
         </div>
 
         <div className="mt-3 grid grid-cols-1 gap-3 lg:grid-cols-[1.5fr_1fr]">
-          {/* equity curve */}
-          <div className="rounded-xl border border-white/8 bg-black/20 p-3">
-            <div className="mb-1 flex items-center justify-between text-[10px] uppercase tracking-wider text-faint"><span className="flex items-center gap-1"><TrendingUp size={12} /> Equity curve · 30d</span><span className="text-up">▲ {((data.equity[data.equity.length - 1] / data.equity[0] - 1) * 100).toFixed(0)}%</span></div>
-            <Sparkline data={data.equity} width={560} height={150} color="#16e6a4" />
-          </div>
+          {/* equity curve with range filter */}
+          <RangeChart seed={trader.name} label="Equity curve" icon={<TrendingUp size={12} />} width={560} height={150} bias={trader.win / 62} />
           {/* win/loss */}
           <div className="rounded-xl border border-white/8 bg-black/20 p-3">
             <div className="mb-2 text-[10px] uppercase tracking-wider text-faint">Win / loss</div>
@@ -279,10 +276,7 @@ export function PolyTraderModal({ trader, color, onClose }: { trader: { name: st
           <Stat label="Open" value={String(data.open.length)} />
           <Stat label="Volume" value={usd(data.volume)} />
         </div>
-        <div className="mt-3 rounded-xl border border-white/8 bg-black/20 p-3">
-          <div className="mb-1 flex items-center justify-between text-[10px] uppercase tracking-wider text-faint"><span className="flex items-center gap-1"><Trophy size={12} className="text-gold" /> Cumulative PnL · 30d</span><span className="text-up">▲ profitable</span></div>
-          <Sparkline data={data.pnl} width={760} height={140} color="#16e6a4" />
-        </div>
+        <div className="mt-3"><RangeChart seed={trader.name + "poly"} label="Cumulative PnL" icon={<Trophy size={12} className="text-gold" />} width={760} height={140} bias={trader.win / 62} /></div>
         <div className="mt-3 rounded-xl border border-white/8 bg-black/20 p-3">
           <div className="mb-2 flex gap-1">
             {(["open", "history"] as const).map((t) => (

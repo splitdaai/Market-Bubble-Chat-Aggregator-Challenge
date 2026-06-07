@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Crosshair, Wallet, ArrowUpRight, ArrowDownRight, X as XIcon, Activity, TrendingUp, Copy, ExternalLink, UserPlus, Trophy } from "lucide-react";
 import { compact } from "../../lib/format";
-import { Sparkline } from "../Sparkline";
+import { RangeChart } from "../RangeChart";
 import { WatchStar } from "../WatchStar";
 
 function makeRng(seed: string) {
@@ -233,10 +233,7 @@ function KolProfile({ kol, onClose }: { kol: Kol; onClose: () => void }) {
 
         {/* balance equity curve */}
         <div className="px-4 pt-3">
-          <div className="rounded-xl border border-white/8 bg-black/20 p-3">
-            <div className="mb-1 flex items-center justify-between text-[10px] uppercase tracking-wider text-faint"><span className="flex items-center gap-1"><Trophy size={12} className="text-gold" /> Portfolio value · 30d</span><span className={d.pnl30d >= 0 ? "text-up" : "text-down"}>{d.pnl30d >= 0 ? "▲" : "▼"} {Math.abs(d.pnl30d)}%</span></div>
-            <Sparkline data={d.equity} width={900} height={130} color={kol.pnl24h >= 0 ? "#16e6a4" : "#ff5a6a"} />
-          </div>
+          <RangeChart seed={kol.id} label="Portfolio value" icon={<Trophy size={12} className="text-gold" />} width={900} height={130} bias={Math.max(0.7, kol.pnl24h / 11)} />
         </div>
 
         {/* holdings + live trades + posts */}
