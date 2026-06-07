@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Radio, Film, Eye, Flame, TrendingUp, Play, Heart, Repeat2, BadgeCheck } from "lucide-react";
+import { Radio, Film, TrendingUp, Play } from "lucide-react";
 import { compact } from "../../lib/format";
 import { BROADCASTS } from "../../store/broadcastStore";
 
@@ -15,11 +15,6 @@ const FEED = [
   { name: "Market Bubble", handle: "@marketbubble", v: 1, text: "clip of the day: ansem calling the SOL bottom live 🎯", likes: 2400, reposts: 310, views: 140000, d1h: 33, ticker: "SOL", cat: "active" },
   { name: "Ansem", handle: "@blknoiz06", v: 1, text: "memecoins are the casino and the casino is open 24/7", likes: 7200, reposts: 880, views: 520000, d1h: 62, ticker: "WIF", cat: "rising" },
   { name: "Market Bubble", handle: "@marketbubble", v: 1, text: "$50k Polymarket giveaway stream this weekend. don't miss it.", likes: 4800, reposts: 600, views: 260000, d1h: 48, ticker: "—", cat: "spiking" },
-];
-const TRENDING = [
-  { tag: "$PNUT", mentions: 4210, views: 1.2e6, d1h: 312 }, { tag: "$VIRTUAL", mentions: 3870, views: 980000, d1h: 184 },
-  { tag: "AI agents", mentions: 2960, views: 1.4e6, d1h: 96 }, { tag: "$HYPE", mentions: 2510, views: 760000, d1h: 73 },
-  { tag: "$SOL", mentions: 8800, views: 3.1e6, d1h: 41 }, { tag: "$BTC", mentions: 12400, views: 5.4e6, d1h: 14 },
 ];
 const xUrl = (h: string) => `https://x.com/${h.replace(/^@/, "")}`;
 const chip = "rounded-md border border-white/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-muted";
@@ -50,15 +45,35 @@ function AnsemStream({ login }: { login: string }) {
   );
 }
 
-export function ContentTab() {
-  const [posts, setPosts] = useState(() => FEED.map((p, i) => ({ ...p, id: i })));
-  const idx = useRef(FEED.length);
+const FEED_ACCOUNTS = [
+  { name: "Ansem", handle: "blknoiz06" },
+  { name: "Banks", handle: "Banks" },
+  { name: "Market Bubble", handle: "marketbubble" },
+];
 
+/** Embedded X (Twitter) timeline — real, recent tweets; clicking opens the tweet. */
+function XTimeline({ handle }: { handle: string }) {
+  const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    const t = setInterval(() => { const s = FEED[idx.current % FEED.length]; idx.current++; setPosts((c) => [{ ...s, id: idx.current, text: s.text }, ...c].slice(0, 30)); }, 2200);
-    return () => clearInterval(t);
-  }, []);
+    const el = ref.current;
+    if (!el) return;
+    el.innerHTML = `<a class="twitter-timeline" data-theme="dark" data-chrome="noheader nofooter noborders transparent" data-tweet-limit="12" href="https://twitter.com/${handle}">Tweets by @${handle}</a>`;
+    const w = window as unknown as { twttr?: { widgets: { load: (e?: HTMLElement) => void } } };
+    if (w.twttr?.widgets) {
+      w.twttr.widgets.load(el);
+    } else if (!document.getElementById("twttr-wjs")) {
+      const s = document.createElement("script");
+      s.id = "twttr-wjs";
+      s.src = "https://platform.twitter.com/widgets.js";
+      s.async = true;
+      document.body.appendChild(s);
+    }
+  }, [handle]);
+  return <div ref={ref} className="min-h-0 flex-1 overflow-y-auto" />;
+}
 
+export function ContentTab() {
+  const [feedHandle, setFeedHandle] = useState("blknoiz06");
   const topPosts = [...FEED].sort((a, b) => b.views - a.views).slice(0, 6);
 
   return (
@@ -68,29 +83,21 @@ export function ContentTab() {
       <p className="mt-1 text-[13px] text-muted">Real-time X feed, trending tickers, the streams that are live, and the clips that pop — all in one place.</p>
 
       <div className="mt-5 grid grid-cols-1 gap-4 lg:grid-cols-12">
-        {/* live feed */}
+        {/* live feed — real X timeline (Ansem / Banks / Market Bubble) */}
         <div className="vc-glass flex flex-col rounded-2xl p-3 lg:col-span-4" style={{ height: 760 }}>
           <div className="mb-2 flex items-center gap-2"><Radio size={14} className="text-down" /><span className="text-[12px] font-bold uppercase tracking-[0.12em] text-muted">Live Feed</span></div>
-          <div className="min-h-0 flex-1 space-y-1.5 overflow-y-auto pr-1">
-            {posts.map((p) => (
-              <a key={p.id} href={xUrl(p.handle)} target="_blank" rel="noreferrer" className="block rounded-xl border border-white/8 bg-white/[0.02] p-2.5 transition hover:border-accent/40">
-                <div className="flex items-center gap-2">
-                  <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-white/8 text-[11px] font-bold">{p.name[0]}</span>
-                  <span className="truncate text-[13px] font-bold">{p.name}</span>
-                  {p.v ? <BadgeCheck size={13} className="shrink-0 text-accent" /> : null}
-                  <span className="truncate font-mono text-[11px] text-faint">{p.handle}</span>
-                </div>
-                <p className="mt-1.5 text-[13px] leading-snug">{p.text}</p>
-                <div className="mt-2 flex items-center gap-3 text-[10px] text-faint">
-                  {p.ticker !== "—" && <span className="rounded bg-accent/12 px-1.5 py-0.5 font-bold text-accent">{p.ticker}</span>}
-                  <span className="flex items-center gap-1"><Eye size={11} /> {compact(p.views)}</span>
-                  <span className="flex items-center gap-1"><Heart size={11} /> {compact(p.likes)}</span>
-                  <span className="flex items-center gap-1"><Repeat2 size={11} /> {compact(p.reposts)}</span>
-                  <span className="ml-auto flex items-center gap-0.5 font-bold text-up"><TrendingUp size={11} /> +{p.d1h}% 1h</span>
-                </div>
-              </a>
+          <div className="mb-2 flex gap-1">
+            {FEED_ACCOUNTS.map((a) => (
+              <button
+                key={a.handle}
+                onClick={() => setFeedHandle(a.handle)}
+                className={`rounded-md px-2.5 py-1 text-[11px] font-bold transition ${feedHandle === a.handle ? "bg-accent/15 text-accent" : "text-muted hover:text-ink"}`}
+              >
+                {a.name}
+              </button>
             ))}
           </div>
+          <XTimeline key={feedHandle} handle={feedHandle} />
         </div>
 
         {/* right column */}
@@ -98,18 +105,6 @@ export function ContentTab() {
           <div className="vc-glass flex flex-col rounded-2xl p-3">
             <div className="mb-2 flex items-center gap-2"><Play size={13} className="text-accent" /><span className="text-[12px] font-bold uppercase tracking-[0.12em] text-muted">Watch · Ansem</span></div>
             <AnsemStream login="blknoiz06" />
-          </div>
-
-          <div className="vc-glass rounded-2xl p-4">
-            <div className="mb-3 flex items-center gap-2"><Flame size={14} className="text-down" /><span className="text-[12px] font-bold uppercase tracking-[0.12em] text-muted">Trending</span><span className={`ml-auto ${chip}`}>by 1h Δ</span></div>
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-              {TRENDING.map((t, i) => (
-                <a key={t.tag} href={`https://x.com/search?q=${encodeURIComponent(t.tag)}&f=live`} target="_blank" rel="noreferrer" className="block rounded-lg border border-white/8 bg-white/[0.02] p-2.5 transition hover:border-accent/40">
-                  <div className="flex items-center gap-1.5"><span className="text-[11px] font-bold tabular-nums text-faint">{i + 1}</span><span className="truncate text-[13px] font-bold">{t.tag}</span></div>
-                  <div className="mt-1 flex items-center gap-2 text-[10px] text-faint"><span className="flex items-center gap-0.5"><Eye size={10} /> {compact(t.views)}</span><span className="ml-auto font-bold text-up">+{t.d1h}%</span></div>
-                </a>
-              ))}
-            </div>
           </div>
 
           <div className="vc-glass rounded-2xl p-4">
