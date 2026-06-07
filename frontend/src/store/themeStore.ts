@@ -21,7 +21,7 @@ export const useThemeStore = create<ThemeState>()(
     (set) => ({
       theme: DEFAULT_THEME,
       soundEnabled: false,
-      marketTemplate: "bubble",
+      marketTemplate: "classic",
       setMarketTemplate: (marketTemplate) => set({ marketTemplate }),
       setTheme: (theme) => {
         applyTheme(theme);
