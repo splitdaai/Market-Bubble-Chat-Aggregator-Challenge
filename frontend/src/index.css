@@ -98,6 +98,81 @@ body::-webkit-scrollbar-thumb:hover { background: rgba(var(--vc-accent-rgb), 0.6
     inset 0 1px 0 rgba(255, 255, 255, 0.06);
 }
 
+/* ── Tile templates (restyle every .vc-glass panel) ───────────────────── */
+[data-tile="flat"] .vc-glass {
+  background: color-mix(in srgb, var(--vc-bg) 80%, #fff 7%);
+  backdrop-filter: none; -webkit-backdrop-filter: none; box-shadow: none;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+}
+[data-tile="outline"] .vc-glass {
+  background: color-mix(in srgb, var(--vc-bg) 66%, transparent);
+  backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); box-shadow: none;
+  border: 1.5px solid color-mix(in srgb, var(--vc-accent) 40%, transparent);
+}
+[data-tile="elevated"] .vc-glass {
+  background: color-mix(in srgb, var(--vc-bg) 86%, #fff 5%);
+  backdrop-filter: none; -webkit-backdrop-filter: none;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  box-shadow: 0 20px 44px -18px rgba(0, 0, 0, 0.75), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+[data-tile="neon"] .vc-glass {
+  border: 1px solid color-mix(in srgb, var(--vc-accent) 55%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--vc-accent) 28%, transparent),
+    0 0 30px -6px var(--vc-accent), inset 0 0 26px -18px var(--vc-accent);
+}
+[data-tile="frosted"] .vc-glass {
+  background: color-mix(in srgb, var(--vc-surface) 78%, #fff 7%);
+  backdrop-filter: blur(30px) saturate(165%); -webkit-backdrop-filter: blur(30px) saturate(165%);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.16);
+}
+[data-tile="inset"] .vc-glass {
+  background: color-mix(in srgb, var(--vc-bg) 90%, #000 6%);
+  backdrop-filter: none; -webkit-backdrop-filter: none;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  box-shadow: inset 0 2px 12px rgba(0, 0, 0, 0.55), inset 0 0 0 1px rgba(255, 255, 255, 0.03);
+}
+[data-tile="gradient"] .vc-glass {
+  background: linear-gradient(150deg,
+    color-mix(in srgb, var(--vc-accent) 13%, var(--vc-surface)),
+    color-mix(in srgb, var(--vc-accent2) 11%, var(--vc-surface)));
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+[data-tile="holo"] .vc-glass {
+  border: 1.5px solid transparent;
+  background:
+    linear-gradient(var(--vc-surface), var(--vc-surface)) padding-box,
+    linear-gradient(130deg, var(--vc-accent), var(--vc-accent2)) border-box;
+  box-shadow: 0 0 22px -10px var(--vc-accent2);
+}
+[data-tile="line"] .vc-glass {
+  background: color-mix(in srgb, var(--vc-bg) 78%, #fff 4%);
+  backdrop-filter: none; -webkit-backdrop-filter: none; box-shadow: none;
+  border: 0; border-left: 2px solid var(--vc-accent);
+  border-radius: calc(var(--vc-radius) * 0.35);
+}
+
+/* ── Button templates (safe props only; never override colors) ────────── */
+[data-btn="pill"] button   { border-radius: 9999px !important; }
+[data-btn="soft"] button   { border-radius: 14px !important; font-weight: 600; }
+[data-btn="sharp"] button  { border-radius: 4px !important; }
+[data-btn="square"] button { border-radius: 0 !important; }
+[data-btn="bold"] button   { font-weight: 800; letter-spacing: 0.01em; }
+[data-btn="caps"] button   { text-transform: uppercase; letter-spacing: 0.06em; font-weight: 700; }
+[data-btn="ring"] button   { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--vc-accent) 45%, transparent); }
+[data-btn="glow"] button   { box-shadow: 0 0 18px -6px var(--vc-accent); }
+[data-btn="mono"] button   { font-family: "JetBrains Mono", monospace; letter-spacing: 0.01em; }
+
+/* ── Text templates (global typography treatment) ─────────────────────── */
+[data-text="tight"] body { letter-spacing: -0.011em; }
+[data-text="wide"] body  { letter-spacing: 0.022em; }
+[data-text="heavy"] body { font-weight: 500; }
+[data-text="heavy"] body :is(h1, h2, h3, b, strong) { font-weight: 800; }
+[data-text="light"] body { font-weight: 300; }
+[data-text="mono"] body, [data-text="mono"] body * { font-family: "JetBrains Mono", monospace !important; }
+[data-text="soft"] body  { opacity: 0.94; }
+[data-text="crisp"] body { -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; }
+
 /* Custom themed scrollbar. */
 .vc-scroll::-webkit-scrollbar { width: 8px; height: 8px; }
 .vc-scroll::-webkit-scrollbar-track { background: transparent; }

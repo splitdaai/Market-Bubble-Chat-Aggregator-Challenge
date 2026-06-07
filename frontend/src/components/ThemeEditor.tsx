@@ -1,7 +1,7 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { X } from "lucide-react";
 import { useThemeStore } from "@/store/themeStore";
-import { THEME_PRESETS } from "@/lib/theme";
+import { THEME_PRESETS, TILE_TEMPLATES, BTN_TEMPLATES, TEXT_TEMPLATES } from "@/lib/theme";
 import type { Theme } from "@shared/types";
 
 /** Live theme editor — every change writes to :root immediately. */
@@ -86,11 +86,57 @@ export function ThemeEditor({ open, onClose }: { open: boolean; onClose: () => v
                   ))}
                 </div>
               </Field>
+
+              <ChipGrid
+                label="Tile template"
+                options={TILE_TEMPLATES}
+                value={theme.tile ?? "glass"}
+                onPick={(id) => patch({ tile: id as Theme["tile"] })}
+              />
+              <ChipGrid
+                label="Button template"
+                options={BTN_TEMPLATES}
+                value={theme.btn ?? "solid"}
+                onPick={(id) => patch({ btn: id as Theme["btn"] })}
+              />
+              <ChipGrid
+                label="Text template"
+                options={TEXT_TEMPLATES}
+                value={theme.textStyle ?? "default"}
+                onPick={(id) => patch({ textStyle: id as Theme["textStyle"] })}
+              />
             </div>
           </motion.div>
         </motion.div>
       )}
     </AnimatePresence>
+  );
+}
+
+function ChipGrid({
+  label, options, value, onPick,
+}: {
+  label: string;
+  options: readonly (readonly [string, string])[];
+  value: string;
+  onPick: (id: string) => void;
+}) {
+  return (
+    <Field label={label}>
+      <div className="grid grid-cols-3 gap-1">
+        {options.map(([id, name]) => (
+          <button
+            key={id}
+            onClick={() => onPick(id)}
+            className={`rounded-md border px-1.5 py-1.5 text-[11px] font-semibold transition ${
+              value === id ? "border-accent text-accent" : "border-white/10 text-muted hover:border-white/30"
+            }`}
+          >
+            {name}
+          </button>
+        ))}
+      </div>
+    </Field>
   );
 }
 

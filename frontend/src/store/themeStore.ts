@@ -32,8 +32,14 @@ export const useThemeStore = create<ThemeState>()(
       name: "vibechat-theme-mb-v2",
       onRehydrateStorage: () => (state) => {
         // Re-apply persisted theme to :root once hydrated from localStorage.
-        if (state?.theme) applyTheme(state.theme);
+        applyTheme(state?.theme ?? DEFAULT_THEME);
       },
     },
   ),
 );
+
+// Apply the active theme on first paint (covers fresh visitors with no persisted
+// theme — so the default theme + style templates are set before hydration too).
+if (typeof document !== "undefined") {
+  applyTheme(useThemeStore.getState().theme);
+}

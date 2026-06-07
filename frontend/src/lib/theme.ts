@@ -161,4 +161,23 @@ export function applyTheme(theme: Theme): void {
   r.style.setProperty("--vc-glow", String(theme.glow));
   r.style.setProperty("--vc-radius", `${theme.radius}px`);
   r.style.setProperty("--vc-font", `"${theme.font}"`);
+  // Style templates → data attributes consumed by index.css.
+  r.setAttribute("data-tile", theme.tile ?? "glass");
+  r.setAttribute("data-btn", theme.btn ?? "solid");
+  r.setAttribute("data-text", theme.textStyle ?? "default");
 }
+
+/** Selectable templates for the Theme Editor — [id, label]. */
+export const TILE_TEMPLATES = [
+  ["glass", "Glass"], ["flat", "Flat"], ["outline", "Outline"], ["elevated", "Elevated"],
+  ["neon", "Neon Edge"], ["frosted", "Frosted"], ["inset", "Inset"], ["gradient", "Gradient"],
+  ["holo", "Holographic"], ["line", "Line"],
+] as const;
+export const BTN_TEMPLATES = [
+  ["solid", "Solid"], ["pill", "Pill"], ["soft", "Soft"], ["sharp", "Sharp"], ["square", "Square"],
+  ["bold", "Bold"], ["caps", "Caps"], ["ring", "Ring"], ["glow", "Glow"], ["mono", "Mono"],
+] as const;
+export const TEXT_TEMPLATES = [
+  ["default", "Default"], ["tight", "Tight"], ["wide", "Wide"], ["heavy", "Heavy"],
+  ["light", "Light"], ["mono", "Mono"], ["soft", "Soft"], ["crisp", "Crisp"],
+] as const;

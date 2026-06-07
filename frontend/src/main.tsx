@@ -6,6 +6,12 @@ import App from "./App";
 import "react-grid-layout/css/styles.css";
 import "react-resizable/css/styles.css";
 import "./index.css";
+import { applyTheme } from "./lib/theme";
+import { useThemeStore } from "./store/themeStore";
+
+// Apply the active theme (default or persisted) on first paint — guarantees the
+// theme + style templates are set on the root before anything renders.
+applyTheme(useThemeStore.getState().theme);
 
 const queryClient = new QueryClient();
 

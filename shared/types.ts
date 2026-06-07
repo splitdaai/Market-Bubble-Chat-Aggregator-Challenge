@@ -273,7 +273,20 @@ export interface Theme {
   radius: number;
   font: "Inter" | "Space Grotesk" | "JetBrains Mono";
   bubbleStyle: "flat" | "glass" | "outline";
+  /** Selectable style templates (Theme Editor). Optional → back-compat. */
+  tile?: TileTemplate;
+  btn?: ButtonTemplate;
+  textStyle?: TextTemplate;
 }
+
+export type TileTemplate =
+  | "glass" | "flat" | "outline" | "elevated" | "neon"
+  | "frosted" | "inset" | "gradient" | "holo" | "line";
+export type ButtonTemplate =
+  | "solid" | "pill" | "soft" | "sharp" | "square"
+  | "bold" | "caps" | "ring" | "glow" | "mono";
+export type TextTemplate =
+  | "default" | "tight" | "wide" | "heavy" | "light" | "mono" | "soft" | "crisp";
 
 /* ----------------------------------- Clips ----------------------------------- */
 
