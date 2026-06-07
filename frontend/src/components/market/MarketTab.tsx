@@ -1,9 +1,27 @@
 import { useEffect, useState } from "react";
-import { Flame, Globe, TrendingUp, Activity, ArrowUpRight, ArrowDownRight } from "lucide-react";
+import { Flame, Globe, Activity, ArrowUpRight, ArrowDownRight, Newspaper } from "lucide-react";
 import { Sparkline } from "../Sparkline";
+import { PolymarketMark } from "../Brand";
 import { compact } from "../../lib/format";
 
 const BACKEND = (import.meta.env.VITE_BACKEND_URL as string | undefined) ?? "https://3-213-104-77.nip.io";
+
+const SMART_MONEY = [
+  { token: "WIF", side: "buy", usd: 1.84e6, wallet: "0x7a..3f1", label: "Smart Money", t: "2m" },
+  { token: "ONDO", side: "buy", usd: 920000, wallet: "0x4c..9ad", label: "Whale", t: "6m" },
+  { token: "ETH", side: "sell", usd: 3.1e6, wallet: "0x91..2bb", label: "Fund", t: "11m" },
+  { token: "VIRTUAL", side: "buy", usd: 640000, wallet: "Ansem.sol", label: "KOL", t: "14m" },
+  { token: "JUP", side: "buy", usd: 510000, wallet: "0x22..ef0", label: "Smart Money", t: "21m" },
+  { token: "POPCAT", side: "sell", usd: 280000, wallet: "0x3d..7c4", label: "Whale", t: "27m" },
+];
+const NEWS = [
+  { src: "CoinDesk", t: "8m", tone: "bull", title: "Solana DEX volume hits new ATH as memecoin activity surges" },
+  { src: "The Block", t: "23m", tone: "bull", title: "BlackRock files for in-kind redemptions on spot BTC ETF" },
+  { src: "Decrypt", t: "41m", tone: "bull", title: "AI-agent tokens add $4B in market cap over the past week" },
+  { src: "Bloomberg", t: "1h", tone: "bear", title: "Fed minutes signal caution; rate-cut odds slip below 20%" },
+  { src: "Reuters", t: "1h", tone: "neutral", title: "Dollar softens as risk appetite returns to global markets" },
+];
+const toneColor: Record<string, string> = { bull: "text-up", bear: "text-down", neutral: "text-muted" };
 
 interface MarketData {
   global: { sym: string; name: string; price: number; chg: number; spark: number[] }[];
@@ -53,9 +71,10 @@ export function MarketTab() {
   const losers = d.movers.filter((m) => m.chg < 0).sort((a, b) => a.chg - b.chg);
 
   return (
+    <div className="mb-tab">
     <div className="mx-auto max-w-[1500px] px-4 py-6 sm:px-6">
-      <h1 className="text-2xl font-extrabold tracking-tight">Market Intelligence</h1>
-      <p className="mt-1 text-[13px] text-muted">Narrative monitor · global markets · movers · Polymarket — live, every ~5 min.</p>
+      <h1 className="serif text-3xl font-bold tracking-tight sm:text-4xl">Market Intelligence</h1>
+      <p className="mt-1 text-[13px] text-muted">Smart money · Polymarket · global markets · narrative monitor — live, in one view.</p>
 
       <div className="mt-5 grid grid-cols-1 gap-4 lg:grid-cols-12">
         {/* Narrative Monitor */}
@@ -107,7 +126,7 @@ export function MarketTab() {
 
         {/* Polymarket */}
         <div className="lg:col-span-5">
-          <Panel title="Polymarket" icon={<TrendingUp size={14} className="text-accent" />} right={<span className={chip}>trending</span>}>
+          <Panel title="Polymarket" icon={<PolymarketMark className="h-4 w-5 text-accent" />} right={<span className={chip}>trending</span>}>
             <div className="space-y-2">
               {d.polymarket.map((m) => (
                 <div key={m.q} className="rounded-lg border border-white/8 bg-white/[0.02] p-2.5">
@@ -121,6 +140,49 @@ export function MarketTab() {
                     <span>${compact(m.vol)} vol</span>
                     <span className="ml-auto">ends {m.end}</span>
                   </div>
+                </div>
+              ))}
+            </div>
+          </Panel>
+        </div>
+
+        {/* Smart Money */}
+        <div className="lg:col-span-4">
+          <Panel title="Smart Money" icon={<Activity size={14} className="text-up" />} right={<span className={chip}>demo</span>}>
+            <div className="space-y-1.5">
+              {SMART_MONEY.map((s, i) => {
+                const buy = s.side === "buy";
+                return (
+                  <div key={i} className="flex items-center gap-3 rounded-lg border border-white/8 bg-white/[0.02] px-2.5 py-2">
+                    <span className={`grid h-7 w-7 place-items-center rounded-md ${buy ? "bg-up/15 text-up" : "bg-down/15 text-down"}`}>
+                      {buy ? <ArrowUpRight size={15} /> : <ArrowDownRight size={15} />}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-1.5 text-[13px] font-bold">{s.token}<span className="rounded bg-white/6 px-1 text-[9px] font-bold uppercase text-muted">{s.label}</span></div>
+                      <div className="truncate font-mono text-[10px] text-faint">{s.wallet}</div>
+                    </div>
+                    <div className="text-right">
+                      <div className={`text-[12px] font-bold tabular-nums ${buy ? "text-up" : "text-down"}`}>{buy ? "+" : "−"}${compact(s.usd)}</div>
+                      <div className="text-[9px] text-faint">{s.t} ago</div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </Panel>
+        </div>
+
+        {/* News Feed */}
+        <div className="lg:col-span-3">
+          <Panel title="News Feed" icon={<Newspaper size={14} className="text-accent" />} right={<span className={chip}>demo</span>}>
+            <div className="space-y-2">
+              {NEWS.map((n, i) => (
+                <div key={i} className="rounded-lg border border-white/8 bg-white/[0.02] p-2.5">
+                  <div className="mb-1 flex items-center gap-2 text-[10px] text-faint">
+                    <span className="font-bold text-muted">{n.src}</span><span>· {n.t}</span>
+                    <span className={`ml-auto rounded px-1 font-bold uppercase ${toneColor[n.tone]}`}>{n.tone}</span>
+                  </div>
+                  <div className="text-[12.5px] font-medium leading-snug">{n.title}</div>
                 </div>
               ))}
             </div>
@@ -171,6 +233,7 @@ export function MarketTab() {
       <p className="mt-5 text-center text-[11px] text-faint">
         <span className="font-bold text-up">● Live</span> via CoinGecko · Yahoo Finance · alternative.me · Polymarket (proxied through the Market Bubble backend). Narrative names + 24h Δ are real; per-narrative view counts are estimated.
       </p>
+    </div>
     </div>
   );
 }

@@ -19,3 +19,4 @@ visits.log
 
 # TS incremental build cache
 *.tsbuildinfo
+.vercel

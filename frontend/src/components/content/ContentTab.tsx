@@ -65,9 +65,10 @@ export function ContentTab() {
   const topPosts = [...FEED].sort((a, b) => b.views - a.views).slice(0, 6);
 
   return (
+    <div className="mb-tab">
     <div className="mx-auto max-w-[1500px] px-4 py-6 sm:px-6">
-      <h1 className="text-2xl font-extrabold tracking-tight">Content Radar</h1>
-      <p className="mt-1 text-[13px] text-muted">Real-time X feed, trending tickers, who's live, and the clips that pop.</p>
+      <h1 className="serif text-3xl font-bold tracking-tight sm:text-4xl">Content Radar</h1>
+      <p className="mt-1 text-[13px] text-muted">Real-time X feed, trending tickers, the streams that are live, and the clips that pop — all in one place.</p>
 
       <div className="mt-5 grid grid-cols-1 gap-4 lg:grid-cols-12">
         {/* live feed */}
@@ -147,6 +148,7 @@ export function ContentTab() {
         </div>
       </div>
       <p className="mt-5 text-center text-[11px] text-faint"><span className="font-bold text-up">● Live</span> — the Watch player &amp; clips are real (Twitch via backend). Feed &amp; trending are demo until an X tracked-list key is added.</p>
+    </div>
     </div>
   );
 }

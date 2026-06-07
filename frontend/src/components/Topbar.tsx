@@ -7,6 +7,7 @@ import { useOverlayStore } from "@/store/overlayStore";
 import { useViewStore } from "@/store/viewStore";
 import { AudioControl } from "./AudioControl";
 import { LiveTimer } from "./LiveTimer";
+import { MarketBubbleMark } from "./Brand";
 
 /** Top command bar — view tabs, edit-mode toggle, theme editor, sound, reset. */
 export function Topbar({ onOpenTheme, onOpenConnections, onOpenFeatures }: { onOpenTheme: () => void; onOpenConnections: () => void; onOpenFeatures: () => void }) {
@@ -32,12 +33,7 @@ export function Topbar({ onOpenTheme, onOpenConnections, onOpenFeatures }: { onO
     <header className="relative z-20 flex items-center justify-between px-5 py-3">
       <div className="flex items-center gap-3">
         <div className="grid h-11 w-11 place-items-center rounded-2xl border border-accent/40 bg-accent/10 shadow-neon">
-          <img
-            src="/logo-white.png"
-            alt="Market Bubble"
-            className="h-7 w-7 object-contain"
-            style={{ filter: "drop-shadow(0 0 6px color-mix(in srgb, var(--vc-accent) 70%, transparent))" }}
-          />
+          <MarketBubbleMark className="h-7 w-7 text-accent" />
         </div>
         <div>
           <h1 className="flex items-center gap-2 text-lg font-extrabold leading-none tracking-tight">

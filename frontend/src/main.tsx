@@ -6,6 +6,7 @@ import App from "./App";
 import "react-grid-layout/css/styles.css";
 import "react-resizable/css/styles.css";
 import "./index.css";
+import "./mb-theme.css";
 import { applyTheme } from "./lib/theme";
 import { useThemeStore } from "./store/themeStore";
 

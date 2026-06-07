@@ -6,19 +6,10 @@
 export function PolymarketLogo({ size = 16, className }: { size?: number; className?: string }) {
   return (
     <span className={`inline-flex items-center gap-1.5 ${className ?? ""}`}>
-      <svg width={size} height={size} viewBox="0 0 40 40" fill="none" aria-label="Polymarket" className="shrink-0">
-        {/* hexagon container */}
-        <path
-          d="M20 2.5 L34.5 11 V29 L20 37.5 L5.5 29 V11 Z"
-          stroke="currentColor"
-          strokeWidth="2.4"
-          strokeLinejoin="round"
-        />
-        {/* folded-ribbon mark */}
-        <path
-          d="M13 26 V14 L20 18 L27 14 V26 L20 22 Z"
-          fill="currentColor"
-        />
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-label="Polymarket" className="shrink-0">
+        {/* two stacked sheared trapezoids — Polymarket's flag mark */}
+        <path d="M4 5 H20 L14 11 H4 Z" />
+        <path d="M4 13 H20 L14 19 H4 Z" />
       </svg>
       <span
         className="text-[15px] font-semibold leading-none tracking-tight"
