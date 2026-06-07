@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Globe, Flame, Newspaper, Activity, Briefcase, TrendingUp } from "lucide-react";
 import { Sparkline } from "../Sparkline";
 import { PolymarketMark } from "../Brand";
+import { TradingViewTechnicals } from "./TradingViewTechnicals";
 import { compact } from "../../lib/format";
 
 const BACKEND = (import.meta.env.VITE_BACKEND_URL as string | undefined) ?? "https://3-213-104-77.nip.io";
@@ -223,6 +224,9 @@ export function MarketTabClassic() {
               ))}
             </div>
           </Panel>
+
+          {/* TradingView technicals */}
+          <div className="lg:col-span-12"><TradingViewTechnicals /></div>
         </div>
 
         <p className="mt-5 text-center text-[11px] text-faint">Classic reference layout · <span className="font-bold text-up">● Live</span> markets (CoinGecko · Yahoo · alternative.me · Polymarket). Hyperliquid traders &amp; 13F portfolios are demo.</p>
