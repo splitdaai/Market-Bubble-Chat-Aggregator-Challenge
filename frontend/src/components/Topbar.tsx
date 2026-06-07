@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Palette, Pencil, Eye, RotateCcw, Monitor, Radio, BarChart3, Plug, Sparkles, MousePointerClick, X } from "lucide-react";
+import { Palette, Pencil, Eye, RotateCcw, Monitor, Radio, BarChart3, Plug, Sparkles, MousePointerClick, X, TrendingUp, Clapperboard } from "lucide-react";
 import { useLayoutStore } from "@/store/layoutStore";
 import { useModeStore } from "@/store/modeStore";
 import { useOverlayStore } from "@/store/overlayStore";
@@ -59,22 +59,22 @@ export function Topbar({ onOpenTheme, onOpenConnections, onOpenFeatures }: { onO
 
       {/* view tabs */}
       <div className="flex items-center gap-1 rounded-xl border border-white/10 bg-white/[0.03] p-1">
-        <button
-          onClick={() => setView("live")}
-          className={`flex items-center gap-1.5 rounded-lg px-3.5 py-1.5 text-sm font-bold transition ${
-            isLive ? "bg-accent/20 text-accent shadow-neon" : "text-muted hover:text-ink"
-          }`}
-        >
-          <Radio size={14} className={isLive ? "animate-pulse-glow" : ""} /> Live
-        </button>
-        <button
-          onClick={() => setView("analytics")}
-          className={`flex items-center gap-1.5 rounded-lg px-3.5 py-1.5 text-sm font-bold transition ${
-            !isLive ? "bg-accent/20 text-accent shadow-neon" : "text-muted hover:text-ink"
-          }`}
-        >
-          <BarChart3 size={14} /> Analytics
-        </button>
+        {([
+          ["live", "Live", Radio],
+          ["market", "Market", TrendingUp],
+          ["content", "Content", Clapperboard],
+          ["analytics", "Analytics", BarChart3],
+        ] as const).map(([v, label, Icon]) => (
+          <button
+            key={v}
+            onClick={() => setView(v)}
+            className={`flex items-center gap-1.5 rounded-lg px-3.5 py-1.5 text-sm font-bold transition ${
+              view === v ? "bg-accent/20 text-accent shadow-neon" : "text-muted hover:text-ink"
+            }`}
+          >
+            <Icon size={14} className={v === "live" && isLive ? "animate-pulse-glow" : ""} /> {label}
+          </button>
+        ))}
       </div>
 
       <div className="flex items-center gap-1.5">

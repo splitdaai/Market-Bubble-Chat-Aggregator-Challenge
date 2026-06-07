@@ -9,6 +9,8 @@ import { useChatConnection } from "./hooks/useChatConnection";
 import { useWalletStore } from "./store/walletStore";
 
 const EditorCanvas = lazy(() => import("./components/EditorCanvas").then((m) => ({ default: m.EditorCanvas })));
+const MarketTab = lazy(() => import("./components/market/MarketTab").then((m) => ({ default: m.MarketTab })));
+const ContentTab = lazy(() => import("./components/content/ContentTab").then((m) => ({ default: m.ContentTab })));
 const ThemeEditor = lazy(() => import("./components/ThemeEditor").then((m) => ({ default: m.ThemeEditor })));
 const ButtonEditor = lazy(() => import("./components/ButtonEditor").then((m) => ({ default: m.ButtonEditor })));
 const OverlayPage = lazy(() => import("./components/OverlayPage").then((m) => ({ default: m.OverlayPage })));
@@ -54,6 +56,10 @@ export default function App() {
         <Suspense fallback={null}>
           {view === "analytics" ? (
             <AnalyticsTab />
+          ) : view === "market" ? (
+            <MarketTab />
+          ) : view === "content" ? (
+            <ContentTab />
           ) : (
             <EditorCanvas onEditButton={(b) => setBtnEditor({ open: true, editing: b ?? null })} />
           )}

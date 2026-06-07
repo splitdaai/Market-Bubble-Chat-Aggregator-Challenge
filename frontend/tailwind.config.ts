@@ -19,6 +19,10 @@ export default {
         twitch: "#9146ff",
         x: "#e7e9ea",
         kick: "#53fc18",
+        up: "#16e6a4",
+        down: "#ff5a6a",
+        gold: "#ffb02e",
+        faint: "#6b7280",
       },
       fontFamily: {
         sans: ["var(--vc-font)", "Inter", "system-ui", "sans-serif"],

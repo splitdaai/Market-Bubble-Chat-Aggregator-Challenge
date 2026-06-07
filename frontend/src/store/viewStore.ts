@@ -1,6 +1,6 @@
 import { create } from "zustand";
 
-export type View = "live" | "analytics";
+export type View = "live" | "analytics" | "market" | "content";
 
 interface ViewState {
   view: View;
