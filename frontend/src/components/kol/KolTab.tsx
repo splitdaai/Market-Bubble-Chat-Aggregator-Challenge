@@ -25,7 +25,8 @@ const KOLS = [
   { id: "degen", name: "DegenSpartan", handle: "DegenSpartan", color: "#facc15" },
 ];
 
-interface HlTrader { name: string; addr: string; pnl: number; roi: number; value: number }
+interface HlTrader { name: string; addr: string; pnl: number; roi?: number; value: number; xHandle?: string }
+interface Linked { name: string; xHandle: string; addr: string; source: string; value: number; pnl: number }
 interface Position { coin: string; long: boolean; szi: number; entry: number; upnl: number; lev: number; value: number }
 interface Fill { coin: string; buy: boolean; sz: number; px: number; t: number; dir: string }
 interface WalletData { addr: string; accountValue: number; positions: Position[]; fills: Fill[]; chart: Record<string, number[]> }
@@ -67,7 +68,7 @@ function HlWalletModal({ trader, onClose }: { trader: HlTrader; onClose: () => v
         </div>
 
         <div className="grid grid-cols-2 gap-2 p-4 pb-0 sm:grid-cols-4">
-          {[["Account value", usd(w?.accountValue ?? trader.value)], ["30D PnL", "+" + usd(trader.pnl), "up"], ["30D ROI", trader.roi.toFixed(1) + "%", "accent"], ["Open positions", String(w?.positions.length ?? "…")]].map(([l, v, tone]) => (
+          {[["Account value", usd(w?.accountValue ?? trader.value)], ["30D PnL", (trader.pnl >= 0 ? "+" : "") + usd(trader.pnl), trader.pnl >= 0 ? "up" : "down"], ["30D ROI", (trader.roi ?? 0).toFixed(1) + "%", "accent"], ["Open positions", String(w?.positions.length ?? "…")]].map(([l, v, tone]) => (
             <div key={l} className="rounded-xl border border-white/8 bg-white/[0.02] px-3 py-2 text-center"><div className="text-[9px] uppercase tracking-wider text-faint">{l}</div><div className={`mt-0.5 text-[16px] font-extrabold tabular-nums ${tone === "up" ? "text-up" : tone === "accent" ? "text-accent" : ""}`}>{v}</div></div>
           ))}
         </div>
@@ -126,6 +127,12 @@ function HlWalletModal({ trader, onClose }: { trader: HlTrader; onClose: () => v
             </div>
           </div>
         </div>
+        {trader.xHandle && (
+          <div className="border-t border-white/8 p-4">
+            <div className="mb-2 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-muted"><XIcon size={12} /> Latest posts · <a href={`https://x.com/${trader.xHandle}`} target="_blank" rel="noreferrer" className="text-accent hover:underline">@{trader.xHandle}</a></div>
+            <div className="max-h-[420px] overflow-y-auto rounded-lg border border-white/8"><XPosts handle={trader.xHandle} /></div>
+          </div>
+        )}
       </motion.div>
     </motion.div>
   );
@@ -152,12 +159,13 @@ function KolXModal({ kol, onClose }: { kol: { name: string; handle: string; colo
 
 export function KolTab() {
   const [hl, setHl] = useState<HlTrader[]>([]);
+  const [linked, setLinked] = useState<Linked[]>([]);
   const [openWallet, setOpenWallet] = useState<HlTrader | null>(null);
   const [openKol, setOpenKol] = useState<typeof KOLS[number] | null>(null);
 
   useEffect(() => {
     let on = true;
-    const load = () => fetch(`${BACKEND}/api/leaderboards`).then((r) => r.json()).then((j) => { if (on && Array.isArray(j.hyperliquid)) setHl(j.hyperliquid); }).catch(() => {});
+    const load = () => fetch(`${BACKEND}/api/leaderboards`).then((r) => r.json()).then((j) => { if (!on) return; if (Array.isArray(j.hyperliquid)) setHl(j.hyperliquid); if (Array.isArray(j.linked)) setLinked(j.linked); }).catch(() => {});
     load();
     const iv = setInterval(load, 600_000);
     return () => { on = false; clearInterval(iv); };
@@ -183,6 +191,25 @@ export function KolTab() {
           {/* Smart money — real Hyperliquid wallets */}
           <div className="vc-glass rounded-2xl p-4 lg:col-span-8">
             <div className="mb-3 flex items-center gap-2"><Crosshair size={15} className="text-accent" /><span className="serif text-[16px] font-bold">Smart Money · Hyperliquid</span><span className="ml-auto flex items-center gap-1 text-[10px] uppercase tracking-wider text-up"><span className="h-1.5 w-1.5 animate-pulse rounded-full bg-up" />live on-chain</span></div>
+
+            {linked.length > 0 && (
+              <div className="mb-3">
+                <div className="mb-1.5 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-accent"><XIcon size={11} /> Verified · X-linked wallets</div>
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                  {linked.map((k) => (
+                    <div key={k.addr} role="button" tabIndex={0} onClick={() => setOpenWallet({ name: k.name, addr: k.addr, pnl: k.pnl, value: k.value, xHandle: k.xHandle })} className="group flex cursor-pointer items-center gap-3 rounded-xl border border-accent/30 bg-accent/5 p-2.5 transition hover:border-accent/60">
+                      <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-accent/20 text-[12px] font-black text-accent">{k.name[0]}</span>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-1.5"><span className="truncate text-[13px] font-bold">{k.name}</span><span className="rounded bg-accent/20 px-1 text-[8px] font-bold uppercase text-accent">✓ disclosed</span><WatchStar item={{ key: `hlwallet:${k.addr}`, type: "trader", label: k.name, sub: "@" + k.xHandle }} size={11} /></div>
+                        <a href={`https://x.com/${k.xHandle}`} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} className="text-[10px] text-accent hover:underline">@{k.xHandle}</a>
+                      </div>
+                      <div className="text-right"><div className="text-[13px] font-bold tabular-nums">{usd(k.value)}</div><div className={`text-[10px] font-bold tabular-nums ${k.pnl >= 0 ? "text-up" : "text-down"}`}>{k.pnl >= 0 ? "+" : ""}{usd(k.pnl)} 30d</div></div>
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-2 mb-1 text-[10px] font-bold uppercase tracking-wider text-faint">Top by account value</div>
+              </div>
+            )}
             {wallets.length === 0 ? (
               <div className="py-10 text-center text-[12px] text-faint">Loading live Hyperliquid wallets…</div>
             ) : (
