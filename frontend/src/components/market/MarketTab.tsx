@@ -131,9 +131,10 @@ export function MarketTab() {
               {d.polymarket.map((m) => (
                 <div key={m.q} className="rounded-lg border border-white/8 bg-white/[0.02] p-2.5">
                   <div className="text-[13px] font-semibold leading-snug">{m.q}</div>
-                  <div className="mt-2 flex items-center gap-2">
-                    <div className="h-2 flex-1 overflow-hidden rounded-full bg-down/25"><div className="h-full rounded-full bg-up" style={{ width: `${m.yes}%` }} /></div>
-                    <span className="w-20 text-right font-mono text-[11px] tabular-nums"><span className="text-up">{m.yes}%</span> <span className="text-faint">yes</span></span>
+                  <div className="mt-2 h-2 overflow-hidden rounded-full bg-down/30"><div className="h-full rounded-full bg-up" style={{ width: `${m.yes}%` }} /></div>
+                  <div className="mt-1 flex items-center justify-between text-[12px] font-bold tabular-nums">
+                    <span className="text-up">Yes {m.yes}%</span>
+                    <span className="text-down">No {100 - m.yes}%</span>
                   </div>
                   <div className="mt-1.5 flex items-center gap-3 text-[10px] text-faint">
                     <span className={chip}>{m.cat}</span>

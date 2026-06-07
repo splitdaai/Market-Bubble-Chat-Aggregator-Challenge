@@ -76,11 +76,16 @@ export function UserCard() {
   // Reset the moderation sub-panel whenever a different viewer's card opens.
   useEffect(() => { setMoMode("none"); setTipping(false); }, [open?.name, open?.platform]);
 
-  // All of this user's messages this session (full per-user history, newest last).
-  const userMessages = useMemo(
-    () => (open ? history[userKey(open.platform, open.name)] ?? [] : []),
-    [history, open],
-  );
+  // Every message this user has sent this session — aggregated across ALL
+  // platforms (same display name on Twitch + Kick + X + YouTube → one list).
+  const userMessages = useMemo(() => {
+    if (!open) return [];
+    const name = open.name.toLowerCase();
+    return Object.entries(history)
+      .filter(([k]) => k.slice(k.indexOf(":") + 1).toLowerCase() === name)
+      .flatMap(([, msgs]) => msgs)
+      .sort((a, b) => a.timestamp - b.timestamp);
+  }, [history, open]);
 
   const row = useMemo(
     () => (open ? listUsers().find((u) => u.name === open.name && u.platform === open.platform) : undefined),
@@ -162,7 +167,7 @@ export function UserCard() {
 
         {/* stat strip */}
         <div className="grid grid-cols-4 gap-px bg-white/5 text-center">
-          <Stat icon={<MessageSquare size={13} />} label="msgs" value={compact(row?.count ?? userMessages.length)} />
+          <Stat icon={<MessageSquare size={13} />} label="msgs" value={compact(Math.max(userMessages.length, row?.count ?? 0))} />
           <Stat icon={<DollarSign size={13} />} label="tipped" value={`$${compact(row?.donated ?? 0)}`} />
           <Stat icon={<Gift size={13} />} label="subs" value={String(row?.subs ?? 0)} />
           <Stat icon={<Clock size={13} />} label="last" value={row ? fmtTime(row.last) : "—"} />
@@ -270,6 +275,7 @@ export function UserCard() {
             <div className="flex flex-col gap-1">
               {[...userMessages].reverse().map((m) => (
                 <div key={m.id} className="flex items-baseline gap-2 rounded-lg bg-white/[0.02] px-2.5 py-1.5">
+                  <span className="shrink-0"><SourceBadge platform={m.platform} compact /></span>
                   <span className="shrink-0 whitespace-nowrap text-[10px] tabular-nums text-muted opacity-60">{fmtTime(m.timestamp)}</span>
                   <span className="break-words text-[13px] leading-snug text-ink/90">{m.message}</span>
                 </div>
