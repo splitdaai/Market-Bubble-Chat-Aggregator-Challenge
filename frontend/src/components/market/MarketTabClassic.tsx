@@ -120,10 +120,21 @@ const NEWS = [
   { src: "Reuters", t: "1h", tone: "neutral", title: "Dollar softens as risk appetite returns to global markets" },
 ];
 const toneColor: Record<string, string> = { bull: "text-up", bear: "text-down", neutral: "text-muted" };
+const LEADERBOARD_LIMIT = 20;
+const leaderboardShell = "grid min-h-0 flex-1 grid-rows-[auto_1fr] text-[12px] leading-none";
+const leaderboardHead = "grid items-center pb-1 text-[9px] uppercase tracking-wider text-faint";
+const leaderboardBody = "grid min-h-0";
+const leaderboardRow = "grid min-h-0 cursor-pointer items-center border-t border-white/6 text-left transition hover:bg-white/5 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-accent/70";
+const leaderboardRowsStyle = { gridTemplateRows: `repeat(${LEADERBOARD_LIMIT}, minmax(0, 1fr))` };
+const onRowKey = (event: React.KeyboardEvent<HTMLDivElement>, action: () => void) => {
+  if (event.key !== "Enter" && event.key !== " ") return;
+  event.preventDefault();
+  action();
+};
 
 function Panel({ title, icon, right, children, className = "" }: { title: string; icon?: React.ReactNode; right?: React.ReactNode; children: React.ReactNode; className?: string }) {
   return (
-    <div className={`vc-glass flex flex-col rounded-2xl p-4 ${className}`}>
+    <div className={`vc-glass flex h-full flex-col overflow-hidden rounded-2xl p-4 ${className}`}>
       <div className="mb-3 flex items-center gap-2">
         {icon}
         <span className="serif text-[16px] font-bold tracking-tight">{title}</span>
@@ -269,55 +280,61 @@ export function MarketTabClassic() {
             })() },
             { id: "hl", x: 0, y: 30, w: 5, h: 16, node: (
               <Panel title="Top Hyperliquid Traders" icon={<TrendingUp size={15} className="text-up" />} right={<span className="text-[10px] uppercase tracking-wider text-faint">demo</span>}>
-                <table className="w-full text-[12px]">
-                  <thead><tr className="text-[9px] uppercase tracking-wider text-faint"><th className="pb-1 text-left">#</th><th className="pb-1 text-left">Trader</th><th className="pb-1 text-right">PNL 30D</th><th className="pb-1 text-right">Win</th><th className="pb-1 pl-2 text-right">Trend</th></tr></thead>
-                  <tbody>
-                    {HL_TRADERS.map((t, i) => (
-                      <tr key={t.name} onClick={() => setDetail({ kind: "hltrader", t })} className="cursor-pointer border-t border-white/6 transition hover:bg-white/5">
-                        <td className="py-1.5 font-bold text-faint">{i + 1}</td>
-                        <td className="py-1.5 font-semibold"><span className="inline-flex items-center gap-1">{t.name}<WatchStar item={{ key: `trader:${t.name}`, type: "trader", label: t.name, sub: "HL" }} size={11} /></span></td>
-                        <td className="py-1.5 text-right font-bold tabular-nums text-up">+${compact(t.pnl)}</td>
-                        <td className="py-1.5 text-right tabular-nums text-muted">{t.win}%</td>
-                        <td className="py-1.5 pl-2 text-right"><span className="inline-block"><Sparkline data={t.trend} width={56} height={16} color="#16e6a4" /></span></td>
-                      </tr>
+                <div className={leaderboardShell}>
+                  <div className={`${leaderboardHead} grid-cols-[2rem_minmax(0,1fr)_4.7rem_3rem_4.3rem]`}>
+                    <span>#</span><span>Trader</span><span className="text-right">PNL 30D</span><span className="text-right">Win</span><span className="pl-2 text-right">Trend</span>
+                  </div>
+                  <div className={leaderboardBody} style={leaderboardRowsStyle}>
+                    {HL_TRADERS.slice(0, LEADERBOARD_LIMIT).map((t, i) => (
+                      <div key={t.name} role="button" tabIndex={0} onClick={() => setDetail({ kind: "hltrader", t })} onKeyDown={(e) => onRowKey(e, () => setDetail({ kind: "hltrader", t }))} className={`${leaderboardRow} grid-cols-[2rem_minmax(0,1fr)_4.7rem_3rem_4.3rem]`}>
+                        <span className="font-bold text-faint">{i + 1}</span>
+                        <span className="min-w-0 font-semibold"><span className="inline-flex min-w-0 items-center gap-1"><span className="truncate">{t.name}</span><WatchStar item={{ key: `trader:${t.name}`, type: "trader", label: t.name, sub: "HL" }} size={11} /></span></span>
+                        <span className="text-right font-bold tabular-nums text-up">+${compact(t.pnl)}</span>
+                        <span className="text-right tabular-nums text-muted">{t.win}%</span>
+                        <span className="pl-2 text-right"><Sparkline data={t.trend} width={52} height={14} color="#16e6a4" /></span>
+                      </div>
                     ))}
-                  </tbody>
-                </table>
+                  </div>
+                </div>
               </Panel>
             ) },
             { id: "portfolios", x: 5, y: 30, w: 4, h: 16, node: (
               <Panel title="Influential Portfolios" icon={<Briefcase size={15} className="text-accent" />} right={<span className="text-[10px] uppercase tracking-wider text-faint">13F · demo</span>}>
-                <table className="w-full text-[12px]">
-                  <thead><tr className="text-[9px] uppercase tracking-wider text-faint"><th className="pb-1 text-left">#</th><th className="pb-1 text-left">Fund</th><th className="pb-1 text-left">Top</th><th className="pb-1 text-right">AUM</th><th className="pb-1 text-right">24h</th></tr></thead>
-                  <tbody>
-                    {PORTFOLIOS.map((p, i) => (
-                      <tr key={p.fund} onClick={() => setDetail({ kind: "portfolio", p })} className="cursor-pointer border-t border-white/6 transition hover:bg-white/5">
-                        <td className="py-1.5 font-bold text-faint">{i + 1}</td>
-                        <td className="py-1.5 font-semibold"><span className="inline-flex items-center gap-1"><span className="max-w-[110px] truncate">{p.fund}</span><WatchStar item={{ key: `portfolio:${p.fund}`, type: "portfolio", label: p.fund }} size={11} /></span></td>
-                        <td className="py-1.5 text-faint">{p.top}</td>
-                        <td className="py-1.5 text-right font-bold tabular-nums">${compact(p.value)}</td>
-                        <td className={`py-1.5 text-right font-bold tabular-nums ${p.chg >= 0 ? "text-up" : "text-down"}`}>{pct(p.chg)}</td>
-                      </tr>
+                <div className={leaderboardShell}>
+                  <div className={`${leaderboardHead} grid-cols-[2rem_minmax(0,1fr)_4.3rem_4.8rem_4rem]`}>
+                    <span>#</span><span>Fund</span><span>Top</span><span className="text-right">AUM</span><span className="text-right">24h</span>
+                  </div>
+                  <div className={leaderboardBody} style={leaderboardRowsStyle}>
+                    {PORTFOLIOS.slice(0, LEADERBOARD_LIMIT).map((p, i) => (
+                      <div key={p.fund} role="button" tabIndex={0} onClick={() => setDetail({ kind: "portfolio", p })} onKeyDown={(e) => onRowKey(e, () => setDetail({ kind: "portfolio", p }))} className={`${leaderboardRow} grid-cols-[2rem_minmax(0,1fr)_4.3rem_4.8rem_4rem]`}>
+                        <span className="font-bold text-faint">{i + 1}</span>
+                        <span className="min-w-0 font-semibold"><span className="inline-flex min-w-0 items-center gap-1"><span className="truncate">{p.fund}</span><WatchStar item={{ key: `portfolio:${p.fund}`, type: "portfolio", label: p.fund }} size={11} /></span></span>
+                        <span className="truncate text-faint">{p.top}</span>
+                        <span className="text-right font-bold tabular-nums">${compact(p.value)}</span>
+                        <span className={`text-right font-bold tabular-nums ${p.chg >= 0 ? "text-up" : "text-down"}`}>{pct(p.chg)}</span>
+                      </div>
                     ))}
-                  </tbody>
-                </table>
+                  </div>
+                </div>
               </Panel>
             ) },
             { id: "poly", x: 9, y: 30, w: 3, h: 16, node: (
               <Panel title="Top Polymarket Traders" icon={<PolymarketMark className="h-4 w-5 text-accent" />} right={<span className="text-[10px] uppercase tracking-wider text-faint">demo</span>}>
-                <table className="w-full text-[12px]">
-                  <thead><tr className="text-[9px] uppercase tracking-wider text-faint"><th className="pb-1 text-left">#</th><th className="pb-1 text-left">Trader</th><th className="pb-1 text-right">PNL</th><th className="pb-1 text-right">Win</th></tr></thead>
-                  <tbody>
-                    {POLY_TRADERS.map((t, i) => (
-                      <tr key={t.name} onClick={() => setDetail({ kind: "polytrader", t })} className="cursor-pointer border-t border-white/6 transition hover:bg-white/5">
-                        <td className="py-1.5 font-bold text-faint">{i + 1}</td>
-                        <td className="truncate py-1.5 font-semibold"><span className="inline-flex items-center gap-1">{t.name}<WatchStar item={{ key: `polytrader:${t.name}`, type: "polytrader", label: t.name, sub: "Poly" }} size={11} /></span></td>
-                        <td className="py-1.5 text-right font-bold tabular-nums text-up">+${compact(t.pnl)}</td>
-                        <td className="py-1.5 text-right tabular-nums text-muted">{t.win}%</td>
-                      </tr>
+                <div className={leaderboardShell}>
+                  <div className={`${leaderboardHead} grid-cols-[2rem_minmax(0,1fr)_5rem_3rem]`}>
+                    <span>#</span><span>Trader</span><span className="text-right">PNL</span><span className="text-right">Win</span>
+                  </div>
+                  <div className={leaderboardBody} style={leaderboardRowsStyle}>
+                    {POLY_TRADERS.slice(0, LEADERBOARD_LIMIT).map((t, i) => (
+                      <div key={t.name} role="button" tabIndex={0} onClick={() => setDetail({ kind: "polytrader", t })} onKeyDown={(e) => onRowKey(e, () => setDetail({ kind: "polytrader", t }))} className={`${leaderboardRow} grid-cols-[2rem_minmax(0,1fr)_5rem_3rem]`}>
+                        <span className="font-bold text-faint">{i + 1}</span>
+                        <span className="min-w-0 font-semibold"><span className="inline-flex min-w-0 items-center gap-1"><span className="truncate">{t.name}</span><WatchStar item={{ key: `polytrader:${t.name}`, type: "polytrader", label: t.name, sub: "Poly" }} size={11} /></span></span>
+                        <span className="text-right font-bold tabular-nums text-up">+${compact(t.pnl)}</span>
+                        <span className="text-right tabular-nums text-muted">{t.win}%</span>
+                      </div>
                     ))}
-                  </tbody>
-                </table>
+                  </div>
+                </div>
               </Panel>
             ) },
             { id: "intel", x: 0, y: 46, w: 12, h: 6, node: (

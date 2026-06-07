@@ -24,6 +24,7 @@ export function WatchlistDashboard({ open, onClose }: { open: boolean; onClose: 
 
   const [hist, setHist] = useState<Record<string, Pts>>({});
   const [amounts, setAmounts] = useState<Record<string, number>>({});
+  const [entries, setEntries] = useState<Record<string, number>>({});
   const [buyDate, setBuyDate] = useState(() => { const d = new Date(); d.setDate(d.getDate() - 90); return d.toISOString().slice(0, 10); });
 
   // fetch history for each watchlisted asset
@@ -42,14 +43,15 @@ export function WatchlistDashboard({ open, onClose }: { open: boolean; onClose: 
   const buyTs = new Date(buyDate).getTime();
   const rows = assets.map((a) => {
     const pts = hist[a.label] ?? [];
-    const entry = priceAt(pts, buyTs);
+    const entryDefault = priceAt(pts, buyTs);
+    const entry = entries[a.label] ?? entryDefault; // custom entry overrides the date-derived price
     const now = pts.length ? pts[pts.length - 1].c : 0;
     const amount = amounts[a.label] ?? 1000;
     const units = entry ? amount / entry : 0;
     const value = units * now;
     const pnl = value - amount;
     const pnlPct = amount ? (pnl / amount) * 100 : 0;
-    return { sym: a.label, pts, entry, now, amount, units, value, pnl, pnlPct, loading: !pts.length };
+    return { sym: a.label, pts, entry, entryDefault, custom: entries[a.label] !== undefined, now, amount, units, value, pnl, pnlPct, loading: !pts.length };
   });
 
   const invested = rows.reduce((s, r) => s + r.amount, 0);
@@ -122,12 +124,21 @@ export function WatchlistDashboard({ open, onClose }: { open: boolean; onClose: 
                 {/* per-asset calculator */}
                 <div className="mt-3 overflow-hidden rounded-xl border border-white/8">
                   <div className="grid grid-cols-[1fr_auto_auto_auto_auto] gap-2 border-b border-white/8 bg-white/[0.03] px-3 py-1.5 text-[9px] font-bold uppercase tracking-wider text-faint">
-                    <span>Asset</span><span className="text-right">Entry → now</span><span className="text-right">Amount $</span><span className="text-right">Value</span><span className="text-right">P&L</span>
+                    <span>Asset</span><span className="text-right">Entry $ → now</span><span className="text-right">Amount $</span><span className="text-right">Value</span><span className="text-right">P&L</span>
                   </div>
                   {rows.map((r) => (
                     <div key={r.sym} className="grid grid-cols-[1fr_auto_auto_auto_auto] items-center gap-2 border-b border-white/6 px-3 py-2 text-[12px]">
                       <span className="flex items-center gap-2 font-mono font-bold text-accent">${r.sym}{r.pts.length > 1 && <Sparkline data={r.pts.slice(-30).map((p) => p.c)} width={48} height={14} color={r.pnl >= 0 ? "#16e6a4" : "#ff5a6a"} />}</span>
-                      <span className="text-right tabular-nums text-muted">{r.loading ? "…" : `${fmtPx(r.entry)} → ${fmtPx(r.now)}`}</span>
+                      <span className="flex items-center justify-end gap-1 tabular-nums text-muted">
+                        {r.loading ? "…" : (
+                          <>
+                            <span className="text-faint">$</span>
+                            <input type="number" value={r.custom ? r.entry : +r.entryDefault.toFixed(r.entryDefault < 1 ? 4 : 2)} onChange={(e) => setEntries((s) => ({ ...s, [r.sym]: Math.max(0, +e.target.value) }))} title="Set your entry price" className="w-20 rounded-md border border-white/10 bg-black/40 px-1.5 py-0.5 text-right tabular-nums outline-none focus:border-accent/50" />
+                            <span className="whitespace-nowrap text-faint">→ {fmtPx(r.now)}</span>
+                            {r.custom && <button onClick={() => setEntries((s) => { const c = { ...s }; delete c[r.sym]; return c; })} title="Reset to date price" className="rounded px-0.5 text-[11px] text-faint hover:text-accent">↺</button>}
+                          </>
+                        )}
+                      </span>
                       <span className="text-right"><input type="number" value={r.amount} onChange={(e) => setAmounts((a) => ({ ...a, [r.sym]: Math.max(0, +e.target.value) }))} className="w-20 rounded-md border border-white/10 bg-black/40 px-1.5 py-0.5 text-right tabular-nums outline-none" /></span>
                       <span className="text-right font-bold tabular-nums">{r.loading ? "…" : usd(r.value)}</span>
                       <span className={`text-right font-bold tabular-nums ${r.pnl >= 0 ? "text-up" : "text-down"}`}>{r.loading ? "…" : `${r.pnl >= 0 ? "+" : ""}${usd(r.pnl)} (${r.pnlPct >= 0 ? "+" : ""}${r.pnlPct.toFixed(0)}%)`}</span>
