@@ -113,7 +113,7 @@ export function AnalyticsTab() {
       {/* header */}
       <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h2 className="flex items-center gap-2 text-2xl font-extrabold tracking-tight">
+          <h2 className="mb-serif-head flex items-center gap-2 text-2xl font-extrabold tracking-tight">
             <TrendingUp className="text-accent" /> Stream Analytics
           </h2>
           <p className="mt-0.5 text-xs text-muted">

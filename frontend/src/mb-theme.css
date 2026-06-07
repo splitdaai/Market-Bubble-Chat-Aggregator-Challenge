@@ -28,7 +28,8 @@
 
 /* "Serif Heads" text style (used by the Market Bubble Green preset): Playfair on
    the main app headings — applied app-wide when the theme sets data-text="serif". */
-[data-text="serif"] h1 {
+[data-text="serif"] h1,
+[data-text="serif"] .mb-serif-head {
   font-family: "Playfair Display", Georgia, "Times New Roman", serif !important;
   letter-spacing: -0.01em;
 }
