@@ -165,7 +165,7 @@ export function KolTab() {
 
   useEffect(() => {
     let on = true;
-    const load = () => fetch(`${BACKEND}/api/leaderboards`).then((r) => r.json()).then((j) => { if (!on) return; if (Array.isArray(j.hyperliquid)) setHl(j.hyperliquid); if (Array.isArray(j.linked)) setLinked(j.linked); }).catch(() => {});
+    const load = () => fetch(`${BACKEND}/api/leaderboards?t=${Math.floor(Date.now() / 300000)}`).then((r) => r.json()).then((j) => { if (!on) return; if (Array.isArray(j.hyperliquid)) setHl(j.hyperliquid); if (Array.isArray(j.linked)) setLinked(j.linked); }).catch(() => {});
     load();
     const iv = setInterval(load, 600_000);
     return () => { on = false; clearInterval(iv); };

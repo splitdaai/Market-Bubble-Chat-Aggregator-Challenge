@@ -162,7 +162,7 @@ export function MarketTabClassic() {
   const editMode = useLayoutStore((s) => s.editMode);
   useEffect(() => {
     let on = true;
-    const load = () => fetch(`${BACKEND}/api/leaderboards`).then((r) => r.json()).then((j) => { if (on && Array.isArray(j.hyperliquid)) setLb(j); }).catch(() => {});
+    const load = () => fetch(`${BACKEND}/api/leaderboards?t=${Math.floor(Date.now() / 300000)}`).then((r) => r.json()).then((j) => { if (on && Array.isArray(j.hyperliquid)) setLb(j); }).catch(() => {});
     load();
     const iv = setInterval(load, 600_000);
     return () => { on = false; clearInterval(iv); };
