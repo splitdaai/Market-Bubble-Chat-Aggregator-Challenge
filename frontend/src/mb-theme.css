@@ -28,6 +28,26 @@
 .bubble-scroll-area::-webkit-scrollbar { width: 0; height: 0; }
 .bubble-scroll-area { scrollbar-width: none; -ms-overflow-style: none; }
 
+/* ---- Mobile experience ---- */
+@media (max-width: 767px) {
+  /* Live dashboard: stack the react-grid-layout panels vertically instead of
+     squishing the 12-col grid into a few px each. */
+  .react-grid-layout { height: auto !important; }
+  .react-grid-item {
+    position: relative !important;
+    transform: none !important;
+    inset: auto !important;
+    width: 100% !important;
+    height: auto !important;
+    min-height: 300px;
+    margin-bottom: 12px;
+  }
+  .react-grid-item > .react-resizable-handle { display: none !important; }
+  /* Tighter page padding + headings on phones. */
+  main.px-4 { padding-left: 0.75rem; padding-right: 0.75rem; }
+  .serif.text-3xl, .serif.text-4xl { font-size: 1.6rem; }
+}
+
 .mb-tab .vc-glass {
   background: rgba(255, 255, 255, 0.02) !important;
   border: 1px solid rgba(255, 255, 255, 0.06) !important;

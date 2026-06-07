@@ -29,7 +29,7 @@ export function Topbar({ onOpenTheme, onOpenConnections, onOpenFeatures }: { onO
   const onToggleDemo = () => { toggleDemo(); setHintDismissed(true); };
 
   return (
-    <header className="relative z-20 flex items-center justify-between px-5 py-3">
+    <header className="relative z-20 flex flex-wrap items-center justify-between gap-y-2 px-3 py-3 sm:px-5">
       <div className="flex items-center gap-3">
         <div className="grid h-11 w-11 place-items-center rounded-2xl border border-accent/40 bg-accent/10 shadow-neon">
           <MarketBubbleMark className="h-7 w-7 text-accent" />
@@ -45,7 +45,7 @@ export function Topbar({ onOpenTheme, onOpenConnections, onOpenFeatures }: { onO
       </div>
 
       {/* view tabs */}
-      <div className="flex items-center gap-1 rounded-xl border border-white/10 bg-white/[0.03] p-1">
+      <div className="bubble-scroll-area order-last flex w-full items-center gap-1 overflow-x-auto rounded-xl border border-white/10 bg-white/[0.03] p-1 sm:order-none sm:w-auto">
         {([
           ["live", "Live", Radio],
           ["market", "Market", TrendingUp],
@@ -56,7 +56,7 @@ export function Topbar({ onOpenTheme, onOpenConnections, onOpenFeatures }: { onO
           <button
             key={v}
             onClick={() => setView(v)}
-            className={`flex items-center gap-1.5 rounded-lg px-3.5 py-1.5 text-sm font-bold transition ${
+            className={`flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-bold transition sm:px-3.5 ${
               view === v ? "bg-accent/20 text-accent shadow-neon" : "text-muted hover:text-ink"
             }`}
           >
