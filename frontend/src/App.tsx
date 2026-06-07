@@ -7,7 +7,6 @@ import { OverlayLayer } from "./components/OverlayLayer";
 import { useViewStore } from "./store/viewStore";
 import { useChatConnection } from "./hooks/useChatConnection";
 import { useWalletStore } from "./store/walletStore";
-import { useTwitchStore } from "./store/twitchStore";
 
 const EditorCanvas = lazy(() => import("./components/EditorCanvas").then((m) => ({ default: m.EditorCanvas })));
 const ThemeEditor = lazy(() => import("./components/ThemeEditor").then((m) => ({ default: m.ThemeEditor })));
@@ -26,9 +25,6 @@ export default function App() {
 
   // Re-attach to an already-authorized EVM wallet + watch for account changes.
   useEffect(() => useWalletStore.getState().hydrate(), []);
-
-  // Pull the real Twitch channel feed (live / VODs / clips) for the embeds.
-  useEffect(() => void useTwitchStore.getState().fetch(), []);
 
   const view = useViewStore((s) => s.view);
   const [themeOpen, setThemeOpen] = useState(false);

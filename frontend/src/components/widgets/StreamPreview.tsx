@@ -9,7 +9,6 @@ import { usePreviewStore } from "@/store/previewStore";
 import { useAudioStore } from "@/store/audioStore";
 import { useModeStore } from "@/store/modeStore";
 import { useBroadcastStore, BROADCASTS } from "@/store/broadcastStore";
-import { useTwitchStore, twitchEmbedUrl } from "@/store/twitchStore";
 import { SourceBadge, platformColor } from "../SourceBadge";
 import { LiveTimer } from "../LiveTimer";
 import { compact } from "@/lib/format";
@@ -20,16 +19,6 @@ function clock(s: number): string {
   if (!isFinite(s) || s < 0) s = 0;
   const m = Math.floor(s / 60);
   return `${m}:${Math.floor(s % 60).toString().padStart(2, "0")}`;
-}
-
-// Distinct demo footage per channel, so clicking a channel under the preview
-// genuinely swaps the stream you're watching (not just the label).
-const CLIPS = ["/stream-preview.mp4", "/vods/vod-1.mp4", "/vods/vod-2.mp4", "/vods/vod-3.mp4", "/vods/vod-4.mp4", "/vods/vod-5.mp4"];
-function clipFor(accountId: string | undefined): string {
-  if (!accountId) return CLIPS[0];
-  let h = 0;
-  for (let i = 0; i < accountId.length; i++) h = (h * 31 + accountId.charCodeAt(i)) >>> 0;
-  return CLIPS[h % CLIPS.length];
 }
 
 /** A real, embeddable live-player URL for a channel — Twitch & Kick support an
@@ -133,25 +122,9 @@ export function StreamPreview() {
 
   const liveView = shownBroadcast.live;
   const embedUrl = liveView && !demo ? liveEmbedUrl(focused?.meta) : null;
-  const previewSrc = liveView ? clipFor(focused?.accountId) : shownBroadcast.src;
-
-  // Real Twitch content (twitch.tv/banks): the explicit Broadcasts/Clips pick
-  // wins; otherwise the preview defaults to the channel's live stream, falling
-  // back to its most recent VOD so it always shows real footage. This is the
-  // top-priority "what's playing" source.
-  const tNowPlaying = useTwitchStore((s) => s.nowPlaying);
-  const tLive = useTwitchStore((s) => s.live);
-  const tVods = useTwitchStore((s) => s.vods);
-  const tLogin = useTwitchStore((s) => s.login);
-  const tName = useTwitchStore((s) => s.displayName);
-  const twitchDefault = tLive
-    ? ({ kind: "live" } as const)
-    : tVods[0]
-      ? ({ kind: "vod", id: tVods[0].id } as const)
-      : null;
-  const twitchNp = tNowPlaying ?? twitchDefault;
-  const twitchSrc = twitchNp ? twitchEmbedUrl(twitchNp, tLogin) : null;
-  const twitchKind = twitchNp?.kind;
+  // Play the selected broadcast recording directly (the MarketBubble show) — a
+  // plain <video>, so there's no cross-origin iframe to "refuse to connect".
+  const previewSrc = shownBroadcast.src;
 
   // Seek to the start frame + (re)start playback whenever the source (VOD or
   // focused channel) changes. Wait for `canplay` (readyState ≥ 3) so play()
@@ -227,17 +200,7 @@ export function StreamPreview() {
       {/* 16:9 preview — real stream video (fully visible, never cropped), with
           the chat-velocity chart as a fallback skin */}
       <div className="relative min-h-0 flex-1 overflow-hidden rounded-xl border border-white/10 bg-black">
-        {twitchSrc ? (
-          /* Real twitch.tv/banks content — live stream, a VOD, or a clip. */
-          <iframe
-            key={twitchSrc}
-            src={twitchSrc}
-            title={`${tName} on Twitch`}
-            allow="autoplay; fullscreen; encrypted-media; picture-in-picture"
-            allowFullScreen
-            className="absolute inset-0 h-full w-full"
-          />
-        ) : embedUrl ? (
+        {embedUrl ? (
           /* Live mode: the focused channel's real platform player. */
           <iframe
             key={embedUrl}
@@ -265,7 +228,7 @@ export function StreamPreview() {
           />
         )}
         {/* big center play affordance when paused */}
-        {!twitchSrc && !embedUrl && videoOk && !playing && (
+        {!embedUrl && videoOk && !playing && (
           <button
             onClick={togglePlay}
             className="absolute inset-0 z-[5] grid place-items-center bg-black/30"
@@ -276,7 +239,7 @@ export function StreamPreview() {
             </span>
           </button>
         )}
-        {!twitchSrc && !embedUrl && !videoOk && (
+        {!embedUrl && !videoOk && (
           <>
             <img src="/logo-white.png" alt="" className="pointer-events-none absolute left-1/2 top-1/2 h-1/2 -translate-x-1/2 -translate-y-1/2 opacity-[0.06]" />
             <svg viewBox="0 0 100 56" preserveAspectRatio="none" className="absolute inset-0 h-full w-full">
@@ -293,25 +256,7 @@ export function StreamPreview() {
           </>
         )}
 
-        {twitchSrc && (
-          <>
-            <span className="absolute left-2 top-2 flex items-center gap-1.5 rounded-md bg-black/55 px-1.5 py-0.5 text-[10px] font-black uppercase tracking-wider backdrop-blur">
-              {twitchKind === "live" ? (
-                <>
-                  <span className="relative flex h-1.5 w-1.5"><span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-500/70" /><span className="relative h-1.5 w-1.5 rounded-full bg-red-500" /></span>
-                  <span className="text-red-400">Live</span>
-                </>
-              ) : (
-                <span className="rounded bg-[#9146ff]/25 px-1 text-[#c9a8ff]">{twitchKind === "clip" ? "Clip" : "Replay"}</span>
-              )}
-            </span>
-            <span className="absolute bottom-2 left-2 flex items-center gap-1.5 rounded-md bg-black/55 px-1.5 py-0.5 backdrop-blur">
-              <svg viewBox="0 0 24 24" width="13" height="13" fill="#9146ff" aria-hidden><path d="M4 2 2.5 6v14H8v3h3l3-3h4l5-5V2H4Zm17 11-3 3h-5l-3 3v-3H6V4h15v9ZM16 7h-2v5h2V7Zm-5 0H9v5h2V7Z" /></svg>
-              <span className="text-[11px] font-semibold text-ink">twitch.tv/{tLogin}</span>
-            </span>
-          </>
-        )}
-        {!twitchSrc && (shownBroadcast.live ? (
+        {shownBroadcast.live ? (
           <span className="absolute left-2 top-2 flex items-center gap-1.5 rounded-md bg-black/55 px-1.5 py-0.5 text-[10px] font-black uppercase tracking-wider text-red-400 backdrop-blur">
             <span className="relative flex h-1.5 w-1.5"><span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-500/70" /><span className="relative h-1.5 w-1.5 rounded-full bg-red-500" /></span>
             Live
@@ -322,9 +267,9 @@ export function StreamPreview() {
             <span className="rounded bg-accent/20 px-1">{fallbackToVod ? "No live · Replay" : "VOD"}</span>
             <span className="truncate normal-case text-white/90">{shownBroadcast.title}</span>
           </span>
-        ))}
-        {!twitchSrc && <span className="absolute right-2 top-2 rounded-md bg-black/55 px-1.5 py-0.5 text-[11px] font-bold tabular-nums text-ink backdrop-blur">👁 {compact(focusViewers)}</span>}
-        {!twitchSrc && liveView && focused?.meta && (
+        )}
+        <span className="absolute right-2 top-2 rounded-md bg-black/55 px-1.5 py-0.5 text-[11px] font-bold tabular-nums text-ink backdrop-blur">👁 {compact(focusViewers)}</span>
+        {liveView && focused?.meta && (
           <span className="absolute bottom-2 left-2 flex items-center gap-1.5 rounded-md bg-black/55 px-1.5 py-0.5 backdrop-blur">
             <SourceBadge platform={focused.meta.platform} compact />
             <span className="text-[11px] font-semibold text-ink">{focused.meta.displayName}</span>
@@ -334,7 +279,7 @@ export function StreamPreview() {
       </div>
 
       {/* transport — play/pause + seek the whole clip */}
-      {!twitchSrc && !embedUrl && videoOk && (
+      {!embedUrl && videoOk && (
         <div className="mt-2 flex shrink-0 items-center gap-2">
           <button onClick={togglePlay} title={playing ? "Pause" : "Play"} className="grid h-7 w-7 shrink-0 place-items-center rounded-lg border border-white/12 text-white transition hover:border-accent/60 hover:text-accent">
             {playing ? <Pause size={14} /> : <Play size={14} className="ml-0.5" />}
@@ -362,7 +307,7 @@ export function StreamPreview() {
             return (
               <button
                 key={c.accountId}
-                onClick={() => { setPick(c.accountId); selectBroadcast("live"); useTwitchStore.setState({ nowPlaying: null }); }}
+                onClick={() => { setPick(c.accountId); selectBroadcast("live"); }}
                 className={`flex shrink-0 items-center gap-1.5 rounded-lg border px-2 py-1 text-[11px] font-bold transition ${
                   on ? "bg-white/[0.06]" : "border-white/8 text-muted hover:text-ink"
                 }`}
