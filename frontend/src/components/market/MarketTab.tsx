@@ -25,7 +25,7 @@ const NEWS = [
 const toneColor: Record<string, string> = { bull: "text-up", bear: "text-down", neutral: "text-muted" };
 
 interface MarketData {
-  global: { sym: string; name: string; price: number; chg: number; spark: number[] }[];
+  global: { sym: string; name: string; price: number; chg: number; spark: number[]; cls?: "crypto" | "index" | "commodity" }[];
   narratives: { name: string; chg24h: number; views: number; heat: number }[];
   movers: { sym: string; price: number; chg: number; vol: number }[];
   gauges: { fearGreed: number; fearGreedLabel: string; btcDominance: number; totalMcap: number; altSeason: number };
@@ -55,6 +55,7 @@ const chip = "rounded-md border border-white/10 px-2 py-0.5 text-[10px] font-bol
 export function MarketTab() {
   const [d, setD] = useState<MarketData | null>(null);
   const [err, setErr] = useState(false);
+  const [gmClass, setGmClass] = useState<"crypto" | "index" | "commodity">("crypto");
 
   useEffect(() => {
     let on = true;
@@ -106,9 +107,19 @@ export function MarketTab() {
 
         {/* Global Markets */}
         <div className="lg:col-span-4">
-          <Panel title="Global Markets" icon={<Globe size={14} className="text-accent" />}>
+          <Panel
+            title="Global Markets"
+            icon={<Globe size={14} className="text-accent" />}
+            right={
+              <div className="flex gap-1">
+                {([["crypto", "Crypto"], ["index", "Indices"], ["commodity", "Commodities"]] as const).map(([id, label]) => (
+                  <button key={id} onClick={() => setGmClass(id)} className={`rounded px-1.5 py-0.5 text-[10px] font-bold transition ${gmClass === id ? "bg-accent/15 text-accent" : "text-faint hover:text-ink"}`}>{label}</button>
+                ))}
+              </div>
+            }
+          >
             <div className="grid grid-cols-2 gap-2">
-              {d.global.map((m) => {
+              {d.global.filter((m) => (m.cls ?? "crypto") === gmClass).slice(0, 10).map((m) => {
                 const up = m.chg >= 0;
                 return (
                   <div key={m.sym} className="rounded-lg border border-white/8 p-2.5" style={{ background: `color-mix(in srgb, ${up ? "var(--vc-accent)" : "#ff5a6a"} 8%, transparent)` }}>
