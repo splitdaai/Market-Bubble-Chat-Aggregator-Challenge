@@ -155,10 +155,36 @@ export async function getPriceHistory(sym: string): Promise<{ sym: string; point
 /* ---- Real trader leaderboards (Hyperliquid + Polymarket) ---- */
 let lbCache: { exp: number; data: { hyperliquid: unknown[]; polymarket: unknown[]; updated: number } } | null = null;
 
-/** Curated, publicly-disclosed trader wallets linked to their X accounts (verified). */
-const LINKED_WALLETS: { name: string; xHandle: string; addr: string; source: string }[] = [
-  { name: "James Wynn", xHandle: "JamesWynnReal", addr: "0x5078c2fbea2b2ad61bc840bc023e35fce56bedb6", source: "self-disclosed" },
+/** Curated, publicly-disclosed KOL wallets linked to their X accounts (verified). */
+const LINKED_WALLETS: { name: string; xHandle: string; id: string; chain: "hl" | "evm" }[] = [
+  { name: "James Wynn", xHandle: "JamesWynnReal", id: "0x5078c2fbea2b2ad61bc840bc023e35fce56bedb6", chain: "hl" },
+  { name: "GCR", xHandle: "GiganticRebirth", id: "ezekielx.eth", chain: "evm" },
+  { name: "Tetranode", xHandle: "Tetranode", id: "0x8e1d8b147cc4c939a597dc501c47cc8b4ab26bd5", chain: "evm" },
+  { name: "DegenSpartan", xHandle: "DegenSpartan", id: "degenspartan.eth", chain: "evm" },
+  { name: "Pentoshi", xHandle: "Pentosh1", id: "pentoshi.eth", chain: "evm" },
 ];
+
+/** Real EVM wallet holdings via ENS resolve + Blockscout (free, live). */
+const evmCache = new Map<string, { exp: number; data: { addr: string; ens: string; totalUsd: number; holdings: { sym: string; amount: number; usd: number }[] } }>();
+export async function getEvmWallet(idOrEns: string) {
+  const key = idOrEns.toLowerCase();
+  const hit = evmCache.get(key);
+  if (hit && Date.now() < hit.exp) return hit.data;
+  let addr = idOrEns, ens = "";
+  if (!/^0x[a-fA-F0-9]{40}$/.test(idOrEns)) {
+    try { const r = await jget(`https://api.ensideas.com/ens/resolve/${idOrEns}`); if (r?.address) { addr = r.address; ens = r.name || idOrEns; } } catch { /* ignore */ }
+  }
+  const out = { addr, ens, totalUsd: 0, holdings: [] as { sym: string; amount: number; usd: number }[] };
+  try {
+    const tb = await jget(`https://eth.blockscout.com/api/v2/addresses/${addr}/token-balances`);
+    const items: Array<{ value: string; token: { symbol?: string; decimals?: string; exchange_rate?: string } }> = Array.isArray(tb) ? tb : (tb.items ?? []);
+    const hold = items.map((t) => { const tok = t.token ?? {}; const dec = +(tok.decimals ?? 0); const amt = +t.value / (10 ** dec || 1); const rate = +(tok.exchange_rate ?? 0); return { sym: tok.symbol ?? "?", amount: amt, usd: amt * rate }; }).filter((h) => h.usd > 1).sort((a, b) => b.usd - a.usd).slice(0, 15);
+    out.holdings = hold;
+    out.totalUsd = hold.reduce((s, h) => s + h.usd, 0);
+  } catch { /* leave empty */ }
+  evmCache.set(key, { exp: Date.now() + 300_000, data: out });
+  return out;
+}
 
 export async function getLeaderboards() {
   if (lbCache && Date.now() < lbCache.exp) return lbCache.data;
@@ -193,18 +219,21 @@ export async function getLeaderboards() {
     }));
   } catch { /* leave empty */ }
 
-  // Curated verified wallets — real account value + 30d PnL, with X handle linked
+  // Curated verified KOL wallets — real on-chain value, X handle linked (HL perps or EVM holdings)
   try {
     const post = (body: unknown) => jget("https://api.hyperliquid.xyz/info", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
     data.linked = await Promise.all(LINKED_WALLETS.map(async (k) => {
       try {
-        const [cs, pf] = await Promise.all([post({ type: "clearinghouseState", user: k.addr }), post({ type: "portfolio", user: k.addr })]);
-        const value = +(cs?.marginSummary?.accountValue ?? 0);
-        const pmap: Record<string, { pnlHistory?: [number, string][] }> = Object.fromEntries(pf as [string, { pnlHistory?: [number, string][] }][]);
-        const ph = pmap.month?.pnlHistory ?? [];
-        const pnl = ph.length ? +ph[ph.length - 1][1] : 0;
-        return { ...k, value, pnl };
-      } catch { return { ...k, value: 0, pnl: 0 }; }
+        if (k.chain === "hl") {
+          const [cs, pf] = await Promise.all([post({ type: "clearinghouseState", user: k.id }), post({ type: "portfolio", user: k.id })]);
+          const value = +(cs?.marginSummary?.accountValue ?? 0);
+          const pmap: Record<string, { pnlHistory?: [number, string][] }> = Object.fromEntries(pf as [string, { pnlHistory?: [number, string][] }][]);
+          const ph = pmap.month?.pnlHistory ?? [];
+          return { name: k.name, xHandle: k.xHandle, chain: k.chain, addr: k.id, value, pnl: ph.length ? +ph[ph.length - 1][1] : 0, top: "" };
+        }
+        const w = await getEvmWallet(k.id);
+        return { name: k.name, xHandle: k.xHandle, chain: k.chain, addr: w.addr, value: w.totalUsd, pnl: 0, top: w.holdings[0]?.sym ?? "" };
+      } catch { return { name: k.name, xHandle: k.xHandle, chain: k.chain, addr: k.id, value: 0, pnl: 0, top: "" }; }
     }));
   } catch { /* leave empty */ }
 
