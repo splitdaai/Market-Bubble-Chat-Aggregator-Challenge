@@ -1,19 +1,20 @@
 import { useEffect, useRef, useState } from "react";
 import { Radio, Film, Eye, Flame, TrendingUp, Play, Clapperboard, Heart, Repeat2, BadgeCheck } from "lucide-react";
 import { compact } from "../../lib/format";
+import { BROADCASTS } from "../../store/broadcastStore";
 
 const BACKEND = (import.meta.env.VITE_BACKEND_URL as string | undefined) ?? "https://3-213-104-77.nip.io";
 
-/* ── demo feed data (an X tracked-list wires this to real posts) ── */
+/* ── feed: Ansem / Banks / Market Bubble only (demo until an X list is wired) ── */
 const FEED = [
   { name: "Ansem", handle: "@blknoiz06", v: 1, text: "sol doing sol things. nothing to see here 🤝", likes: 4200, reposts: 510, views: 312000, d1h: 184, ticker: "SOL", cat: "spiking" },
-  { name: "Cupsey", handle: "@Cupseyy", v: 0, text: "$PNUT just went vertical. who's still doubting the peanut 🥜", likes: 1800, reposts: 240, views: 88000, d1h: 320, ticker: "PNUT", cat: "spiking" },
-  { name: "Cobie", handle: "@cobie", v: 1, text: "everyone bullish = nobody left to buy. just saying.", likes: 9800, reposts: 1200, views: 740000, d1h: 64, ticker: "BTC", cat: "rising" },
-  { name: "Hsaka", handle: "@HsakaTrades", v: 1, text: "memecoin rotation is brutal but the trend is your friend until it ends", likes: 3100, reposts: 280, views: 210000, d1h: 41, ticker: "WIF", cat: "rising" },
-  { name: "GCR", handle: "@GiganticRebirth", v: 1, text: "the leverage in this market is getting silly again. be careful out there.", likes: 6400, reposts: 720, views: 410000, d1h: 28, ticker: "HYPE", cat: "active" },
-  { name: "Will Clemente", handle: "@WClementeIII", v: 1, text: "on-chain data showing long-term holders still not selling. supply squeeze building.", likes: 5200, reposts: 610, views: 380000, d1h: 33, ticker: "BTC", cat: "rising" },
-  { name: "Frank", handle: "@frankdegods", v: 1, text: "solana culture coins are the only thing trading with conviction rn", likes: 4100, reposts: 380, views: 256000, d1h: 19, ticker: "BONK", cat: "active" },
+  { name: "Banks", handle: "@banks", v: 1, text: "going live with ansem this week. it's going to be chaos.", likes: 8900, reposts: 1100, views: 690000, d1h: 58, ticker: "—", cat: "rising" },
+  { name: "Market Bubble", handle: "@marketbubble", v: 1, text: "tonight's show 1PM PST — Fed day special with Mike Majlak 🫧", likes: 3300, reposts: 420, views: 198000, d1h: 27, ticker: "—", cat: "active" },
   { name: "Ansem", handle: "@blknoiz06", v: 1, text: "VIRTUAL chart looking like 2021 alt season fractals", likes: 5600, reposts: 690, views: 420000, d1h: 96, ticker: "VIRTUAL", cat: "spiking" },
+  { name: "Banks", handle: "@banks", v: 1, text: "the faZe treasury play is more bullish than people realize", likes: 6100, reposts: 740, views: 480000, d1h: 41, ticker: "—", cat: "rising" },
+  { name: "Market Bubble", handle: "@marketbubble", v: 1, text: "clip of the day: ansem calling the SOL bottom live 🎯", likes: 2400, reposts: 310, views: 140000, d1h: 33, ticker: "SOL", cat: "active" },
+  { name: "Ansem", handle: "@blknoiz06", v: 1, text: "memecoins are the casino and the casino is open 24/7", likes: 7200, reposts: 880, views: 520000, d1h: 62, ticker: "WIF", cat: "rising" },
+  { name: "Market Bubble", handle: "@marketbubble", v: 1, text: "$50k Polymarket giveaway stream this weekend. don't miss it.", likes: 4800, reposts: 600, views: 260000, d1h: 48, ticker: "—", cat: "spiking" },
 ];
 const TRENDING = [
   { tag: "$PNUT", mentions: 4210, views: 1.2e6, d1h: 312 }, { tag: "$VIRTUAL", mentions: 3870, views: 980000, d1h: 184 },
@@ -116,7 +117,30 @@ export function ContentTab() {
           </div>
 
           <div className="vc-glass rounded-2xl p-4">
-            <div className="mb-3 flex items-center gap-2"><Film size={14} className="text-accent" /><span className="text-[12px] font-bold uppercase tracking-[0.12em] text-muted">Trending Videos</span></div>
+            <div className="mb-3 flex items-center gap-2"><Film size={14} className="text-accent" /><span className="text-[12px] font-bold uppercase tracking-[0.12em] text-muted">Market Bubble Videos</span><span className={`ml-auto ${chip}`}>episodes + clips</span></div>
+
+            {/* full-version episodes */}
+            <div className="mb-2 text-[10px] font-bold uppercase tracking-wider text-faint">Full Episodes</div>
+            <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
+              {BROADCASTS.map((b) => (
+                <a key={b.id} href={b.src} target="_blank" rel="noreferrer" className="group overflow-hidden rounded-xl border border-white/8 bg-white/[0.02] transition hover:border-accent/50">
+                  <div className="relative aspect-video w-full bg-black">
+                    <video src={`${b.src}#t=2`} preload="metadata" muted playsInline className="absolute inset-0 h-full w-full object-cover" />
+                    <span className="absolute inset-0 grid place-items-center bg-black/25 opacity-85 transition group-hover:opacity-100"><Play size={22} className="text-white drop-shadow" /></span>
+                    <span className={`absolute left-1 top-1 rounded px-1 text-[8px] font-black uppercase tracking-wide ${b.live ? "bg-down/80 text-white" : "bg-black/70 text-accent"}`}>{b.live ? "● Live" : "Episode"}</span>
+                    <span className="absolute bottom-1 right-1 rounded bg-black/70 px-1 text-[9px] font-bold tabular-nums">{b.duration}</span>
+                    <span className="absolute bottom-1 left-1 rounded bg-black/65 px-1 text-[8px] font-bold text-muted">Market Bubble</span>
+                  </div>
+                  <div className="px-2 py-1.5">
+                    <div className="truncate text-[11px] font-semibold">{b.title}</div>
+                    <div className="text-[9px] text-faint">{b.date}</div>
+                  </div>
+                </a>
+              ))}
+            </div>
+
+            {/* clips */}
+            <div className="mb-2 mt-4 text-[10px] font-bold uppercase tracking-wider text-faint">Clips</div>
             <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
               {videos.map((v, i) => (
                 <a key={i} href={`https://clips.twitch.tv/${v.id}`} target="_blank" rel="noreferrer" className="group overflow-hidden rounded-xl border border-white/8 bg-white/[0.02] transition hover:border-accent/50">
