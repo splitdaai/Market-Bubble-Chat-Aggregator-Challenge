@@ -77,6 +77,29 @@ export function TechWidget({ symbol }: { symbol: string }) {
   return <div ref={ref} className="tradingview-widget-container" />;
 }
 
+function SymbolInfo({ symbol }: { symbol: string }) {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (ref.current) tvWidget(ref.current, "https://s3.tradingview.com/external-embedding/embed-widget-symbol-info.js", {
+      symbol, width: "100%", locale: "en", colorTheme: "dark", isTransparent: true,
+    });
+  }, [symbol]);
+  return <div ref={ref} className="tradingview-widget-container" />;
+}
+
+function AdvancedChart({ symbol }: { symbol: string }) {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (ref.current) tvWidget(ref.current, "https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js", {
+      symbol, autosize: true, interval: "D", timezone: "Etc/UTC", theme: "dark", style: "1", locale: "en",
+      hide_side_toolbar: true, allow_symbol_change: false, save_image: false, calendar: false,
+      backgroundColor: "rgba(0,0,0,0)", gridColor: "rgba(255,255,255,0.05)",
+      studies: ["STD;RSI", "STD;MACD"],
+    });
+  }, [symbol]);
+  return <div ref={ref} className="tradingview-widget-container h-full [&>div]:h-full [&_iframe]:h-full" />;
+}
+
 export function TradingViewTechnicals() {
   const [sym, setSym] = useState(TOP[0]);
   const [q, setQ] = useState("");
@@ -98,15 +121,22 @@ export function TradingViewTechnicals() {
       </form>
 
       {/* top 50 quick-select */}
-      <div className="scroll mb-3 flex gap-1 overflow-x-auto pb-1">
+      <div className="bubble-scroll-area mb-3 flex gap-1 overflow-x-auto pb-1">
         {TOP.map((a) => (
           <button key={a.symbol} onClick={() => setSym(a)} className={`shrink-0 rounded-md px-2 py-1 text-[11px] font-bold transition ${sym.symbol === a.symbol ? "bg-accent/15 text-accent" : "text-muted hover:text-ink"}`}>{a.label}</button>
         ))}
       </div>
 
-      <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
-        <div className="overflow-hidden rounded-xl border border-white/8 bg-black/20"><MiniChart key={"m" + sym.symbol} symbol={sym.symbol} /></div>
-        <div className="overflow-hidden rounded-xl border border-white/8 bg-black/20"><TechWidget key={"t" + sym.symbol} symbol={sym.symbol} /></div>
+      {/* live price + key stats */}
+      <div className="mb-3 overflow-hidden rounded-xl border border-white/8 bg-black/20"><SymbolInfo key={"s" + sym.symbol} symbol={sym.symbol} /></div>
+
+      {/* big interactive chart (RSI + MACD) + analysis gauge */}
+      <div className="grid grid-cols-1 gap-3 lg:grid-cols-[1.7fr_1fr]">
+        <div className="h-[420px] overflow-hidden rounded-xl border border-white/8 bg-black/20"><AdvancedChart key={"a" + sym.symbol} symbol={sym.symbol} /></div>
+        <div className="flex flex-col gap-3">
+          <div className="overflow-hidden rounded-xl border border-white/8 bg-black/20"><TechWidget key={"t" + sym.symbol} symbol={sym.symbol} /></div>
+          <div className="overflow-hidden rounded-xl border border-white/8 bg-black/20"><MiniChart key={"m" + sym.symbol} symbol={sym.symbol} /></div>
+        </div>
       </div>
     </div>
   );

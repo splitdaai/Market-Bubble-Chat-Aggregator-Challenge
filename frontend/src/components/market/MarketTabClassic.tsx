@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Globe, Flame, Newspaper, Activity, Briefcase, TrendingUp, X as XIcon } from "lucide-react";
+import { Globe, Newspaper, Activity, Briefcase, TrendingUp, X as XIcon } from "lucide-react";
 import { Sparkline } from "../Sparkline";
 import { PageGrid } from "../PageGrid";
 import { useLayoutStore } from "../../store/layoutStore";
@@ -250,33 +250,15 @@ export function MarketTabClassic() {
                 </div>
               </Panel>
             ) },
-            { id: "narrative", x: 0, y: 12, w: 8, h: 10, node: (
-              <Panel title="Market Narrative Monitor" icon={<Flame size={15} className="text-gold" />}>
-                <div className="space-y-1.5">
-                  {d.narratives.map((n, i) => (
-                    <div key={n.name} className="grid grid-cols-[1.4rem_1fr_auto] items-center gap-3 rounded-lg border border-white/8 bg-white/[0.02] px-3 py-2">
-                      <span className="text-[12px] font-bold tabular-nums text-faint">{i + 1}</span>
-                      <div className="min-w-0">
-                        <div className="truncate text-[13px] font-bold">{n.name}</div>
-                        <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-white/8"><div className="h-full rounded-full" style={{ width: `${n.heat}%`, background: "linear-gradient(90deg,var(--vc-accent),#ff4b16)" }} /></div>
-                      </div>
-                      <div className="flex items-center gap-3 text-right">
-                        <div className="hidden text-right sm:block"><div className="text-[11px] tabular-nums text-muted">{compact(n.views)}</div><div className="text-[9px] uppercase text-faint">views</div></div>
-                        <span className={`w-14 rounded px-1.5 py-0.5 text-right text-[11px] font-bold tabular-nums ${n.chg24h >= 0 ? "bg-up/15 text-up" : "bg-down/15 text-down"}`}>{pct(n.chg24h)}</span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </Panel>
-            ) },
-            { id: "pulse", x: 8, y: 12, w: 4, h: 10, node: (() => {
+            { id: "tech", x: 0, y: 12, w: 8, h: 18, node: <TradingViewTechnicals /> },
+            { id: "pulse", x: 8, y: 12, w: 4, h: 18, node: (() => {
               const g = d.gauges;
               const fgColor = g.fearGreed < 25 ? "#ff5a6a" : g.fearGreed < 45 ? "#ff9f43" : g.fearGreed < 75 ? "#a8e05f" : "#16e6a4";
               const PULSE = [
-                { key: "Fear & Greed", val: g.fearGreed, label: String(g.fearGreed), sub: g.fearGreedLabel, color: fgColor },
-                { key: "BTC Dominance", val: g.btcDominance, label: g.btcDominance.toFixed(1) + "%", sub: "of total cap", color: "#f7931a" },
-                { key: "Alt Season", val: g.altSeason, label: g.altSeason + "/100", sub: g.altSeason > 50 ? "alts leading" : "BTC-led", color: "#34d6ff" },
-                { key: "Total Mcap", val: Math.min(100, (g.totalMcap / 4e12) * 100), label: "$" + compact(g.totalMcap), sub: "all crypto", color: "#00d872" },
+                { key: "Fear & Greed", val: g.fearGreed, label: String(g.fearGreed), sub: g.fearGreedLabel, color: fgColor, scale: ["Extreme Fear", "Extreme Greed"], desc: `Market sentiment is ${g.fearGreedLabel.toLowerCase()} — ${g.fearGreed < 45 ? "fear can signal value; contrarians watch for bottoms." : g.fearGreed > 60 ? "greed can signal froth; watch for pullbacks." : "balanced positioning."}` },
+                { key: "BTC Dominance", val: g.btcDominance, label: g.btcDominance.toFixed(1) + "%", sub: "of total cap", color: "#f7931a", scale: ["Alts", "BTC"], desc: `Bitcoin is ${g.btcDominance.toFixed(1)}% of total crypto market cap. ${g.btcDominance > 55 ? "High dominance — capital favors BTC over alts." : "Lower dominance — alts are taking share."}` },
+                { key: "Alt Season", val: g.altSeason, label: g.altSeason + "/100", sub: g.altSeason > 50 ? "alts leading" : "BTC-led", color: "#34d6ff", scale: ["BTC season", "Alt season"], desc: `${g.altSeason}/100 on the alt-season index. ${g.altSeason > 75 ? "Full alt season — alts broadly outperforming BTC." : g.altSeason > 50 ? "Alts are leading the market." : "BTC-led market; alts lagging."}` },
+                { key: "Total Mcap", val: Math.min(100, (g.totalMcap / 4e12) * 100), label: "$" + compact(g.totalMcap), sub: "all crypto", color: "#00d872", scale: ["$0", "$4T"], desc: `Total crypto market cap is $${compact(g.totalMcap)}, ${((g.totalMcap / 4e12) * 100).toFixed(0)}% of the $4T cycle benchmark.` },
               ];
               const sel = PULSE[pulse] ?? PULSE[0];
               return (
@@ -290,10 +272,19 @@ export function MarketTabClassic() {
                     ))}
                   </div>
                   <Meter value={sel.val} label={sel.label} sub={`${sel.key} · ${sel.sub}`} color={sel.color} />
+                  {/* gradient position scale */}
+                  <div className="mt-3 px-1">
+                    <div className="relative h-2 rounded-full" style={{ background: "linear-gradient(90deg,#ff5a6a,#ff9f43,#a8e05f,#16e6a4)" }}>
+                      <div className="absolute -top-1 h-4 w-1.5 -translate-x-1/2 rounded-full bg-white shadow" style={{ left: `${sel.val}%` }} />
+                    </div>
+                    <div className="mt-1 flex justify-between text-[9px] uppercase tracking-wider text-faint"><span>{sel.scale[0]}</span><span>{sel.scale[1]}</span></div>
+                  </div>
+                  {/* context caption */}
+                  <p className="mt-3 rounded-lg border border-white/8 bg-white/[0.02] p-2.5 text-[11.5px] leading-snug text-muted">{sel.desc}</p>
                 </Panel>
               );
             })() },
-            { id: "hl", x: 0, y: 22, w: 5, h: 16, node: (
+            { id: "hl", x: 0, y: 30, w: 5, h: 16, node: (
               <Panel title="Top Hyperliquid Traders" icon={<TrendingUp size={15} className="text-up" />} right={<span className="text-[10px] uppercase tracking-wider text-faint">demo</span>}>
                 <table className="w-full text-[12px]">
                   <thead><tr className="text-[9px] uppercase tracking-wider text-faint"><th className="pb-1 text-left">#</th><th className="pb-1 text-left">Trader</th><th className="pb-1 text-right">PNL 30D</th><th className="pb-1 text-right">Win</th><th className="pb-1 pl-2 text-right">Trend</th></tr></thead>
@@ -311,7 +302,7 @@ export function MarketTabClassic() {
                 </table>
               </Panel>
             ) },
-            { id: "portfolios", x: 5, y: 22, w: 4, h: 13, node: (
+            { id: "portfolios", x: 5, y: 30, w: 4, h: 13, node: (
               <Panel title="Influential Portfolios" icon={<Briefcase size={15} className="text-accent" />} right={<span className="text-[10px] uppercase tracking-wider text-faint">13F · demo</span>}>
                 <div className="space-y-1.5">
                   {PORTFOLIOS.map((p) => (
@@ -323,7 +314,7 @@ export function MarketTabClassic() {
                 </div>
               </Panel>
             ) },
-            { id: "poly", x: 9, y: 22, w: 3, h: 16, node: (
+            { id: "poly", x: 9, y: 30, w: 3, h: 16, node: (
               <Panel title="Top Polymarket Traders" icon={<PolymarketMark className="h-4 w-5 text-accent" />} right={<span className="text-[10px] uppercase tracking-wider text-faint">demo</span>}>
                 <table className="w-full text-[12px]">
                   <thead><tr className="text-[9px] uppercase tracking-wider text-faint"><th className="pb-1 text-left">#</th><th className="pb-1 text-left">Trader</th><th className="pb-1 text-right">PNL</th><th className="pb-1 text-right">Win</th></tr></thead>
@@ -340,7 +331,7 @@ export function MarketTabClassic() {
                 </table>
               </Panel>
             ) },
-            { id: "intel", x: 0, y: 38, w: 12, h: 6, node: (
+            { id: "intel", x: 0, y: 46, w: 12, h: 6, node: (
               <Panel title="Intelligence Feed" icon={<Newspaper size={15} className="text-accent" />}>
                 <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
                   {NEWS.map((n, i) => (
@@ -352,7 +343,6 @@ export function MarketTabClassic() {
                 </div>
               </Panel>
             ) },
-            { id: "technicals", x: 0, y: 44, w: 12, h: 16, node: <TradingViewTechnicals /> },
           ]}
         />
 
