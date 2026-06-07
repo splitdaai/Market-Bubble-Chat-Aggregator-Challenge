@@ -65,7 +65,26 @@ export const MARKET_BUBBLE_GREEN_THEME: Theme = {
   textStyle: "serif",
 };
 
-export const DEFAULT_THEME: Theme = MARKET_BUBBLE_GREEN_THEME;
+/** Ice Stream — the live khaki setup, now the app default for every visitor. */
+export const ICE_STREAM_THEME: Theme = {
+  name: "Ice Stream",
+  bg: "#040810",
+  surface: "rgba(12, 22, 40, 0.6)",
+  accent: "#2dd4ff",
+  accent2: "#7c9bff",
+  text: "#eaf4ff",
+  textMuted: "#8aa6c8",
+  glow: 0.6,
+  radius: 22,
+  font: "Inter",
+  bubbleStyle: "flat",
+  tile: "glass",
+  btn: "bold",
+  btnFx: "sweep",
+  textStyle: "tight",
+};
+
+export const DEFAULT_THEME: Theme = ICE_STREAM_THEME;
 
 /** Terminal Pro — dense Bloomberg-style: mono everywhere, sharp corners,
  *  hairline borders, electric blue, minimal glow. */

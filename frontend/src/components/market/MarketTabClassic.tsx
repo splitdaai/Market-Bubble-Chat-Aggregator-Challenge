@@ -235,7 +235,7 @@ export function MarketTabClassic() {
           editMode={editMode}
           titles={{ global: "Global Markets", tech: "Technicals", pulse: "Market Pulse", hl: "Top Hyperliquid Traders", portfolios: "Influential Portfolios", poly: "Top Polymarket Traders", intel: "Intelligence Feed" }}
           items={[
-            { id: "global", x: 0, y: 0, w: 12, h: 12, node: (
+            { id: "global", x: 0, y: 0, w: 12, h: 8, node: (
               <Panel title="Global Markets" icon={<Globe size={15} className="text-accent" />}>
                 <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
                   <MarketTable title="Stock Indices" rows={indices} onPick={(sym) => setDetail({ kind: "asset", label: sym })} />
@@ -244,8 +244,8 @@ export function MarketTabClassic() {
                 </div>
               </Panel>
             ) },
-            { id: "tech", x: 0, y: 12, w: 8, h: 18, node: <TradingViewTechnicals /> },
-            { id: "pulse", x: 8, y: 12, w: 4, h: 18, node: (() => {
+            { id: "tech", x: 0, y: 8, w: 12, h: 11, node: <TradingViewTechnicals /> },
+            { id: "pulse", x: 9, y: 19, w: 3, h: 8, node: (() => {
               const g = d.gauges;
               const fgColor = g.fearGreed < 25 ? "#ff5a6a" : g.fearGreed < 45 ? "#ff9f43" : g.fearGreed < 75 ? "#a8e05f" : "#16e6a4";
               const PULSE = [
@@ -278,7 +278,7 @@ export function MarketTabClassic() {
                 </Panel>
               );
             })() },
-            { id: "hl", x: 0, y: 30, w: 5, h: 16, node: (
+            { id: "hl", x: 0, y: 19, w: 3, h: 13, node: (
               <Panel title="Top Hyperliquid Traders" icon={<TrendingUp size={15} className="text-up" />} right={<span className="text-[10px] uppercase tracking-wider text-faint">demo</span>}>
                 <div className={leaderboardShell}>
                   <div className={`${leaderboardHead} grid-cols-[2rem_minmax(0,1fr)_4.7rem_3rem_4.3rem]`}>
@@ -298,7 +298,7 @@ export function MarketTabClassic() {
                 </div>
               </Panel>
             ) },
-            { id: "portfolios", x: 5, y: 30, w: 4, h: 16, node: (
+            { id: "portfolios", x: 3, y: 19, w: 3, h: 13, node: (
               <Panel title="Influential Portfolios" icon={<Briefcase size={15} className="text-accent" />} right={<span className="text-[10px] uppercase tracking-wider text-faint">13F · demo</span>}>
                 <div className={leaderboardShell}>
                   <div className={`${leaderboardHead} grid-cols-[2rem_minmax(0,1fr)_4.3rem_4.8rem_4rem]`}>
@@ -318,7 +318,7 @@ export function MarketTabClassic() {
                 </div>
               </Panel>
             ) },
-            { id: "poly", x: 9, y: 30, w: 3, h: 16, node: (
+            { id: "poly", x: 6, y: 19, w: 3, h: 13, node: (
               <Panel title="Top Polymarket Traders" icon={<PolymarketMark className="h-4 w-5 text-accent" />} right={<span className="text-[10px] uppercase tracking-wider text-faint">demo</span>}>
                 <div className={leaderboardShell}>
                   <div className={`${leaderboardHead} grid-cols-[2rem_minmax(0,1fr)_5rem_3rem]`}>
@@ -337,7 +337,7 @@ export function MarketTabClassic() {
                 </div>
               </Panel>
             ) },
-            { id: "intel", x: 0, y: 46, w: 12, h: 6, node: (
+            { id: "intel", x: 0, y: 32, w: 12, h: 6, node: (
               <Panel title="Intelligence Feed" icon={<Newspaper size={15} className="text-accent" />}>
                 <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
                   {NEWS.map((n, i) => (
