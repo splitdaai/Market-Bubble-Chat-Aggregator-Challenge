@@ -3,12 +3,17 @@ import { persist } from "zustand/middleware";
 import type { Theme } from "@shared/types";
 import { DEFAULT_THEME, applyTheme } from "@/lib/theme";
 
+/** Market-page layout template: our Bubble layout vs the Classic reference clone. */
+export type MarketTemplate = "bubble" | "classic";
+
 interface ThemeState {
   theme: Theme;
   soundEnabled: boolean;
+  marketTemplate: MarketTemplate;
   setTheme: (t: Theme) => void;
   patch: (p: Partial<Theme>) => void;
   toggleSound: () => void;
+  setMarketTemplate: (t: MarketTemplate) => void;
 }
 
 export const useThemeStore = create<ThemeState>()(
@@ -16,6 +21,8 @@ export const useThemeStore = create<ThemeState>()(
     (set) => ({
       theme: DEFAULT_THEME,
       soundEnabled: false,
+      marketTemplate: "bubble",
+      setMarketTemplate: (marketTemplate) => set({ marketTemplate }),
       setTheme: (theme) => {
         applyTheme(theme);
         set({ theme });

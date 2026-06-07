@@ -1,0 +1,220 @@
+import { useEffect, useState } from "react";
+import { Globe, Flame, Newspaper, Activity, Briefcase, TrendingUp } from "lucide-react";
+import { Sparkline } from "../Sparkline";
+import { PolymarketMark } from "../Brand";
+import { compact } from "../../lib/format";
+
+const BACKEND = (import.meta.env.VITE_BACKEND_URL as string | undefined) ?? "https://3-213-104-77.nip.io";
+
+interface MarketData {
+  global: { sym: string; name: string; price: number; chg: number; spark: number[] }[];
+  narratives: { name: string; chg24h: number; views: number; heat: number }[];
+  movers: { sym: string; price: number; chg: number; vol: number }[];
+  gauges: { fearGreed: number; fearGreedLabel: string; btcDominance: number; totalMcap: number; altSeason: number };
+  polymarket: { q: string; yes: number; vol: number; cat: string; end: string }[];
+}
+
+const price = (n: number) => n >= 1000 ? "$" + n.toLocaleString(undefined, { maximumFractionDigits: 0 }) : "$" + n.toLocaleString(undefined, { maximumFractionDigits: 2 });
+const pct = (n: number) => (n >= 0 ? "+" : "") + n.toFixed(2) + "%";
+
+/* demo data for the panels we don't have a live free source for */
+const HL_TRADERS = [
+  { name: "ansem.eth", pnl: 4.82e6, win: 71, trend: [3, 5, 4, 6, 8, 7, 9] },
+  { name: "0xWhale", pnl: 3.11e6, win: 64, trend: [5, 4, 6, 5, 7, 6, 8] },
+  { name: "GiganticRebirth", pnl: 2.45e6, win: 68, trend: [2, 4, 3, 5, 4, 6, 7] },
+  { name: "Tetra", pnl: 1.9e6, win: 59, trend: [4, 3, 5, 4, 6, 5, 6] },
+  { name: "cupsey.sol", pnl: 1.42e6, win: 73, trend: [3, 5, 6, 5, 7, 8, 9] },
+  { name: "0xFrank", pnl: 0.98e6, win: 55, trend: [5, 4, 4, 5, 3, 4, 5] },
+];
+const PORTFOLIOS = [
+  { fund: "ARK Invest", top: "COIN", value: 1.2e9, chg: 8.4 },
+  { fund: "BlackRock 13F", top: "IBIT", value: 4.8e9, chg: 12.1 },
+  { fund: "a16z", top: "Solana", value: 2.1e9, chg: -3.2 },
+  { fund: "Pantera", top: "BTC", value: 0.9e9, chg: 5.6 },
+  { fund: "Galaxy Digital", top: "ETH", value: 1.4e9, chg: -1.8 },
+];
+const NEWS = [
+  { src: "CoinDesk", t: "8m", tone: "bull", title: "Solana DEX volume hits new ATH as memecoin activity surges" },
+  { src: "The Block", t: "23m", tone: "bull", title: "BlackRock files for in-kind redemptions on spot BTC ETF" },
+  { src: "Decrypt", t: "41m", tone: "bull", title: "AI-agent tokens add $4B in market cap over the past week" },
+  { src: "Bloomberg", t: "1h", tone: "bear", title: "Fed minutes signal caution; rate-cut odds slip below 20%" },
+  { src: "Reuters", t: "1h", tone: "neutral", title: "Dollar softens as risk appetite returns to global markets" },
+];
+const toneColor: Record<string, string> = { bull: "text-up", bear: "text-down", neutral: "text-muted" };
+
+function Panel({ title, icon, right, children, className = "" }: { title: string; icon?: React.ReactNode; right?: React.ReactNode; children: React.ReactNode; className?: string }) {
+  return (
+    <div className={`vc-glass flex flex-col rounded-2xl p-4 ${className}`}>
+      <div className="mb-3 flex items-center gap-2">
+        {icon}
+        <span className="serif text-[16px] font-bold tracking-tight">{title}</span>
+        {right && <span className="ml-auto">{right}</span>}
+      </div>
+      {children}
+    </div>
+  );
+}
+
+function MarketTable({ title, rows }: { title: string; rows: MarketData["global"] }) {
+  return (
+    <div>
+      <div className="mb-1.5 text-[10px] font-bold uppercase tracking-wider text-faint">{title}</div>
+      <table className="w-full text-[12px]">
+        <thead>
+          <tr className="text-[9px] uppercase tracking-wider text-faint">
+            <th className="pb-1 text-left font-semibold">Asset</th>
+            <th className="pb-1 text-right font-semibold">Price</th>
+            <th className="pb-1 text-right font-semibold">24h</th>
+            <th className="pb-1 pl-2 text-right font-semibold">Trend</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((m) => {
+            const up = m.chg >= 0;
+            return (
+              <tr key={m.sym} className="border-t border-white/6">
+                <td className="py-1.5 font-bold">{m.sym}</td>
+                <td className="py-1.5 text-right font-mono tabular-nums text-muted">{price(m.price)}</td>
+                <td className={`py-1.5 text-right font-bold tabular-nums ${up ? "text-up" : "text-down"}`}>{pct(m.chg)}</td>
+                <td className="py-1.5 pl-2 text-right"><span className="inline-block"><Sparkline data={m.spark} width={64} height={16} color={up ? "#16e6a4" : "#ff5a6a"} /></span></td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function BanksStream() {
+  const [host, setHost] = useState<string | null>(null);
+  useEffect(() => setHost(location.hostname), []);
+  return (
+    <div className="relative aspect-video w-full overflow-hidden rounded-xl border border-white/10 bg-black">
+      {host
+        ? <iframe key={host} src={`https://player.twitch.tv/?channel=banks&parent=${host}&muted=true`} title="Banks" allow="autoplay; fullscreen" allowFullScreen className="absolute inset-0 h-full w-full" />
+        : null}
+    </div>
+  );
+}
+
+export function MarketTabClassic() {
+  const [d, setD] = useState<MarketData | null>(null);
+  useEffect(() => {
+    let on = true;
+    const load = () => fetch(`${BACKEND}/api/market`).then((r) => r.json()).then((j) => on && setD(j)).catch(() => {});
+    load();
+    const t = setInterval(load, 120_000);
+    return () => { on = false; clearInterval(t); };
+  }, []);
+  if (!d) return <div className="mb-tab p-10 text-center text-muted">Loading market data…</div>;
+
+  const crypto = d.global.filter((m) => ["BTC", "ETH", "SOL"].includes(m.sym));
+  const indices = d.global.filter((m) => ["SPX", "NDX", "DXY", "US10Y"].includes(m.sym));
+  const commodities = d.global.filter((m) => ["GOLD", "OIL"].includes(m.sym));
+  const topPoly = [...d.polymarket].sort((a, b) => b.vol - a.vol);
+
+  return (
+    <div className="mb-tab" data-text="serif">
+      <div className="mx-auto max-w-[1500px] px-4 py-6 sm:px-6">
+        <h1 className="serif text-3xl font-bold tracking-tight sm:text-4xl">Market</h1>
+        <p className="mt-1 text-[13px] text-muted">Classic layout — global markets, narratives, smart money, portfolios &amp; Polymarket in one terminal.</p>
+
+        {/* Global Markets — three tables */}
+        <div className="mt-5">
+          <Panel title="Global Markets" icon={<Globe size={15} className="text-accent" />}>
+            <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
+              <MarketTable title="Stock Indices" rows={indices} />
+              <MarketTable title="Crypto" rows={crypto} />
+              <MarketTable title="Commodities" rows={commodities} />
+            </div>
+          </Panel>
+        </div>
+
+        <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-12">
+          {/* Narrative Monitor */}
+          <Panel title="Market Narrative Monitor" icon={<Flame size={15} className="text-gold" />} className="lg:col-span-8">
+            <div className="space-y-1.5">
+              {d.narratives.map((n, i) => (
+                <div key={n.name} className="grid grid-cols-[1.4rem_1fr_auto] items-center gap-3 rounded-lg border border-white/8 bg-white/[0.02] px-3 py-2">
+                  <span className="text-[12px] font-bold tabular-nums text-faint">{i + 1}</span>
+                  <div className="min-w-0">
+                    <div className="truncate text-[13px] font-bold">{n.name}</div>
+                    <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-white/8"><div className="h-full rounded-full" style={{ width: `${n.heat}%`, background: "linear-gradient(90deg,var(--vc-accent),#ff4b16)" }} /></div>
+                  </div>
+                  <div className="flex items-center gap-3 text-right">
+                    <div className="hidden text-right sm:block"><div className="text-[11px] tabular-nums text-muted">{compact(n.views)}</div><div className="text-[9px] uppercase text-faint">views</div></div>
+                    <span className={`w-14 rounded px-1.5 py-0.5 text-right text-[11px] font-bold tabular-nums ${n.chg24h >= 0 ? "bg-up/15 text-up" : "bg-down/15 text-down"}`}>{pct(n.chg24h)}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </Panel>
+
+          {/* Banks Twitch Stream */}
+          <Panel title="Banks Twitch Stream" icon={<Activity size={15} className="text-twitch" />} className="lg:col-span-4">
+            <BanksStream />
+          </Panel>
+
+          {/* Smart Money — Top Hyperliquid Traders */}
+          <Panel title="Top Hyperliquid Traders" icon={<TrendingUp size={15} className="text-up" />} right={<span className="text-[10px] uppercase tracking-wider text-faint">demo</span>} className="lg:col-span-5">
+            <table className="w-full text-[12px]">
+              <thead><tr className="text-[9px] uppercase tracking-wider text-faint"><th className="pb-1 text-left">#</th><th className="pb-1 text-left">Trader</th><th className="pb-1 text-right">PNL 30D</th><th className="pb-1 text-right">Win</th><th className="pb-1 pl-2 text-right">Trend</th></tr></thead>
+              <tbody>
+                {HL_TRADERS.map((t, i) => (
+                  <tr key={t.name} className="border-t border-white/6">
+                    <td className="py-1.5 font-bold text-faint">{i + 1}</td>
+                    <td className="py-1.5 font-semibold">{t.name}</td>
+                    <td className="py-1.5 text-right font-bold tabular-nums text-up">+${compact(t.pnl)}</td>
+                    <td className="py-1.5 text-right tabular-nums text-muted">{t.win}%</td>
+                    <td className="py-1.5 pl-2 text-right"><span className="inline-block"><Sparkline data={t.trend} width={56} height={16} color="#16e6a4" /></span></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </Panel>
+
+          {/* Influential Portfolios (13F) */}
+          <Panel title="Influential Portfolios" icon={<Briefcase size={15} className="text-accent" />} right={<span className="text-[10px] uppercase tracking-wider text-faint">13F · demo</span>} className="lg:col-span-4">
+            <div className="space-y-1.5">
+              {PORTFOLIOS.map((p) => (
+                <div key={p.fund} className="flex items-center gap-2 rounded-lg border border-white/8 bg-white/[0.02] px-2.5 py-2">
+                  <div className="min-w-0 flex-1"><div className="truncate text-[12px] font-bold">{p.fund}</div><div className="text-[10px] text-faint">top: {p.top}</div></div>
+                  <div className="text-right"><div className="text-[12px] font-bold tabular-nums">${compact(p.value)}</div><div className={`text-[10px] font-bold ${p.chg >= 0 ? "text-up" : "text-down"}`}>{pct(p.chg)}</div></div>
+                </div>
+              ))}
+            </div>
+          </Panel>
+
+          {/* Top Polymarket Volume */}
+          <Panel title="Top Polymarket Volume" icon={<PolymarketMark className="h-4 w-5 text-accent" />} className="lg:col-span-3">
+            <div className="space-y-2">
+              {topPoly.slice(0, 5).map((m) => (
+                <div key={m.q} className="rounded-lg border border-white/8 bg-white/[0.02] p-2">
+                  <div className="line-clamp-2 text-[11.5px] font-semibold leading-snug">{m.q}</div>
+                  <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-down/30"><div className="h-full rounded-full bg-up" style={{ width: `${m.yes}%` }} /></div>
+                  <div className="mt-1 flex items-center justify-between text-[10px] font-bold"><span className="text-up">Yes {m.yes}%</span><span className="text-down">No {100 - m.yes}%</span></div>
+                  <div className="mt-0.5 text-[9px] text-faint">${compact(m.vol)} vol</div>
+                </div>
+              ))}
+            </div>
+          </Panel>
+
+          {/* Intelligence Feed (news) */}
+          <Panel title="Intelligence Feed" icon={<Newspaper size={15} className="text-accent" />} className="lg:col-span-12">
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+              {NEWS.map((n, i) => (
+                <div key={i} className="rounded-lg border border-white/8 bg-white/[0.02] p-2.5">
+                  <div className="mb-1 flex items-center gap-2 text-[10px] text-faint"><span className="font-bold text-muted">{n.src}</span><span>· {n.t}</span><span className={`ml-auto rounded px-1 font-bold uppercase ${toneColor[n.tone]}`}>{n.tone}</span></div>
+                  <div className="text-[12.5px] font-medium leading-snug">{n.title}</div>
+                </div>
+              ))}
+            </div>
+          </Panel>
+        </div>
+
+        <p className="mt-5 text-center text-[11px] text-faint">Classic reference layout · <span className="font-bold text-up">● Live</span> markets (CoinGecko · Yahoo · alternative.me · Polymarket). Hyperliquid traders &amp; 13F portfolios are demo.</p>
+      </div>
+    </div>
+  );
+}

@@ -5,11 +5,13 @@ import { Toaster } from "./components/Toaster";
 import { ParticleLayer } from "./components/Particles";
 import { OverlayLayer } from "./components/OverlayLayer";
 import { useViewStore } from "./store/viewStore";
+import { useThemeStore } from "./store/themeStore";
 import { useChatConnection } from "./hooks/useChatConnection";
 import { useWalletStore } from "./store/walletStore";
 
 const EditorCanvas = lazy(() => import("./components/EditorCanvas").then((m) => ({ default: m.EditorCanvas })));
 const MarketTab = lazy(() => import("./components/market/MarketTab").then((m) => ({ default: m.MarketTab })));
+const MarketTabClassic = lazy(() => import("./components/market/MarketTabClassic").then((m) => ({ default: m.MarketTabClassic })));
 const ContentTab = lazy(() => import("./components/content/ContentTab").then((m) => ({ default: m.ContentTab })));
 const ThemeEditor = lazy(() => import("./components/ThemeEditor").then((m) => ({ default: m.ThemeEditor })));
 const ButtonEditor = lazy(() => import("./components/ButtonEditor").then((m) => ({ default: m.ButtonEditor })));
@@ -29,6 +31,7 @@ export default function App() {
   useEffect(() => useWalletStore.getState().hydrate(), []);
 
   const view = useViewStore((s) => s.view);
+  const marketTemplate = useThemeStore((s) => s.marketTemplate);
   const [themeOpen, setThemeOpen] = useState(false);
   const [connOpen, setConnOpen] = useState(false);
   const [featuresOpen, setFeaturesOpen] = useState(false);
@@ -57,7 +60,7 @@ export default function App() {
           {view === "analytics" ? (
             <AnalyticsTab />
           ) : view === "market" ? (
-            <MarketTab />
+            marketTemplate === "classic" ? <MarketTabClassic /> : <MarketTab />
           ) : view === "content" ? (
             <ContentTab />
           ) : (

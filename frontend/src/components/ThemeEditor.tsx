@@ -9,6 +9,8 @@ export function ThemeEditor({ open, onClose }: { open: boolean; onClose: () => v
   const theme = useThemeStore((s) => s.theme);
   const patch = useThemeStore((s) => s.patch);
   const setTheme = useThemeStore((s) => s.setTheme);
+  const marketTemplate = useThemeStore((s) => s.marketTemplate);
+  const setMarketTemplate = useThemeStore((s) => s.setMarketTemplate);
 
   return (
     <AnimatePresence>
@@ -48,6 +50,25 @@ export function ThemeEditor({ open, onClose }: { open: boolean; onClose: () => v
                   <span style={{ color: p.text }}>{p.name}</span>
                 </button>
               ))}
+            </div>
+
+            {/* Market-page layout template */}
+            <div className="mb-4">
+              <div className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-muted">Market page layout</div>
+              <div className="flex gap-1">
+                {([["bubble", "Bubble"], ["classic", "Classic (clone)"]] as const).map(([id, label]) => (
+                  <button
+                    key={id}
+                    onClick={() => setMarketTemplate(id)}
+                    className={`flex-1 rounded-md border px-2 py-1.5 text-xs font-semibold transition ${
+                      marketTemplate === id ? "border-accent bg-accent/15 text-accent" : "border-white/10 text-muted hover:border-white/30"
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+              <div className="mt-1 text-[10px] text-muted opacity-70">Classic locks the Market page to the reference layout + serif font.</div>
             </div>
 
             <div className="space-y-3">
