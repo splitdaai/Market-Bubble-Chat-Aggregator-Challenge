@@ -44,14 +44,14 @@ export function FeaturesModal({ open, onClose }: { open: boolean; onClose: () =>
     <AnimatePresence>
       {open && (
         <motion.div
-          className="fixed inset-0 z-[150] grid place-items-center bg-black/60 p-4 backdrop-blur-md"
+          className="fixed inset-0 z-[150] grid place-items-center overflow-x-hidden overflow-y-auto bg-black/60 p-4 backdrop-blur-md"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           onClick={onClose}
         >
           <motion.div
-            className="vc-glass relative max-h-full w-[680px] max-w-full overflow-y-auto p-6"
+            className="vc-glass relative max-h-[90vh] w-full max-w-[680px] overflow-y-auto overflow-x-hidden p-6"
             initial={{ scale: 0.92, y: 22, opacity: 0 }}
             animate={{ scale: 1, y: 0, opacity: 1 }}
             exit={{ scale: 0.94, y: 10, opacity: 0 }}
