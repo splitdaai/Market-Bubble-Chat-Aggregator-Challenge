@@ -30,9 +30,6 @@ app.use(cors({ origin: ORIGIN }));
 app.use(express.json());
 app.get("/health", (_req, res) => res.json({ ok: true, ts: Date.now() }));
 
-// Visitor tracking lives entirely on the AWS edge (Caddy access logs → an
-// EC2-only parser → /visits dashboard). No application code, no data in git.
-
 // Real Twitch channel feed (live status + VODs + clips) for the embeds.
 app.get("/api/twitch/channel/:login", async (req, res) => {
   try {
