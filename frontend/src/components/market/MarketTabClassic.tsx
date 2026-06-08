@@ -251,7 +251,7 @@ export function MarketTabClassic() {
                     <span>#</span><span>Fund</span><span>Top</span><span className="text-right">AUM</span><span className="text-right">24h</span>
                   </div>
                   <div className={leaderboardBody} style={leaderboardRowsStyle}>
-                    {PORTFOLIOS.slice(0, LEADERBOARD_LIMIT).map((p, i) => (
+                    {[...PORTFOLIOS].sort((a, b) => b.value - a.value).slice(0, LEADERBOARD_LIMIT).map((p, i) => (
                       <div key={p.fund} role="button" tabIndex={0} onClick={() => setDetail({ kind: "portfolio", p })} onKeyDown={(e) => onRowKey(e, () => setDetail({ kind: "portfolio", p }))} className={`${leaderboardRow} grid-cols-[2rem_minmax(0,1fr)_4.3rem_4.8rem_4rem]`}>
                         <span className="font-bold text-faint">{i + 1}</span>
                         <span className="min-w-0 font-semibold"><span className="inline-flex min-w-0 items-center gap-1"><span className="truncate">{p.fund}</span><WatchStar item={{ key: `portfolio:${p.fund}`, type: "portfolio", label: p.fund }} size={11} /></span></span>
