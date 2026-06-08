@@ -193,6 +193,9 @@ export async function getEvmWallet(idOrEns: string) {
   return out;
 }
 
+/** Shorten a name that's actually a raw wallet address (0x…) so it never overflows the UI. */
+const shortIfAddr = (n: string) => (/^0x[a-fA-F0-9]{40}$/.test(n) ? n.slice(0, 6) + "…" + n.slice(-4) : n);
+
 export async function getLeaderboards() {
   if (lbCache && Date.now() < lbCache.exp) return lbCache.data;
   const data = { hyperliquid: [] as unknown[], polymarket: [] as unknown[], linked: [] as unknown[], updated: Date.now() };
@@ -207,7 +210,7 @@ export async function getLeaderboards() {
       .sort((a, b) => b.m.pnl - a.m.pnl)
       .slice(0, 20)
       .map(({ r, m }) => ({
-        name: r.displayName || r.ethAddress.slice(0, 6) + "…" + r.ethAddress.slice(-4),
+        name: shortIfAddr(r.displayName || r.ethAddress),
         addr: r.ethAddress,
         pnl: m.pnl,
         roi: m.roi * 100,
@@ -220,7 +223,7 @@ export async function getLeaderboards() {
   try {
     const pm: Array<{ proxyWallet: string; amount: number; name?: string; pseudonym?: string }> = await jget("https://lb-api.polymarket.com/profit?window=30d&limit=20");
     data.polymarket = (pm ?? []).map((p) => ({
-      name: p.name || p.pseudonym || p.proxyWallet.slice(0, 6) + "…" + p.proxyWallet.slice(-4),
+      name: shortIfAddr(p.name || p.pseudonym || p.proxyWallet),
       addr: p.proxyWallet,
       pnl: p.amount,
     }));
