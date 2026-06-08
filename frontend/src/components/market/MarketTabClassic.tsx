@@ -184,7 +184,7 @@ export function MarketTabClassic() {
         <PageGrid
           pageKey="market-classic-v3"
           editMode={editMode}
-          titles={{ global: "Global Markets", tech: "Technicals", kols: "KOLs", hl: "Top Hyperliquid Traders", portfolios: "Influential Portfolios", poly: "Top Polymarket Traders", intel: "Intelligence Feed" }}
+          titles={{ global: "Global Markets", tech: "Technicals", kols: "Top KOL Traders", hl: "Top Hyperliquid Traders", portfolios: "Influential Portfolios", poly: "Top Polymarket Traders", intel: "Intelligence Feed" }}
           items={[
             { id: "global", x: 0, y: 0, w: 12, h: 8, node: (
               <Panel title="Global Markets" icon={<Globe size={15} className="text-accent" />}>
@@ -197,7 +197,7 @@ export function MarketTabClassic() {
             ) },
             { id: "tech", x: 0, y: 8, w: 12, h: 11, node: <TradingViewTechnicals /> },
             { id: "kols", x: 9, y: 19, w: 3, h: 13, node: (
-              <Panel title="KOLs" icon={<XIcon size={14} className="text-accent" />} right={<span className="text-[10px] uppercase tracking-wider text-up">● verified</span>}>
+              <Panel title="Top KOL Traders" icon={<XIcon size={14} className="text-accent" />} right={<span className="text-[10px] uppercase tracking-wider text-up">● verified</span>}>
                 <div className={leaderboardShell}>
                   <div className={`${leaderboardHead} grid-cols-[minmax(0,1fr)_4.6rem]`}>
                     <span>KOL · X</span><span className="text-right">Wallet $</span>
