@@ -15,6 +15,41 @@ export interface MarketData {
   polymarket: { q: string; yes: number; vol: number; cat: string; end: string }[];
 }
 
+type YahooChartResponse = {
+  chart?: {
+    result?: Array<{
+      meta?: { regularMarketPrice?: number; chartPreviousClose?: number; previousClose?: number };
+      indicators?: { quote?: Array<{ close?: Array<number | null> }> };
+      timestamp?: number[];
+    }>;
+  };
+};
+type CoinGeckoMarket = {
+  symbol?: string;
+  name?: string;
+  current_price?: number;
+  price_change_percentage_24h?: number | null;
+  total_volume?: number;
+  sparkline_in_7d?: { price?: number[] };
+};
+type CoinGeckoCategory = { name: string; market_cap: number; market_cap_change_24h: number };
+type CoinGeckoGlobal = { data?: { market_cap_percentage?: { btc?: number }; total_market_cap?: { usd?: number } } };
+type FearGreed = { data?: Array<{ value?: string | number; value_classification?: string }> };
+type PolymarketMarket = { question: string; outcomePrices: string; volumeNum?: number; volume?: number; category?: string; endDate?: string };
+type EnsResolve = { address?: string; name?: string };
+type BlockscoutTokenBalance = { value: string; token?: { symbol?: string; decimals?: string; exchange_rate?: string } };
+type BlockscoutTokenBalances = BlockscoutTokenBalance[] | { items?: BlockscoutTokenBalance[] };
+type HyperliquidPerformance = [string, { pnl: string; roi: string; vlm: string }];
+type HyperliquidLeaderboardRow = { ethAddress: string; displayName?: string; accountValue: string; windowPerformances: HyperliquidPerformance[] };
+type HyperliquidLeaderboardResponse = { leaderboardRows?: HyperliquidLeaderboardRow[] };
+type HyperliquidClearinghouseState = {
+  marginSummary?: { accountValue?: string | number };
+  assetPositions?: Array<{ position: Record<string, string> & { leverage?: { value?: number } } }>;
+};
+type HyperliquidPortfolio = [string, { accountValueHistory?: [number, string][]; pnlHistory?: [number, string][] }][];
+type HyperliquidFill = { coin: string; side: string; sz: string; px: string; time: number; dir?: string };
+type Leaderboards = { hyperliquid: unknown[]; polymarket: unknown[]; linked: unknown[]; updated: number };
+
 const sample = (a: number[] = [], n = 16) => {
   if (!a.length) return [];
   const step = Math.max(1, Math.floor(a.length / n));
@@ -22,10 +57,10 @@ const sample = (a: number[] = [], n = 16) => {
   for (let i = 0; i < a.length; i += step) out.push(a[i]);
   return out.slice(-n);
 };
-const jget = async (url: string, init?: RequestInit) => {
+const jget = async <T = unknown>(url: string, init?: RequestInit): Promise<T> => {
   const r = await fetch(url, init);
   if (!r.ok) throw new Error(`${r.status} ${url}`);
-  return r.json();
+  return r.json() as Promise<T>;
 };
 const estViews = (name: string) => {
   let h = 0;
@@ -50,12 +85,13 @@ async function yahoo() {
   const out: MarketData["global"] = [];
   await Promise.all(syms.map(async ([y, sym, name, cls]) => {
     try {
-      const j = await jget(`https://query1.finance.yahoo.com/v8/finance/chart/${y}?range=5d&interval=1d`, { headers: { "User-Agent": "Mozilla/5.0" } });
-      const res = j.chart.result[0];
-      let price = res.meta.regularMarketPrice;
-      const prev = res.meta.chartPreviousClose ?? res.meta.previousClose ?? price;
+      const j = await jget<YahooChartResponse>(`https://query1.finance.yahoo.com/v8/finance/chart/${y}?range=5d&interval=1d`, { headers: { "User-Agent": "Mozilla/5.0" } });
+      const res = j.chart?.result?.[0];
+      let price = res?.meta?.regularMarketPrice;
+      if (price == null) return;
+      const prev = res?.meta?.chartPreviousClose ?? res?.meta?.previousClose ?? price;
       if ((sym === "US10Y" || sym === "US30Y") && price > 20) price /= 10;
-      const closes = (res.indicators.quote[0].close ?? []).filter((x: number) => x != null);
+      const closes = (res?.indicators?.quote?.[0]?.close ?? []).filter((x): x is number => x != null);
       out.push({ sym, name, price, chg: ((price - prev) / prev) * 100, spark: sample(closes, 12), cls });
     } catch { /* skip */ }
   }));
@@ -69,18 +105,20 @@ export async function getMarketData(): Promise<MarketData> {
 
   // Global markets — top 10 crypto by mcap + indices + commodities
   try {
-    const cg = await jget(`${CG}/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=10&page=1&price_change_percentage=24h&sparkline=true`);
-    data.global = cg.map((c: Record<string, number & string & { price: number[] }>) => ({
-      sym: (c.symbol as unknown as string).toUpperCase(), name: c.name as unknown as string,
-      price: c.current_price as unknown as number, chg: (c.price_change_percentage_24h as unknown as number) ?? 0,
-      spark: sample((c.sparkline_in_7d as unknown as { price: number[] })?.price ?? []), cls: "crypto" as const,
-    }));
+    const cg = await jget<CoinGeckoMarket[]>(`${CG}/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=10&page=1&price_change_percentage=24h&sparkline=true`);
+    data.global = cg
+      .filter((c) => c.symbol && c.name && c.current_price != null)
+      .map((c) => ({
+        sym: c.symbol!.toUpperCase(), name: c.name!,
+        price: c.current_price!, chg: c.price_change_percentage_24h ?? 0,
+        spark: sample(c.sparkline_in_7d?.price ?? []), cls: "crypto" as const,
+      }));
   } catch { /* leave empty */ }
   data.global = [...data.global, ...(await yahoo())];
 
   // Narratives (real names + 24h Δ; estimated views)
   try {
-    const cats: Array<{ name: string; market_cap: number; market_cap_change_24h: number }> = await jget(`${CG}/coins/categories`);
+    const cats = await jget<CoinGeckoCategory[]>(`${CG}/coins/categories`);
     const picked = cats.filter((c) => c.market_cap && c.market_cap_change_24h != null)
       .sort((a, b) => b.market_cap - a.market_cap).slice(0, 14)
       .map((c) => ({ name: c.name, chg24h: c.market_cap_change_24h, views: estViews(c.name) }))
@@ -92,20 +130,21 @@ export async function getMarketData(): Promise<MarketData> {
   // Movers + gauges
   try {
     const [mk, glob, fng] = await Promise.all([
-      jget(`${CG}/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=100&page=1&price_change_percentage=24h`),
-      jget(`${CG}/global`),
-      jget(`https://api.alternative.me/fng/`),
+      jget<CoinGeckoMarket[]>(`${CG}/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=100&page=1&price_change_percentage=24h`),
+      jget<CoinGeckoGlobal>(`${CG}/global`),
+      jget<FearGreed>(`https://api.alternative.me/fng/`),
     ]);
-    const valid = (mk as Array<{ symbol: string; current_price: number; price_change_percentage_24h: number; total_volume: number }>).filter((c) => c.price_change_percentage_24h != null);
+    const valid = mk.filter((c): c is CoinGeckoMarket & { symbol: string; current_price: number; price_change_percentage_24h: number; total_volume: number } =>
+      !!c.symbol && c.current_price != null && c.price_change_percentage_24h != null && c.total_volume != null);
     const top = (arr: typeof valid) => arr.slice(0, 5).map((c) => ({ sym: c.symbol.toUpperCase(), price: c.current_price, chg: +c.price_change_percentage_24h.toFixed(1), vol: c.total_volume }));
     data.movers = [...top([...valid].sort((a, b) => b.price_change_percentage_24h - a.price_change_percentage_24h)), ...top([...valid].sort((a, b) => a.price_change_percentage_24h - b.price_change_percentage_24h))];
-    const btc = glob.data.market_cap_percentage.btc;
-    data.gauges = { fearGreed: +(fng.data?.[0]?.value ?? 50), fearGreedLabel: fng.data?.[0]?.value_classification ?? "—", btcDominance: btc, totalMcap: glob.data.total_market_cap.usd, altSeason: Math.max(0, Math.round(100 - btc)) };
+    const btc = glob.data?.market_cap_percentage?.btc ?? 0;
+    data.gauges = { fearGreed: +(fng.data?.[0]?.value ?? 50), fearGreedLabel: fng.data?.[0]?.value_classification ?? "—", btcDominance: btc, totalMcap: glob.data?.total_market_cap?.usd ?? 0, altSeason: Math.max(0, Math.round(100 - btc)) };
   } catch { /* leave defaults */ }
 
   // Polymarket
   try {
-    const m: Array<{ question: string; outcomePrices: string; volumeNum?: number; volume?: number; category?: string; endDate?: string }> = await jget(`https://gamma-api.polymarket.com/markets?closed=false&active=true&order=volumeNum&ascending=false&limit=6`);
+    const m = await jget<PolymarketMarket[]>(`https://gamma-api.polymarket.com/markets?closed=false&active=true&order=volumeNum&ascending=false&limit=6`);
     data.polymarket = m.map((x) => {
       let yes = 50;
       try { yes = Math.round(parseFloat(JSON.parse(x.outcomePrices)[0]) * 100); } catch { /* keep */ }
@@ -138,14 +177,19 @@ export async function getPriceHistory(sym: string): Promise<{ sym: string; point
   let points: { t: number; c: number }[] = [];
   try {
     if (CRYPTO_IDS[up]) {
-      const j = await jget(`${CG}/coins/${CRYPTO_IDS[up]}/market_chart?vs_currency=usd&days=365&interval=daily`);
-      points = ((j.prices as number[][]) ?? []).map((p) => ({ t: p[0], c: p[1] }));
+      const j = await jget<{ prices?: number[][] }>(`${CG}/coins/${CRYPTO_IDS[up]}/market_chart?vs_currency=usd&days=365&interval=daily`);
+      points = (j.prices ?? []).map((p) => ({ t: p[0], c: p[1] }));
     } else if (YH_HIST[up]) {
-      const j = await jget(`https://query1.finance.yahoo.com/v8/finance/chart/${YH_HIST[up]}?range=1y&interval=1d`, { headers: { "User-Agent": "Mozilla/5.0" } });
-      const res = j.chart.result[0];
-      const ts: number[] = res.timestamp ?? [];
-      const cl: number[] = res.indicators.quote[0].close ?? [];
-      points = ts.map((t, i) => ({ t: t * 1000, c: (up === "US10Y" || up === "US30Y") && cl[i] > 20 ? cl[i] / 10 : cl[i] })).filter((p) => p.c != null);
+      const j = await jget<YahooChartResponse>(`https://query1.finance.yahoo.com/v8/finance/chart/${YH_HIST[up]}?range=1y&interval=1d`, { headers: { "User-Agent": "Mozilla/5.0" } });
+      const res = j.chart?.result?.[0];
+      const ts = res?.timestamp ?? [];
+      const cl = res?.indicators?.quote?.[0]?.close ?? [];
+      points = ts.flatMap((t, i) => {
+        const close = cl[i];
+        if (close == null) return [];
+        const c = (up === "US10Y" || up === "US30Y") && close > 20 ? close / 10 : close;
+        return [{ t: t * 1000, c }];
+      });
     }
   } catch { /* leave empty */ }
   if (points.length) histCache.set(up, { exp: Date.now() + 1_800_000, points });
@@ -153,7 +197,7 @@ export async function getPriceHistory(sym: string): Promise<{ sym: string; point
 }
 
 /* ---- Real trader leaderboards (Hyperliquid + Polymarket) ---- */
-let lbCache: { exp: number; data: { hyperliquid: unknown[]; polymarket: unknown[]; updated: number } } | null = null;
+let lbCache: { exp: number; data: Leaderboards } | null = null;
 
 /** Curated, publicly-disclosed KOL wallets linked to their X accounts (verified). */
 const LINKED_WALLETS: { name: string; xHandle: string; id: string; chain: "hl" | "evm" }[] = [
@@ -172,18 +216,18 @@ export async function getEvmWallet(idOrEns: string) {
   if (hit && Date.now() < hit.exp) return hit.data;
   let addr = idOrEns, ens = "";
   if (!/^0x[a-fA-F0-9]{40}$/.test(idOrEns)) {
-    try { const r = await jget(`https://api.ensideas.com/ens/resolve/${idOrEns}`); if (r?.address) { addr = r.address; ens = r.name || idOrEns; } } catch { /* ignore */ }
+    try { const r = await jget<EnsResolve>(`https://api.ensideas.com/ens/resolve/${idOrEns}`); if (r.address) { addr = r.address; ens = r.name || idOrEns; } } catch { /* ignore */ }
   }
   const out = { addr, ens, totalUsd: 0, holdings: [] as { sym: string; amount: number; usd: number }[] };
   try {
-    const tb = await jget(`https://eth.blockscout.com/api/v2/addresses/${addr}/token-balances`);
-    const items: Array<{ value: string; token: { symbol?: string; decimals?: string; exchange_rate?: string } }> = Array.isArray(tb) ? tb : (tb.items ?? []);
+    const tb = await jget<BlockscoutTokenBalances>(`https://eth.blockscout.com/api/v2/addresses/${addr}/token-balances`);
+    const items = Array.isArray(tb) ? tb : (tb.items ?? []);
     const hold = items.map((t) => { const tok = t.token ?? {}; const dec = +(tok.decimals ?? 0); const amt = +t.value / (10 ** dec || 1); const rate = +(tok.exchange_rate ?? 0); return { sym: tok.symbol ?? "?", amount: amt, usd: amt * rate }; }).filter((h) => h.usd > 1);
     // native ETH (token-balances excludes it)
     try {
-      const [info, stats] = await Promise.all([jget(`https://eth.blockscout.com/api/v2/addresses/${addr}`), jget(`https://eth.blockscout.com/api/v2/stats`)]);
-      const ethAmt = +(info?.coin_balance ?? 0) / 1e18;
-      const ethUsd = ethAmt * +(stats?.coin_price ?? 0);
+      const [info, stats] = await Promise.all([jget<{ coin_balance?: string | number }>(`https://eth.blockscout.com/api/v2/addresses/${addr}`), jget<{ coin_price?: string | number }>(`https://eth.blockscout.com/api/v2/stats`)]);
+      const ethAmt = +(info.coin_balance ?? 0) / 1e18;
+      const ethUsd = ethAmt * +(stats.coin_price ?? 0);
       if (ethUsd > 1) hold.push({ sym: "ETH", amount: ethAmt, usd: ethUsd });
     } catch { /* ignore */ }
     out.holdings = hold.sort((a, b) => b.usd - a.usd).slice(0, 15);
@@ -202,13 +246,13 @@ const shortIfAddr = (n: string) => {
 
 export async function getLeaderboards() {
   if (lbCache && Date.now() < lbCache.exp) return lbCache.data;
-  const data = { hyperliquid: [] as unknown[], polymarket: [] as unknown[], linked: [] as unknown[], updated: Date.now() };
+  const data: Leaderboards = { hyperliquid: [], polymarket: [], linked: [], updated: Date.now() };
 
   // Hyperliquid — real top traders by 30d (month) PnL
   try {
-    const hl = await jget("https://stats-data.hyperliquid.xyz/Mainnet/leaderboard");
-    const rows: Array<{ ethAddress: string; displayName?: string; accountValue: string; windowPerformances: [string, { pnl: string; roi: string; vlm: string }][] }> = hl.leaderboardRows ?? [];
-    const perf = (r: typeof rows[number], w: string) => { const e = r.windowPerformances.find((p) => p[0] === w); return e ? { pnl: +e[1].pnl, roi: +e[1].roi } : { pnl: 0, roi: 0 }; };
+    const hl = await jget<HyperliquidLeaderboardResponse>("https://stats-data.hyperliquid.xyz/Mainnet/leaderboard");
+    const rows = hl.leaderboardRows ?? [];
+    const perf = (r: HyperliquidLeaderboardRow, w: string) => { const e = r.windowPerformances.find((p) => p[0] === w); return e ? { pnl: +e[1].pnl, roi: +e[1].roi } : { pnl: 0, roi: 0 }; };
     data.hyperliquid = rows
       .map((r) => ({ r, m: perf(r, "month") }))
       .sort((a, b) => b.m.pnl - a.m.pnl)
@@ -225,7 +269,7 @@ export async function getLeaderboards() {
 
   // Polymarket — real top traders by 30d profit
   try {
-    const pm: Array<{ proxyWallet: string; amount: number; name?: string; pseudonym?: string }> = await jget("https://lb-api.polymarket.com/profit?window=30d&limit=20");
+    const pm = await jget<Array<{ proxyWallet: string; amount: number; name?: string; pseudonym?: string }>>("https://lb-api.polymarket.com/profit?window=30d&limit=20");
     data.polymarket = (pm ?? []).map((p) => ({
       name: shortIfAddr(p.name || p.pseudonym || p.proxyWallet),
       addr: p.proxyWallet,
@@ -235,13 +279,13 @@ export async function getLeaderboards() {
 
   // Curated verified KOL wallets — real on-chain value, X handle linked (HL perps or EVM holdings)
   try {
-    const post = (body: unknown) => jget("https://api.hyperliquid.xyz/info", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+    const post = <T = unknown>(body: unknown) => jget<T>("https://api.hyperliquid.xyz/info", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
     data.linked = await Promise.all(LINKED_WALLETS.map(async (k) => {
       try {
         if (k.chain === "hl") {
-          const [cs, pf] = await Promise.all([post({ type: "clearinghouseState", user: k.id }), post({ type: "portfolio", user: k.id })]);
-          const value = +(cs?.marginSummary?.accountValue ?? 0);
-          const pmap: Record<string, { pnlHistory?: [number, string][] }> = Object.fromEntries(pf as [string, { pnlHistory?: [number, string][] }][]);
+          const [cs, pf] = await Promise.all([post<HyperliquidClearinghouseState>({ type: "clearinghouseState", user: k.id }), post<HyperliquidPortfolio>({ type: "portfolio", user: k.id })]);
+          const value = +(cs.marginSummary?.accountValue ?? 0);
+          const pmap = Object.fromEntries(pf);
           const ph = pmap.month?.pnlHistory ?? [];
           return { name: k.name, xHandle: k.xHandle, chain: k.chain, addr: k.id, value, pnl: ph.length ? +ph[ph.length - 1][1] : 0, top: "" };
         }
@@ -262,24 +306,24 @@ export async function getHlWallet(addr: string) {
   const key = addr.toLowerCase();
   const hit = hlWalletCache.get(key);
   if (hit && Date.now() < hit.exp) return hit.data;
-  const post = (body: unknown) => jget("https://api.hyperliquid.xyz/info", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  const post = <T = unknown>(body: unknown) => jget<T>("https://api.hyperliquid.xyz/info", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
   const out: { addr: string; accountValue: number; positions: unknown[]; fills: unknown[]; chart: Record<string, number[]> } = { addr, accountValue: 0, positions: [], fills: [], chart: {} };
   try {
     const [cs, pf, uf] = await Promise.all([
-      post({ type: "clearinghouseState", user: addr }),
-      post({ type: "portfolio", user: addr }),
-      post({ type: "userFills", user: addr }),
+      post<HyperliquidClearinghouseState>({ type: "clearinghouseState", user: addr }),
+      post<HyperliquidPortfolio>({ type: "portfolio", user: addr }),
+      post<HyperliquidFill[]>({ type: "userFills", user: addr }),
     ]);
-    out.accountValue = +(cs?.marginSummary?.accountValue ?? 0);
-    out.positions = (cs?.assetPositions ?? []).map((p: { position: Record<string, string & { value: string }> }) => {
-      const pos = p.position as Record<string, string> & { leverage?: { value: number } };
+    out.accountValue = +(cs.marginSummary?.accountValue ?? 0);
+    out.positions = (cs.assetPositions ?? []).map((p) => {
+      const pos = p.position;
       const szi = +pos.szi;
       return { coin: pos.coin, long: szi >= 0, szi, entry: +(pos.entryPx ?? 0), upnl: +(pos.unrealizedPnl ?? 0), lev: pos.leverage?.value ?? 0, value: Math.abs(+(pos.positionValue ?? 0)) };
     });
-    const pmap: Record<string, { accountValueHistory?: [number, string][] }> = Object.fromEntries(pf as [string, { accountValueHistory?: [number, string][] }][]);
+    const pmap = Object.fromEntries(pf);
     const series = (w: string) => (pmap[w]?.accountValueHistory ?? []).map((x) => +x[1]);
     out.chart = { day: series("day"), week: series("week"), month: series("month"), allTime: series("allTime") };
-    out.fills = (uf as { coin: string; side: string; sz: string; px: string; time: number; dir?: string }[] ?? []).slice(0, 40).map((f) => ({ coin: f.coin, buy: f.side === "B", sz: +f.sz, px: +f.px, t: f.time, dir: f.dir ?? "" }));
+    out.fills = uf.slice(0, 40).map((f) => ({ coin: f.coin, buy: f.side === "B", sz: +f.sz, px: +f.px, t: f.time, dir: f.dir ?? "" }));
   } catch { /* leave empty */ }
   hlWalletCache.set(key, { exp: Date.now() + 120_000, data: out });
   return out;
