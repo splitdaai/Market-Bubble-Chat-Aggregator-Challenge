@@ -88,7 +88,7 @@ function HlWalletModal({ trader, onClose }: { trader: HlTrader; onClose: () => v
                 <span className={`text-[11px] font-bold tabular-nums ${chgPct >= 0 ? "text-up" : "text-down"}`}>{chgPct >= 0 ? "▲" : "▼"} {Math.abs(chgPct).toFixed(1)}%</span>
               </div>
             </div>
-            {series.length > 1 ? <Sparkline data={series} width={900} height={130} color={chgPct >= 0 ? "#16e6a4" : "#ff5a6a"} /> : <div className="py-10 text-center text-[12px] text-faint">{w ? "No history for this window." : "Loading live wallet…"}</div>}
+            {series.length > 1 ? <Sparkline data={series} width={900} height={130} fitWidth color={chgPct >= 0 ? "#16e6a4" : "#ff5a6a"} /> : <div className="py-10 text-center text-[12px] text-faint">{w ? "No history for this window." : "Loading live wallet…"}</div>}
           </div>
         </div>
 

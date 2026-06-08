@@ -118,7 +118,7 @@ export function WatchlistDashboard({ open, onClose }: { open: boolean; onClose: 
                 {/* combined performance graph */}
                 <div className="mt-3 rounded-xl border border-white/8 bg-black/20 p-3">
                   <div className="mb-1 flex items-center justify-between text-[10px] uppercase tracking-wider text-faint"><span className="flex items-center gap-1"><TrendingUp size={12} /> Combined portfolio value · since {buyDate}</span><span className={pnlPct >= 0 ? "text-up" : "text-down"}>{pnlPct >= 0 ? "▲" : "▼"} {Math.abs(pnlPct).toFixed(1)}%</span></div>
-                  {curve.length > 1 ? <Sparkline data={curve} width={900} height={140} color={pnlPct >= 0 ? "#16e6a4" : "#ff5a6a"} /> : <div className="py-10 text-center text-[12px] text-faint">Loading price history…</div>}
+                  {curve.length > 1 ? <Sparkline data={curve} width={900} height={140} fitWidth color={pnlPct >= 0 ? "#16e6a4" : "#ff5a6a"} /> : <div className="py-10 text-center text-[12px] text-faint">Loading price history…</div>}
                 </div>
 
                 {/* per-asset calculator */}

@@ -43,7 +43,7 @@ export function RangeChart({ seed, label, icon, width = 900, height = 130, bias 
           <span className={`text-[11px] font-bold tabular-nums ${up ? "text-up" : "text-down"}`}>{up ? "▲" : "▼"} {Math.abs(pct).toFixed(1)}%</span>
         </div>
       </div>
-      <Sparkline data={data} width={width} height={height} color={up ? "#16e6a4" : "#ff5a6a"} />
+      <Sparkline data={data} width={width} height={height} fitWidth color={up ? "#16e6a4" : "#ff5a6a"} />
     </div>
   );
 }
