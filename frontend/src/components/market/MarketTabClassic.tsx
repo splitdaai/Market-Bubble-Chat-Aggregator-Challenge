@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
-import { Globe, Newspaper, Activity, Briefcase, TrendingUp, X as XIcon } from "lucide-react";
+import { Globe, Newspaper, Briefcase, TrendingUp, X as XIcon } from "lucide-react";
 import { Sparkline } from "../Sparkline";
 import { PageGrid } from "../PageGrid";
 import { useLayoutStore } from "../../store/layoutStore";
+import { useViewStore } from "../../store/viewStore";
 import { PolymarketMark } from "../Brand";
 import { TradingViewTechnicals, MiniChart, TechWidget, tvSymbolFor } from "./TradingViewTechnicals";
 import { HlTraderModal, PortfolioModal, PolyTraderModal } from "./Dashboards";
@@ -10,6 +11,7 @@ import { WatchStar } from "../WatchStar";
 import { compact } from "../../lib/format";
 
 interface HlRow { name: string; addr?: string; pnl: number; roi?: number; trend?: number[] }
+interface LinkedRow { name: string; xHandle: string; addr: string; chain: "hl" | "evm"; value: number; pnl: number; top?: string }
 interface PolyRow { name: string; addr?: string; pnl: number }
 
 type Detail =
@@ -135,30 +137,12 @@ function MarketTable({ title, rows, onPick }: { title: string; rows: MarketData[
   );
 }
 
-/** Radial half-gauge meter (0–100). */
-function Meter({ value, label, sub, color = "#00d872" }: { value: number; label: string; sub: string; color?: string }) {
-  const v = Math.max(0, Math.min(100, value));
-  const C = Math.PI * 54; // semicircle arc length for r=54
-  return (
-    <div className="flex flex-col items-center pb-1 pt-2">
-      <svg viewBox="0 0 140 78" className="w-full max-w-[230px]">
-        <path d="M16 72 A54 54 0 0 1 124 72" fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="11" strokeLinecap="round" />
-        <path d="M16 72 A54 54 0 0 1 124 72" fill="none" stroke={color} strokeWidth="11" strokeLinecap="round" strokeDasharray={C} strokeDashoffset={C * (1 - v / 100)} style={{ transition: "stroke-dashoffset .5s ease, stroke .3s" }} />
-      </svg>
-      <div className="-mt-7 text-center">
-        <div className="text-[28px] font-extrabold leading-none tabular-nums" style={{ color }}>{label}</div>
-        <div className="mt-1 text-[11px] text-muted">{sub}</div>
-      </div>
-    </div>
-  );
-}
-
 export function MarketTabClassic() {
   const [d, setD] = useState<MarketData | null>(null);
   const [tries, setTries] = useState(0);
-  const [pulse, setPulse] = useState(0);
   const [detail, setDetail] = useState<Detail | null>(null);
-  const [lb, setLb] = useState<{ hyperliquid: HlRow[]; polymarket: PolyRow[] } | null>(null);
+  const [lb, setLb] = useState<{ hyperliquid: HlRow[]; polymarket: PolyRow[]; linked?: LinkedRow[] } | null>(null);
+  const setView = useViewStore((s) => s.setView);
   const editMode = useLayoutStore((s) => s.editMode);
   useEffect(() => {
     let on = true;
@@ -198,9 +182,9 @@ export function MarketTabClassic() {
         <p className="mt-1 text-[13px] text-muted">Classic layout — global markets, narratives, smart money, portfolios &amp; Polymarket in one terminal.</p>
 
         <PageGrid
-          pageKey="market-classic-v2"
+          pageKey="market-classic-v3"
           editMode={editMode}
-          titles={{ global: "Global Markets", tech: "Technicals", pulse: "Market Pulse", hl: "Top Hyperliquid Traders", portfolios: "Influential Portfolios", poly: "Top Polymarket Traders", intel: "Intelligence Feed" }}
+          titles={{ global: "Global Markets", tech: "Technicals", kols: "KOLs", hl: "Top Hyperliquid Traders", portfolios: "Influential Portfolios", poly: "Top Polymarket Traders", intel: "Intelligence Feed" }}
           items={[
             { id: "global", x: 0, y: 0, w: 12, h: 8, node: (
               <Panel title="Global Markets" icon={<Globe size={15} className="text-accent" />}>
@@ -212,39 +196,31 @@ export function MarketTabClassic() {
               </Panel>
             ) },
             { id: "tech", x: 0, y: 8, w: 12, h: 11, node: <TradingViewTechnicals /> },
-            { id: "pulse", x: 9, y: 19, w: 3, h: 8, node: (() => {
-              const g = d.gauges;
-              const fgColor = g.fearGreed < 25 ? "#ff5a6a" : g.fearGreed < 45 ? "#ff9f43" : g.fearGreed < 75 ? "#a8e05f" : "#16e6a4";
-              const PULSE = [
-                { key: "Fear & Greed", val: g.fearGreed, label: String(g.fearGreed), sub: g.fearGreedLabel, color: fgColor, scale: ["Extreme Fear", "Extreme Greed"], desc: `Market sentiment is ${g.fearGreedLabel.toLowerCase()} — ${g.fearGreed < 45 ? "fear can signal value; contrarians watch for bottoms." : g.fearGreed > 60 ? "greed can signal froth; watch for pullbacks." : "balanced positioning."}` },
-                { key: "BTC Dominance", val: g.btcDominance, label: g.btcDominance.toFixed(1) + "%", sub: "of total cap", color: "#f7931a", scale: ["Alts", "BTC"], desc: `Bitcoin is ${g.btcDominance.toFixed(1)}% of total crypto market cap. ${g.btcDominance > 55 ? "High dominance — capital favors BTC over alts." : "Lower dominance — alts are taking share."}` },
-                { key: "Alt Season", val: g.altSeason, label: g.altSeason + "/100", sub: g.altSeason > 50 ? "alts leading" : "BTC-led", color: "#34d6ff", scale: ["BTC season", "Alt season"], desc: `${g.altSeason}/100 on the alt-season index. ${g.altSeason > 75 ? "Full alt season — alts broadly outperforming BTC." : g.altSeason > 50 ? "Alts are leading the market." : "BTC-led market; alts lagging."}` },
-                { key: "Total Mcap", val: Math.min(100, (g.totalMcap / 4e12) * 100), label: "$" + compact(g.totalMcap), sub: "all crypto", color: "#00d872", scale: ["$0", "$4T"], desc: `Total crypto market cap is $${compact(g.totalMcap)}, ${((g.totalMcap / 4e12) * 100).toFixed(0)}% of the $4T cycle benchmark.` },
-              ];
-              const sel = PULSE[pulse] ?? PULSE[0];
-              return (
-                <Panel title="Market Pulse" icon={<Activity size={15} className="text-up" />} right={<span className="text-[10px] uppercase tracking-wider text-faint">live</span>}>
-                  <div className="mb-2 grid grid-cols-2 gap-1.5">
-                    {PULSE.map((p, i) => (
-                      <button key={p.key} onClick={() => setPulse(i)} className={`rounded-lg border px-2 py-1.5 text-left transition ${pulse === i ? "border-accent/50 bg-accent/10" : "border-white/8 bg-white/[0.02] hover:border-white/20"}`}>
-                        <div className="text-[9px] uppercase tracking-wider text-faint">{p.key}</div>
-                        <div className="text-[13px] font-bold tabular-nums" style={{ color: pulse === i ? p.color : "var(--vc-text)" }}>{p.label}</div>
-                      </button>
-                    ))}
+            { id: "kols", x: 9, y: 19, w: 3, h: 13, node: (
+              <Panel title="KOLs" icon={<XIcon size={14} className="text-accent" />} right={<span className="text-[10px] uppercase tracking-wider text-up">● verified</span>}>
+                <div className={leaderboardShell}>
+                  <div className={`${leaderboardHead} grid-cols-[minmax(0,1fr)_4.6rem]`}>
+                    <span>KOL · X</span><span className="text-right">Wallet $</span>
                   </div>
-                  <Meter value={sel.val} label={sel.label} sub={`${sel.key} · ${sel.sub}`} color={sel.color} />
-                  {/* gradient position scale */}
-                  <div className="mt-3 px-1">
-                    <div className="relative h-2 rounded-full" style={{ background: "linear-gradient(90deg,#ff5a6a,#ff9f43,#a8e05f,#16e6a4)" }}>
-                      <div className="absolute -top-1 h-4 w-1.5 -translate-x-1/2 rounded-full bg-white shadow" style={{ left: `${sel.val}%` }} />
-                    </div>
-                    <div className="mt-1 flex justify-between text-[9px] uppercase tracking-wider text-faint"><span>{sel.scale[0]}</span><span>{sel.scale[1]}</span></div>
+                  <div className={leaderboardBody} style={leaderboardRowsStyle}>
+                    {(lb?.linked ?? []).map((k) => {
+                      const open = () => setView("kol");
+                      return (
+                        <div key={k.addr} role="button" tabIndex={0} onClick={open} onKeyDown={(e) => onRowKey(e, open)} className={`${leaderboardRow} grid-cols-[minmax(0,1fr)_4.6rem]`}>
+                          <span className="min-w-0">
+                            <span className="flex items-center gap-1"><span className="truncate text-[12px] font-bold">{k.name}</span><WatchStar item={{ key: `kol:${k.xHandle}`, type: "kol", label: k.name, sub: "@" + k.xHandle }} size={10} /></span>
+                            <span className="block truncate text-[9px] text-faint">@{k.xHandle} · {k.chain === "hl" ? "HL" : "EVM"}</span>
+                          </span>
+                          <span className="text-right font-bold tabular-nums text-accent">${compact(k.value)}</span>
+                        </div>
+                      );
+                    })}
+                    {!lb && <div className="py-6 text-center text-[11px] text-faint">Loading verified KOLs…</div>}
+                    {lb && (lb.linked ?? []).length === 0 && <div className="py-6 text-center text-[11px] text-faint">No verified KOLs.</div>}
                   </div>
-                  {/* context caption */}
-                  <p className="mt-3 rounded-lg border border-white/8 bg-white/[0.02] p-2.5 text-[11.5px] leading-snug text-muted">{sel.desc}</p>
-                </Panel>
-              );
-            })() },
+                </div>
+              </Panel>
+            ) },
             { id: "hl", x: 0, y: 19, w: 3, h: 13, node: (
               <Panel title="Top Hyperliquid Traders" icon={<TrendingUp size={15} className="text-up" />} right={<span className="text-[10px] uppercase tracking-wider text-up">● live</span>}>
                 <div className={leaderboardShell}>
