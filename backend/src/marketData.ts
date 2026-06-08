@@ -193,8 +193,12 @@ export async function getEvmWallet(idOrEns: string) {
   return out;
 }
 
-/** Shorten a name that's actually a raw wallet address (0x…) so it never overflows the UI. */
-const shortIfAddr = (n: string) => (/^0x[a-fA-F0-9]{40}$/.test(n) ? n.slice(0, 6) + "…" + n.slice(-4) : n);
+/** Shorten a name that's actually a raw wallet address (0x…, possibly with a -suffix) so it never overflows the UI. */
+const shortIfAddr = (n: string) => {
+  const m = n.match(/^(0x[a-fA-F0-9]{40})/);
+  if (m) return m[1].slice(0, 6) + "…" + m[1].slice(-4);
+  return n.length > 22 ? n.slice(0, 21) + "…" : n;
+};
 
 export async function getLeaderboards() {
   if (lbCache && Date.now() < lbCache.exp) return lbCache.data;
