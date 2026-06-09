@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
  * A scroll container with a sleek custom "bubble" scrollbar that fades in while
  * scrolling/hovering and disappears when idle. Drag the bubble to scrub.
  */
-export function BubbleScroll({ children, className = "" }: { children: React.ReactNode; className?: string }) {
+export function BubbleScroll({ children, className = "", maxHeight }: { children: React.ReactNode; className?: string; maxHeight?: number }) {
   const scroller = useRef<HTMLDivElement>(null);
   const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [thumb, setThumb] = useState({ top: 0, height: 0, show: false });
@@ -47,7 +47,7 @@ export function BubbleScroll({ children, className = "" }: { children: React.Rea
 
   return (
     <div className={`relative min-h-0 ${className}`} onMouseEnter={() => recompute()} onMouseLeave={() => setThumb((t) => ({ ...t, show: false }))}>
-      <div ref={scroller} onScroll={() => recompute()} className="bubble-scroll-area h-full overflow-y-auto pr-2">
+      <div ref={scroller} onScroll={() => recompute()} style={maxHeight ? { maxHeight } : undefined} className={`bubble-scroll-area overflow-y-auto pr-2 ${maxHeight ? "" : "h-full"}`}>
         {children}
       </div>
       <div

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Sparkline } from "../Sparkline";
+import { BubbleScroll } from "../BubbleScroll";
 import { MSection, MCard, MTone, mPrice, mPct, mUsd } from "./ui";
 
 const BACKEND = (import.meta.env.VITE_BACKEND_URL as string | undefined) ?? "https://3-213-104-77.nip.io";
@@ -22,7 +23,7 @@ function Board({ title, rows, cap = 10 }: { title: string; rows: { name: string;
         <span>{title}</span>
         {rows.length > cap && <span className="text-[9px] normal-case text-muted">top {cap} · scroll {rows.length - cap}+</span>}
       </div>
-      <div className="vc-scroll overflow-y-auto" style={{ maxHeight: cap * 43 }}>
+      <BubbleScroll maxHeight={cap * 43}>
         {rows.map((r, i) => (
           <div key={i} className="flex items-center gap-2 border-b border-white/5 px-3 py-1.5 last:border-0">
             <span className="w-4 shrink-0 text-[11px] font-bold text-faint">{i + 1}</span>
@@ -34,7 +35,7 @@ function Board({ title, rows, cap = 10 }: { title: string; rows: { name: string;
           </div>
         ))}
         {rows.length === 0 && <div className="px-3 py-4 text-center text-[12px] text-faint">Loading…</div>}
-      </div>
+      </BubbleScroll>
     </MCard>
   );
 }
@@ -68,24 +69,26 @@ export function MobileMarket() {
       </MSection>
 
       {/* Markets */}
-      <MSection title="Global Markets">
+      <MSection title="Global Markets" right={m && m.global.length > 6 ? <span className="text-[10px] text-muted">scroll {m.global.length - 6}+</span> : undefined}>
         <MCard className="overflow-hidden">
-          {(m?.global ?? []).map((a) => (
-            <div key={a.sym} className="flex items-center gap-2 border-b border-white/5 px-3 py-2 last:border-0">
-              <div className="min-w-0 flex-1">
-                <div className="text-[13px] font-bold">{a.sym}</div>
-                <div className="truncate text-[10px] text-muted">{a.name}</div>
+          <BubbleScroll maxHeight={330}>
+            {(m?.global ?? []).map((a) => (
+              <div key={a.sym} className="flex items-center gap-2 border-b border-white/5 px-3 py-2 last:border-0">
+                <div className="min-w-0 flex-1">
+                  <div className="text-[13px] font-bold">{a.sym}</div>
+                  <div className="truncate text-[10px] text-muted">{a.name}</div>
+                </div>
+                {a.spark?.length > 1 && (
+                  <Sparkline data={a.spark} width={56} height={20} color={a.chg >= 0 ? "#16e6a4" : "#ff5a6a"} />
+                )}
+                <div className="w-[78px] text-right">
+                  <div className="text-[12.5px] font-semibold tabular-nums">{mPrice(a.price)}</div>
+                  <MTone n={a.chg}><span className="text-[11px]">{mPct(a.chg)}</span></MTone>
+                </div>
               </div>
-              {a.spark?.length > 1 && (
-                <Sparkline data={a.spark} width={56} height={20} color={a.chg >= 0 ? "#16e6a4" : "#ff5a6a"} />
-              )}
-              <div className="w-[78px] text-right">
-                <div className="text-[12.5px] font-semibold tabular-nums">{mPrice(a.price)}</div>
-                <MTone n={a.chg}><span className="text-[11px]">{mPct(a.chg)}</span></MTone>
-              </div>
-            </div>
-          ))}
-          {!m && <div className="px-3 py-6 text-center text-[12px] text-faint">Loading markets…</div>}
+            ))}
+            {!m && <div className="px-3 py-6 text-center text-[12px] text-faint">Loading markets…</div>}
+          </BubbleScroll>
         </MCard>
       </MSection>
 
