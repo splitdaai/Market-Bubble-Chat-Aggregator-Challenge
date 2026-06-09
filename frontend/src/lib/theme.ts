@@ -2,7 +2,7 @@ import type { Theme } from "@shared/types";
 
 /** The Market Bubble brand theme — bull-market mint + cyan, bubbly + glowy. */
 export const MARKET_BUBBLE_THEME: Theme = {
-  name: "Market Bubble",
+  name: "Mint Bubble",
   bg: "#04100c",
   surface: "rgba(9, 27, 21, 0.66)",
   accent: "#16e6a4",
@@ -87,7 +87,7 @@ export const ICE_STREAM_THEME: Theme = {
 /** Bullpen Gold — matches marketbubble.chat: gold accent on warm near-black,
  *  Inter body + serif heads, subtle (non-neon) glow. The app default. */
 export const BULLPEN_GOLD_THEME: Theme = {
-  name: "Bullpen Gold",
+  name: "Market Bubble",
   bg: "#080706",
   surface: "rgba(28, 23, 16, 0.62)",
   accent: "#d9a547",

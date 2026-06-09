@@ -10,7 +10,6 @@ import { useWalletStore } from "@/store/walletStore";
 import { AudioControl } from "./AudioControl";
 import { AccountModal } from "./AccountModal";
 import { WatchlistDashboard } from "./WatchlistDashboard";
-import { MarketBubbleMark } from "./Brand";
 
 /** Top command bar — view tabs, edit-mode toggle, theme editor, sound, reset. */
 export function Topbar({ onOpenTheme, onOpenConnections, onOpenFeatures }: { onOpenTheme: () => void; onOpenConnections: () => void; onOpenFeatures: () => void }) {
@@ -41,17 +40,7 @@ export function Topbar({ onOpenTheme, onOpenConnections, onOpenFeatures }: { onO
   return (
     <header className="relative z-20 flex flex-wrap items-center justify-between gap-y-2 px-3 py-3 sm:px-5">
       <div className="flex items-center gap-3">
-        <div className="grid h-11 w-11 place-items-center rounded-2xl border border-accent/40 bg-accent/10 shadow-neon">
-          <MarketBubbleMark className="h-7 w-7 text-accent" />
-        </div>
-        <div>
-          <h1 className="serif flex items-center gap-2 text-lg font-extrabold leading-none tracking-tight">
-            Market <span className="text-white">Bubble</span>
-          </h1>
-          <p className="mt-1 text-[10px] font-medium uppercase tracking-[0.2em] text-muted">
-            Make Money. Command Attention. Leverage AI
-          </p>
-        </div>
+        <img src="/market-bubble-logo.svg" alt="Market Bubble" className="h-14 w-auto shrink-0" />
       </div>
 
       {/* view tabs */}
