@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { ExternalLink } from "lucide-react";
+import { BubbleScroll } from "../BubbleScroll";
 import { MSection, MCard, MTone, mUsd } from "./ui";
 
 const BACKEND = (import.meta.env.VITE_BACKEND_URL as string | undefined) ?? "https://3-213-104-77.nip.io";
@@ -28,8 +29,9 @@ export function MobileKol() {
 
   return (
     <div className="pb-6">
-      <MSection title="Verified Smart Money">
-        <div className="space-y-2">
+      <MSection title="Verified Smart Money" right={(lb?.linked?.length ?? 0) > 4 ? <span className="text-[10px] text-muted">scroll {(lb!.linked.length) - 4}+</span> : undefined}>
+        <BubbleScroll maxHeight={300}>
+        <div className="space-y-2 pr-0.5">
           {(lb?.linked ?? []).map((k, i) => (
             <a key={i} href={`https://x.com/${k.xHandle}`} target="_blank" rel="noreferrer" className="block">
               <MCard className="flex items-center gap-3 px-3 py-2.5">
@@ -47,10 +49,12 @@ export function MobileKol() {
           ))}
           {!lb && <div className="px-3 py-6 text-center text-[12px] text-faint">Loading wallets…</div>}
         </div>
+        </BubbleScroll>
       </MSection>
 
-      <MSection title="KOLs on X">
-        <div className="grid grid-cols-2 gap-2">
+      <MSection title="KOLs on X" right={KOLS.length > 6 ? <span className="text-[10px] text-muted">scroll {KOLS.length - 6}+</span> : undefined}>
+        <BubbleScroll maxHeight={210}>
+        <div className="grid grid-cols-2 gap-2 pr-0.5">
           {KOLS.map((k) => (
             <a key={k.id} href={`https://x.com/${k.handle}`} target="_blank" rel="noreferrer" className="block">
               <MCard className="flex items-center gap-2 px-3 py-2.5">
@@ -64,6 +68,7 @@ export function MobileKol() {
             </a>
           ))}
         </div>
+        </BubbleScroll>
       </MSection>
     </div>
   );
