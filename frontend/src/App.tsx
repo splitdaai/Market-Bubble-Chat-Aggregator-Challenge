@@ -8,6 +8,7 @@ import { useViewStore } from "./store/viewStore";
 import { useThemeStore } from "./store/themeStore";
 import { useChatConnection } from "./hooks/useChatConnection";
 import { useWalletStore } from "./store/walletStore";
+import { useIsMobile } from "./hooks/useIsMobile";
 
 const EditorCanvas = lazy(() => import("./components/EditorCanvas").then((m) => ({ default: m.EditorCanvas })));
 const MarketTab = lazy(() => import("./components/market/MarketTab").then((m) => ({ default: m.MarketTab })));
@@ -20,6 +21,7 @@ const OverlayPage = lazy(() => import("./components/OverlayPage").then((m) => ({
 const DockView = lazy(() => import("./components/DockView").then((m) => ({ default: m.DockView })));
 const AnalyticsTab = lazy(() => import("./components/analytics/AnalyticsTab").then((m) => ({ default: m.AnalyticsTab })));
 const ConnectionsManager = lazy(() => import("./components/ConnectionsManager").then((m) => ({ default: m.ConnectionsManager })));
+const MobileApp = lazy(() => import("./components/mobile/MobileApp").then((m) => ({ default: m.MobileApp })));
 const FeaturesModal = lazy(() => import("./components/FeaturesModal").then((m) => ({ default: m.FeaturesModal })));
 const UserCard = lazy(() => import("./components/UserCard").then((m) => ({ default: m.UserCard })));
 
@@ -32,6 +34,7 @@ export default function App() {
   useEffect(() => useWalletStore.getState().hydrate(), []);
 
   const view = useViewStore((s) => s.view);
+  const isMobile = useIsMobile();
   const marketTemplate = useThemeStore((s) => s.marketTemplate);
   const [themeOpen, setThemeOpen] = useState(false);
   const [connOpen, setConnOpen] = useState(false);
@@ -46,6 +49,13 @@ export default function App() {
   const params = new URLSearchParams(window.location.search);
   if (params.has("overlay")) return <Suspense fallback={null}><OverlayPage /></Suspense>;
   if (params.has("dock")) return <Suspense fallback={null}><DockView /></Suspense>;
+
+  // Phones get a dedicated mobile shell (bottom-tab native feel). The desktop
+  // dashboard below is left completely untouched. `?desktop` forces the full UI;
+  // `?mobile` forces the mobile shell (handy for previewing on a laptop).
+  if ((isMobile || params.has("mobile")) && !params.has("desktop")) {
+    return <Suspense fallback={null}><MobileApp /></Suspense>;
+  }
 
   return (
     <div className="vc-aurora vc-grid-texture relative min-h-screen">

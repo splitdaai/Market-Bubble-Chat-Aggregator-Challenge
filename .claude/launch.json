@@ -7,6 +7,12 @@
       "runtimeArgs": ["run", "dev"],
       "cwd": "frontend",
       "port": 5180
+    },
+    {
+      "name": "mb-mobile",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["-y", "serve", "-s", "/tmp/mb-mobile-test", "-l", "8850"],
+      "port": 8850
     }
   ]
 }
