@@ -71,10 +71,13 @@ export function TechWidget({ symbol }: { symbol: string }) {
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (ref.current) tvWidget(ref.current, "https://s3.tradingview.com/external-embedding/embed-widget-technical-analysis.js", {
-      interval: "1D", width: "100%", isTransparent: true, height: 400, symbol, showIntervalTabs: true, displayMode: "single", locale: "en", colorTheme: "dark",
+      // isTransparent:false → solid card so the gauge's animation stays contained
+      // on its own surface instead of bleeding "blue beams" across the page.
+      interval: "1D", width: "100%", isTransparent: false, height: 400, symbol, showIntervalTabs: true, displayMode: "single", locale: "en", colorTheme: "dark",
     });
   }, [symbol]);
-  return <div ref={ref} className="tradingview-widget-container" />;
+  // clip anything that tries to paint outside the tile
+  return <div ref={ref} className="tradingview-widget-container overflow-hidden rounded-xl" />;
 }
 
 function AdvancedChart({ symbol }: { symbol: string }) {
