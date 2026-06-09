@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X as XIcon, Wallet, Star, LogOut, Check } from "lucide-react";
 import { useViewerStore } from "@/store/viewerStore";
@@ -10,7 +9,7 @@ import { WalletButtons } from "./WalletButtons";
 const trunc = (a: string) => a.slice(0, 6) + "…" + a.slice(-4);
 
 export function AccountModal({ open, onClose, onOpenDashboard }: { open: boolean; onClose: () => void; onOpenDashboard?: () => void }) {
-  const { xHandle, xName, connectX, disconnectX } = useViewerStore();
+  const { xHandle, xName, xAvatar, verified, loginWithX, disconnectX } = useViewerStore();
   const address = useWalletStore((s) => s.address);
   const chainId = useWalletStore((s) => s.chainId);
   const walletName = useWalletStore((s) => s.wallet);
@@ -18,7 +17,6 @@ export function AccountModal({ open, onClose, onOpenDashboard }: { open: boolean
   const owner = useOwnerId();
   const items = useWatchlistStore((s) => s.byOwner[owner] ?? []);
   const removeWatch = useWatchlistStore((s) => s.remove);
-  const [handle, setHandle] = useState("");
 
   return (
     <AnimatePresence>
@@ -31,20 +29,23 @@ export function AccountModal({ open, onClose, onOpenDashboard }: { open: boolean
             </div>
 
             <div className="space-y-4 p-4">
-              {/* X identity */}
+              {/* X identity — sign in with X to chat in the shared feed as yourself */}
               <div>
-                <div className="mb-1.5 text-[11px] font-bold uppercase tracking-wider text-muted">X account — chat as yourself</div>
+                <div className="mb-1.5 text-[11px] font-bold uppercase tracking-wider text-muted">Chat as yourself — Login with X</div>
                 {xHandle ? (
                   <div className="flex items-center gap-2 rounded-xl border border-accent/40 bg-accent/10 px-3 py-2.5">
-                    <Check size={15} className="text-accent" />
-                    <div className="min-w-0 flex-1"><div className="text-[13px] font-bold">{xName}</div><div className="text-[11px] text-muted">@{xHandle}</div></div>
-                    <button onClick={disconnectX} className="rounded-lg p-1.5 text-muted hover:bg-white/10 hover:text-ink"><LogOut size={15} /></button>
+                    {xAvatar ? <img src={xAvatar} alt="" className="h-7 w-7 rounded-full object-cover" /> : <Check size={15} className="text-accent" />}
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-1 text-[13px] font-bold">{xName}{verified && <Check size={12} className="text-accent" />}</div>
+                      <div className="text-[11px] text-muted">@{xHandle} · {verified ? "verified" : "unverified"}</div>
+                    </div>
+                    <button onClick={disconnectX} title="Sign out" className="rounded-lg p-1.5 text-muted hover:bg-white/10 hover:text-ink"><LogOut size={15} /></button>
                   </div>
                 ) : (
-                  <form onSubmit={(e) => { e.preventDefault(); connectX(handle); setHandle(""); }} className="flex gap-2">
-                    <div className="flex flex-1 items-center gap-1.5 rounded-xl border border-white/10 bg-black/40 px-3 py-2"><span className="text-faint">@</span><input value={handle} onChange={(e) => setHandle(e.target.value)} placeholder="your_x_handle" className="w-full bg-transparent text-sm outline-none placeholder:text-faint" /></div>
-                    <button type="submit" className="rounded-xl bg-accent px-4 text-sm font-bold text-black shadow-neon">Connect X</button>
-                  </form>
+                  <button onClick={loginWithX} className="flex w-full items-center justify-center gap-2 rounded-xl border border-white/15 bg-black px-4 py-2.5 text-sm font-bold text-white transition hover:border-white/35">
+                    <svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" /></svg>
+                    Login with X to chat
+                  </button>
                 )}
               </div>
 

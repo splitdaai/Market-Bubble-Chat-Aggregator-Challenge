@@ -11,6 +11,7 @@ import { makeModerationRouter } from "../moderation.ts";
 import { StatsAggregator } from "../stats/aggregator.ts";
 import { HistoryStore } from "../history/store.ts";
 import { createClip } from "../clips.ts";
+import { verifyChatToken } from "../auth.ts";
 
 /**
  * The hub binds all connectors to the Socket.io server:
@@ -39,6 +40,9 @@ export function bindHub(
   // memory for the life of the backend process (i.e. the stream).
   const MESSAGE_BUFFER_CAP = 2000;
   const messageBuffer: ChatMessage[] = [];
+
+  // Per-handle send timestamps for the shared-chat rate limiter (5 msgs / 10s).
+  const chatRate = new Map<string, number[]>();
 
   const broadcastStatus = () => io.emit("status", [...statuses.values()]);
 
@@ -93,6 +97,37 @@ export function bindHub(
     socket.on("moderate", async (req) => {
       const result = await moderate(req);
       socket.emit("moderation:result", result);
+    });
+
+    // Login-with-X shared chat: a verified viewer posts into the unified feed.
+    // The signed token proves their X identity (no spoofing); we rate-limit,
+    // sanitize, then fan the message out to every connected client.
+    socket.on("chat", (req) => {
+      const id = verifyChatToken(req?.token ?? "");
+      if (!id) return; // not signed in / tampered token — silently drop
+      const text = String(req?.text ?? "").replace(/[\x00-\x1f\x7f]/g, "").trim().slice(0, 240);
+      if (!text) return;
+      const now = Date.now();
+      const hist = (chatRate.get(id.handle) ?? []).filter((t) => now - t < 10_000);
+      if (hist.length >= 5) return; // > 5 messages in 10s — throttle
+      hist.push(now);
+      chatRate.set(id.handle, hist);
+
+      const m: ChatMessage = {
+        id: `x:viewer:${id.handle}:${now}:${Math.random().toString(36).slice(2, 7)}`,
+        platform: "x",
+        channel: `@${id.handle}`,
+        username: id.name || id.handle,
+        message: text,
+        timestamp: now,
+        avatar: id.avatar,
+        color: "#1d9bf0",
+        badges: [{ type: "verified", label: "X" }],
+      };
+      aggregator.ingest(m);
+      messageBuffer.push(m);
+      if (messageBuffer.length > MESSAGE_BUFFER_CAP) messageBuffer.shift();
+      io.emit("message", m);
     });
 
     socket.on("clip:create", async (clip: Clip) => {

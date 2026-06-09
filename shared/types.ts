@@ -419,4 +419,11 @@ export interface ClientToServerEvents {
   "command:run": (button: ActionButton, target?: string) => void;
   /** [BACKEND] Ask the server to cut a native platform clip for this moment. */
   "clip:create": (clip: Clip) => void;
+  /**
+   * A signed-in viewer posts into the shared unified chat. `token` is the
+   * HMAC-signed X identity the backend issued at "Login with X" (sanctioned
+   * OAuth — never the broadcast scrape). The server verifies it, rate-limits,
+   * and fans the message out to everyone as a normal `message`.
+   */
+  chat: (req: { token: string; text: string }) => void;
 }

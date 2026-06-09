@@ -1,4 +1,4 @@
-import { createHash, randomBytes } from "node:crypto";
+import { createHash, createHmac, randomBytes } from "node:crypto";
 import { chmodSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
 import type { Express, Request, Response } from "express";
@@ -30,8 +30,8 @@ interface Provider {
   authParams?: Record<string, string>;
   clientId?: string;
   clientSecret?: string;
-  /** Resolve the connected account's handle + display name from a token. */
-  userInfo: (token: string) => Promise<{ handle: string; displayName: string } | null>;
+  /** Resolve the connected account's handle + display name (+ avatar) from a token. */
+  userInfo: (token: string) => Promise<{ handle: string; displayName: string; avatar?: string; id?: string } | null>;
 }
 
 const env = process.env;
@@ -84,10 +84,13 @@ const PROVIDERS: Partial<Record<Platform, Provider>> = {
     clientId: env.X_CLIENT_ID,
     clientSecret: env.X_CLIENT_SECRET,
     userInfo: async (token) => {
-      const r = await fetch("https://api.twitter.com/2/users/me", { headers: { Authorization: `Bearer ${token}` } });
+      const r = await fetch("https://api.twitter.com/2/users/me?user.fields=profile_image_url", { headers: { Authorization: `Bearer ${token}` } });
       if (!r.ok) return null;
-      const d = (await r.json()) as { data?: { username: string; name: string } };
-      return d.data ? { handle: `@${d.data.username}`, displayName: d.data.name } : null;
+      const d = (await r.json()) as { data?: { username: string; name: string; profile_image_url?: string; id?: string } };
+      if (!d.data) return null;
+      // X returns a 48px "_normal" avatar — upscale to 400px for crisp display.
+      const avatar = d.data.profile_image_url?.replace("_normal.", "_400x400.");
+      return { handle: `@${d.data.username}`, displayName: d.data.name, avatar, id: d.data.id };
     },
   },
   kick: {
@@ -118,7 +121,36 @@ const LOGIN_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
 const accounts: Account[] = [];
 const tokens = new Map<string, { access: string; refresh?: string }>();
 const connectedAt = new Map<string, number>(); // account id -> epoch ms of login
-const pending = new Map<string, { platform: Platform; verifier?: string }>();
+const pending = new Map<string, { platform: Platform; verifier?: string; mode?: "viewer" }>();
+
+/* --- Signed chat identity (Login-with-X shared chat) ------------------------ *
+ * A viewer "Logs in with X" (sanctioned OAuth). We hand the browser a compact
+ * HMAC-signed token carrying their verified X identity (handle/name/avatar).
+ * The socket server verifies it on every `chat` send, so identities can't be
+ * spoofed — without us storing a token or account for every random viewer.   */
+const CHAT_SECRET = env.CHAT_TOKEN_SECRET || env.X_CLIENT_SECRET || "mb-dev-chat-secret";
+const CHAT_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
+interface ChatIdentity { h: string; n: string; a?: string; iat: number }
+const signPayload = (p: string) => b64url(createHmac("sha256", CHAT_SECRET).update(p).digest());
+
+export function signChatToken(id: { handle: string; name: string; avatar?: string }): string {
+  const payload: ChatIdentity = { h: id.handle.replace(/^@/, ""), n: id.name, a: id.avatar, iat: Date.now() };
+  const p = b64url(Buffer.from(JSON.stringify(payload)));
+  return `${p}.${signPayload(p)}`;
+}
+
+export function verifyChatToken(token: string): { handle: string; name: string; avatar?: string } | null {
+  if (!token || typeof token !== "string") return null;
+  const [p, sig] = token.split(".");
+  if (!p || !sig || signPayload(p) !== sig) return null;
+  try {
+    const id = JSON.parse(Buffer.from(p.replace(/-/g, "+").replace(/_/g, "/"), "base64").toString()) as ChatIdentity;
+    if (!id.h || typeof id.iat !== "number" || Date.now() - id.iat > CHAT_TTL_MS) return null;
+    return { handle: id.h, name: id.n || id.h, avatar: id.a };
+  } catch {
+    return null;
+  }
+}
 
 function persistStore() {
   try {
@@ -220,13 +252,15 @@ export function mountAuth(app: Express, publicUrl: string, onChange: () => void)
     });
     // Force an account picker / re-consent so a *different* account can be linked.
     for (const [k, v] of Object.entries(prov.authParams ?? {})) params.set(k, v);
+    // `?mode=viewer` = a site visitor logging in just to chat (no account/connector).
+    const mode = req.query.mode === "viewer" ? ("viewer" as const) : undefined;
     if (prov.pkce) {
       const verifier = b64url(randomBytes(32));
       params.set("code_challenge", b64url(createHash("sha256").update(verifier).digest()));
       params.set("code_challenge_method", "S256");
-      pending.set(state, { platform, verifier });
+      pending.set(state, { platform, verifier, mode });
     } else {
-      pending.set(state, { platform });
+      pending.set(state, { platform, mode });
     }
     res.redirect(`${prov.authorizeUrl}?${params.toString()}`);
   });
@@ -264,6 +298,14 @@ export function mountAuth(app: Express, publicUrl: string, onChange: () => void)
       const info = await prov.userInfo(tok.access_token);
       if (!info) return res.send(closePopup("Could not read account info"));
 
+      // Viewer login (Login-with-X shared chat): hand back a signed identity
+      // token and DON'T persist an account or spin up a connector — this is just
+      // a site visitor who wants to chat as themselves.
+      if (ctx.mode === "viewer") {
+        const chatToken = signChatToken({ handle: info.handle, name: info.displayName, avatar: info.avatar });
+        return res.send(closePopupViewer(info, chatToken));
+      }
+
       const id = `${platform}:${info.handle.replace(/^@/, "").toLowerCase()}`;
       tokens.set(id, { access: tok.access_token, refresh: tok.refresh_token });
       if (!accounts.some((a) => a.id === id)) {
@@ -297,6 +339,20 @@ function closePopup(message: string, handle?: string): string {
   return `<!doctype html><meta charset=utf-8><body style="background:#04100c;color:#16e6a4;font-family:system-ui;display:grid;place-items:center;height:100vh">
 <div style="text-align:center"><h3>${safeMessage}</h3><p style="color:#78b6a4">You can close this window.</p></div>
 <script>try{window.opener&&window.opener.postMessage({type:"mb-auth",handle:${JSON.stringify(handle ?? null)}},"*")}catch(e){}setTimeout(()=>window.close(),1200)</script>`;
+}
+
+/** Popup close for a viewer login — posts the verified X identity + signed chat token to the opener. */
+function closePopupViewer(info: { handle: string; displayName: string; avatar?: string }, token: string): string {
+  const payload = JSON.stringify({
+    type: "mb-viewer",
+    handle: info.handle.replace(/^@/, ""),
+    name: info.displayName,
+    avatar: info.avatar ?? null,
+    token,
+  }).replace(/</g, "\\u003c"); // never let a name break out of the <script>
+  return `<!doctype html><meta charset=utf-8><body style="background:#04100c;color:#16e6a4;font-family:system-ui;display:grid;place-items:center;height:100vh">
+<div style="text-align:center"><h3>Signed in as ${escapeHtml(info.displayName)}</h3><p style="color:#78b6a4">You can close this window.</p></div>
+<script>try{window.opener&&window.opener.postMessage(${payload},"*")}catch(e){}setTimeout(()=>window.close(),900)</script>`;
 }
 
 function escapeHtml(value: string): string {

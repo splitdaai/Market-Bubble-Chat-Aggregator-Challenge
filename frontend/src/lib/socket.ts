@@ -74,3 +74,16 @@ export function connect(
 export function getSocket(): Sock | null {
   return socket;
 }
+
+/**
+ * Send a verified viewer's message into the shared unified chat. Returns true if
+ * it went out over a live backend socket; false if there's no socket (demo mode
+ * / no backend), so the caller can fall back to a local-only message.
+ */
+export function sendChat(req: { token: string; text: string }): boolean {
+  if (socket && socket.connected) {
+    socket.emit("chat", req);
+    return true;
+  }
+  return false;
+}

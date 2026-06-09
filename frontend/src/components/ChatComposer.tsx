@@ -4,6 +4,7 @@ import { Smile, Send } from "lucide-react";
 import type { Platform } from "@shared/types";
 import { useChatStore } from "@/store/chatStore";
 import { useViewerStore } from "@/store/viewerStore";
+import { sendChat } from "@/lib/socket";
 import { accentColor } from "@/lib/theme";
 import { useActivePlatforms } from "@/hooks/useActivePlatforms";
 
@@ -19,6 +20,8 @@ export function ChatComposer() {
   const platforms = useActivePlatforms();
   const xHandle = useViewerStore((s) => s.xHandle);
   const xName = useViewerStore((s) => s.xName);
+  const xAvatar = useViewerStore((s) => s.xAvatar);
+  const chatToken = useViewerStore((s) => s.chatToken);
   const [text, setText] = useState("");
   const [picker, setPicker] = useState(false);
 
@@ -29,6 +32,18 @@ export function ChatComposer() {
   const send = () => {
     const msg = text.trim();
     if (!msg) return;
+
+    // Verified X login → broadcast to the SHARED feed via the backend. The
+    // server echoes it back over `message` (to everyone, including us), so we
+    // must NOT also add it locally or it would appear twice.
+    if (chatToken && sendChat({ token: chatToken, text: msg })) {
+      setText("");
+      setPicker(false);
+      return;
+    }
+
+    // Fallback — host message, or a logged-in viewer in demo mode (no backend
+    // socket): local-only so the composer still works offline.
     addMessage({
       id: `me:${platform}:${Math.random().toString(36).slice(2)}`,
       nativeId: `me-${Math.random().toString(36).slice(2)}`,
@@ -36,6 +51,7 @@ export function ChatComposer() {
       channel: xHandle ? `@${xHandle}` : "Market Bubble",
       username: xHandle ? (xName ?? xHandle) : "Market Bubble",
       color: accentColor(),
+      avatar: xHandle ? xAvatar ?? undefined : undefined,
       message: msg,
       timestamp: Date.now(),
       badges: xHandle ? [{ type: "broadcaster", label: "You" }] : [{ type: "broadcaster", label: "Host" }],
