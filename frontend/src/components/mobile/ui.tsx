@@ -9,11 +9,11 @@ export const mPrice = (n: number) =>
     ? "$" + n.toLocaleString(undefined, { maximumFractionDigits: 0 })
     : "$" + n.toLocaleString(undefined, { maximumFractionDigits: n < 1 ? 4 : 2 });
 
-export function MSection({ title, right, children }: { title: string; right?: ReactNode; children: ReactNode }) {
+export function MSection({ title, icon, right, children }: { title: string; icon?: ReactNode; right?: ReactNode; children: ReactNode }) {
   return (
-    <section className="px-3 pt-4">
+    <section className="px-3 pt-5">
       <div className="mb-2 flex items-center justify-between">
-        <h2 className="text-[12px] font-bold uppercase tracking-wider text-muted">{title}</h2>
+        <h2 className="serif flex items-center gap-1.5 text-[18px] font-bold text-ink">{icon}{title}</h2>
         {right}
       </div>
       {children}
@@ -21,8 +21,9 @@ export function MSection({ title, right, children }: { title: string; right?: Re
   );
 }
 
+/** Themed glass tile — same surface/border/glow as every desktop panel. */
 export function MCard({ children, className = "" }: { children: ReactNode; className?: string }) {
-  return <div className={`rounded-2xl border border-white/8 bg-white/[0.03] ${className}`}>{children}</div>;
+  return <div className={`vc-glass ${className}`}>{children}</div>;
 }
 
 export function MTone({ n, children }: { n: number; children: ReactNode }) {

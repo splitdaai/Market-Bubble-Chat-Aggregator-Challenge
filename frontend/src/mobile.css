@@ -17,12 +17,6 @@
   padding-bottom: max(env(safe-area-inset-bottom), 0.5rem);
 }
 
-/* hide the desktop particle/aurora chrome on mobile (cleaner + lighter) */
-.mb-mobile .vc-aurora,
-.mb-mobile .vc-grid-texture {
-  background: none !important;
-}
-
 /* momentum scrolling inside mobile scroll regions */
 .mb-mobile .vc-scroll {
   -webkit-overflow-scrolling: touch;
