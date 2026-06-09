@@ -8,6 +8,7 @@ import { useThemeStore } from "./store/themeStore";
 import { useChatConnection } from "./hooks/useChatConnection";
 import { useWalletStore } from "./store/walletStore";
 import { useIsMobile } from "./hooks/useIsMobile";
+import { useUiModeStore } from "./store/uiModeStore";
 
 const EditorCanvas = lazy(() => import("./components/EditorCanvas").then((m) => ({ default: m.EditorCanvas })));
 const MarketTab = lazy(() => import("./components/market/MarketTab").then((m) => ({ default: m.MarketTab })));
@@ -21,6 +22,7 @@ const DockView = lazy(() => import("./components/DockView").then((m) => ({ defau
 const AnalyticsTab = lazy(() => import("./components/analytics/AnalyticsTab").then((m) => ({ default: m.AnalyticsTab })));
 const ConnectionsManager = lazy(() => import("./components/ConnectionsManager").then((m) => ({ default: m.ConnectionsManager })));
 const MobileApp = lazy(() => import("./components/mobile/MobileApp").then((m) => ({ default: m.MobileApp })));
+const SimpleApp = lazy(() => import("./components/SimpleApp").then((m) => ({ default: m.SimpleApp })));
 const FeaturesModal = lazy(() => import("./components/FeaturesModal").then((m) => ({ default: m.FeaturesModal })));
 const UserCard = lazy(() => import("./components/UserCard").then((m) => ({ default: m.UserCard })));
 
@@ -34,6 +36,7 @@ export default function App() {
 
   const view = useViewStore((s) => s.view);
   const isMobile = useIsMobile();
+  const uiMode = useUiModeStore((s) => s.mode);
   const marketTemplate = useThemeStore((s) => s.marketTemplate);
   const [themeOpen, setThemeOpen] = useState(false);
   const [connOpen, setConnOpen] = useState(false);
@@ -54,6 +57,12 @@ export default function App() {
   // `?mobile` forces the mobile shell (handy for previewing on a laptop).
   if ((isMobile || params.has("mobile")) && !params.has("desktop")) {
     return <Suspense fallback={null}><MobileApp /></Suspense>;
+  }
+
+  // Simple (stock) shell — just stream + unified chat. The "Pro" button reveals
+  // the full dashboard. `?pro` / `?simple` force a mode for previewing.
+  if (params.has("simple") || (uiMode === "simple" && !params.has("pro"))) {
+    return <Suspense fallback={null}><SimpleApp /></Suspense>;
   }
 
   return (

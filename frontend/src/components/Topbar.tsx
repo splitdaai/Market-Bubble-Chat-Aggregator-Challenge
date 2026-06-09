@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Palette, Pencil, Eye, RotateCcw, Monitor, Radio, BarChart3, Plug, Sparkles, MousePointerClick, X, TrendingUp, Clapperboard, Crosshair, UserCircle2, Star } from "lucide-react";
+import { Palette, Pencil, Eye, RotateCcw, Monitor, Radio, BarChart3, Plug, Sparkles, MousePointerClick, X, TrendingUp, Clapperboard, Crosshair, UserCircle2, Star, Minimize2 } from "lucide-react";
 import { useLayoutStore } from "@/store/layoutStore";
 import { useModeStore } from "@/store/modeStore";
 import { useOverlayStore } from "@/store/overlayStore";
@@ -10,6 +10,7 @@ import { useWalletStore } from "@/store/walletStore";
 import { AudioControl } from "./AudioControl";
 import { AccountModal } from "./AccountModal";
 import { WatchlistDashboard } from "./WatchlistDashboard";
+import { useUiModeStore } from "@/store/uiModeStore";
 
 /** Top command bar — view tabs, edit-mode toggle, theme editor, sound, reset. */
 export function Topbar({ onOpenTheme, onOpenConnections, onOpenFeatures }: { onOpenTheme: () => void; onOpenConnections: () => void; onOpenFeatures: () => void }) {
@@ -22,6 +23,7 @@ export function Topbar({ onOpenTheme, onOpenConnections, onOpenFeatures }: { onO
   const toggleOverlay = useOverlayStore((s) => s.toggleEnabled);
   const view = useViewStore((s) => s.view);
   const [accountOpen, setAccountOpen] = useState(false);
+  const setUiMode = useUiModeStore((s) => s.setMode);
   const [dashOpen, setDashOpen] = useState(false);
   const xHandle = useViewerStore((s) => s.xHandle);
   const address = useWalletStore((s) => s.address);
@@ -189,6 +191,15 @@ export function Topbar({ onOpenTheme, onOpenConnections, onOpenFeatures }: { onO
         <IconBtn onClick={onOpenTheme} title="Theme editor">
           <Palette size={16} />
         </IconBtn>
+
+        <motion.button
+          whileTap={{ scale: 0.95 }}
+          onClick={() => setUiMode("simple")}
+          title="Simple view — just the stream + unified chat"
+          className="ml-1 flex items-center gap-1.5 rounded-xl border border-white/15 bg-white/[0.04] px-3 py-2 text-sm font-bold text-ink transition hover:border-accent/50 hover:text-accent"
+        >
+          <Minimize2 size={15} /> <span className="hidden sm:inline">Simple</span>
+        </motion.button>
 
         <motion.button
           whileTap={{ scale: 0.95 }}
