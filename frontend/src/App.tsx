@@ -2,7 +2,6 @@ import { lazy, Suspense, useEffect, useState } from "react";
 import type { ActionButton } from "@shared/types";
 import { Topbar } from "./components/Topbar";
 import { Toaster } from "./components/Toaster";
-import { ParticleLayer } from "./components/Particles";
 import { OverlayLayer } from "./components/OverlayLayer";
 import { useViewStore } from "./store/viewStore";
 import { useThemeStore } from "./store/themeStore";
@@ -59,7 +58,6 @@ export default function App() {
 
   return (
     <div className="vc-aurora vc-grid-texture relative min-h-screen">
-      <ParticleLayer />
       <Topbar
         onOpenTheme={() => setThemeOpen(true)}
         onOpenConnections={() => setConnOpen(true)}

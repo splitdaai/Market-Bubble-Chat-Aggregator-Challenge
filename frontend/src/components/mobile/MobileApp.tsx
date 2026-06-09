@@ -4,7 +4,6 @@ import { useViewStore, type View } from "@/store/viewStore";
 import { useModeStore } from "@/store/modeStore";
 import { useViewerStore } from "@/store/viewerStore";
 import { MarketBubbleMark } from "../Brand";
-import { ParticleLayer } from "../Particles";
 import { AccountModal } from "../AccountModal";
 import { WatchlistDashboard } from "../WatchlistDashboard";
 import { MobileLive } from "./MobileLive";
@@ -37,7 +36,6 @@ export function MobileApp() {
 
   return (
     <div className="mb-mobile vc-aurora vc-grid-texture relative flex h-[100dvh] flex-col bg-[var(--vc-bg)] text-ink">
-      <ParticleLayer />
       {/* header */}
       <header className="mb-mobile-safe-top relative z-10 flex shrink-0 items-center gap-2 border-b border-white/10 bg-[color:var(--vc-bg)]/70 px-3 pb-2 backdrop-blur-md">
         <div className="grid h-8 w-8 place-items-center rounded-xl border border-accent/40 bg-accent/10">
