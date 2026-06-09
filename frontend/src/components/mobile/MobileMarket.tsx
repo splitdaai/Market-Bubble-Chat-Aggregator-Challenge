@@ -10,26 +10,31 @@ interface MarketData {
   gauges: { fearGreed: number; fearGreedLabel: string; btcDominance: number; totalMcap: number; altSeason: number };
 }
 interface LB {
-  hl: { name: string; addr?: string; pnl: number }[];
-  poly: { name: string; addr?: string; pnl: number }[];
+  hyperliquid: { name: string; addr?: string; pnl: number }[];
+  polymarket: { name: string; addr?: string; pnl: number }[];
   linked: { name: string; xHandle: string; value: number; pnl: number }[];
 }
 
-function Board({ title, rows }: { title: string; rows: { name: string; sub: string; val: number; valFmt: string }[] }) {
+function Board({ title, rows, cap = 10 }: { title: string; rows: { name: string; sub: string; val: number; valFmt: string }[]; cap?: number }) {
   return (
     <MCard className="overflow-hidden">
-      <div className="border-b border-white/8 px-3 py-2 text-[11px] font-bold uppercase tracking-wider text-faint">{title}</div>
-      {rows.slice(0, 8).map((r, i) => (
-        <div key={i} className="flex items-center gap-2 border-b border-white/5 px-3 py-2 last:border-0">
-          <span className="w-4 text-[11px] font-bold text-faint">{i + 1}</span>
-          <div className="min-w-0 flex-1">
-            <div className="truncate text-[13px] font-semibold">{r.name}</div>
-            <div className="truncate text-[10px] text-muted">{r.sub}</div>
+      <div className="flex items-center justify-between border-b border-white/8 px-3 py-2 text-[11px] font-bold uppercase tracking-wider text-faint">
+        <span>{title}</span>
+        {rows.length > cap && <span className="text-[9px] normal-case text-muted">top {cap} · scroll {rows.length - cap}+</span>}
+      </div>
+      <div className="vc-scroll overflow-y-auto" style={{ maxHeight: cap * 43 }}>
+        {rows.map((r, i) => (
+          <div key={i} className="flex items-center gap-2 border-b border-white/5 px-3 py-1.5 last:border-0">
+            <span className="w-4 shrink-0 text-[11px] font-bold text-faint">{i + 1}</span>
+            <div className="min-w-0 flex-1">
+              <div className="truncate text-[12.5px] font-semibold leading-tight">{r.name}</div>
+              <div className="truncate text-[10px] leading-tight text-muted">{r.sub}</div>
+            </div>
+            <MTone n={r.val}>{r.valFmt}</MTone>
           </div>
-          <MTone n={r.val}>{r.valFmt}</MTone>
-        </div>
-      ))}
-      {rows.length === 0 && <div className="px-3 py-4 text-center text-[12px] text-faint">Loading…</div>}
+        ))}
+        {rows.length === 0 && <div className="px-3 py-4 text-center text-[12px] text-faint">Loading…</div>}
+      </div>
     </MCard>
   );
 }
@@ -101,13 +106,13 @@ export function MobileMarket() {
 
       {/* Leaderboards */}
       <MSection title="Top Hyperliquid Traders">
-        <Board title="Hyperliquid · PnL" rows={(lb?.hl ?? []).map((r) => ({ name: r.name, sub: "Hyperliquid", val: r.pnl, valFmt: (r.pnl >= 0 ? "+" : "") + mUsd(r.pnl) }))} />
+        <Board title="Hyperliquid · PnL" cap={10} rows={(lb?.hyperliquid ?? []).map((r) => ({ name: r.name, sub: "Hyperliquid", val: r.pnl, valFmt: (r.pnl >= 0 ? "+" : "") + mUsd(r.pnl) }))} />
       </MSection>
       <MSection title="Top Polymarket Traders">
-        <Board title="Polymarket · PnL" rows={(lb?.poly ?? []).map((r) => ({ name: r.name, sub: "Polymarket", val: r.pnl, valFmt: (r.pnl >= 0 ? "+" : "") + mUsd(r.pnl) }))} />
+        <Board title="Polymarket · PnL" cap={5} rows={(lb?.polymarket ?? []).map((r) => ({ name: r.name, sub: "Polymarket", val: r.pnl, valFmt: (r.pnl >= 0 ? "+" : "") + mUsd(r.pnl) }))} />
       </MSection>
       <MSection title="Verified KOL Wallets">
-        <Board title="Smart money · value" rows={(lb?.linked ?? []).map((r) => ({ name: r.name, sub: "@" + r.xHandle, val: r.value, valFmt: mUsd(r.value) }))} />
+        <Board title="Smart money · value" cap={10} rows={(lb?.linked ?? []).map((r) => ({ name: r.name, sub: "@" + r.xHandle, val: r.value, valFmt: mUsd(r.value) }))} />
       </MSection>
     </div>
   );
