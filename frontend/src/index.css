@@ -60,9 +60,9 @@ body::-webkit-scrollbar-thumb:hover { background: rgba(var(--vc-accent-rgb), 0.6
   z-index: 0;
   pointer-events: none;
   background:
-    radial-gradient(40% 40% at 20% 20%, rgba(var(--vc-accent-rgb), 0.18), transparent 60%),
-    radial-gradient(36% 36% at 82% 30%, rgba(45, 212, 255, 0.14), transparent 60%),
-    radial-gradient(45% 45% at 60% 90%, rgba(83, 252, 24, 0.08), transparent 60%);
+    radial-gradient(40% 40% at 20% 20%, rgba(var(--vc-accent-rgb), 0.16), transparent 60%),
+    radial-gradient(36% 36% at 82% 30%, rgba(217, 165, 71, 0.10), transparent 60%),
+    radial-gradient(45% 45% at 60% 90%, rgba(184, 134, 47, 0.07), transparent 60%);
   filter: blur(40px);
   animation: vc-drift 22s ease-in-out infinite alternate;
 }

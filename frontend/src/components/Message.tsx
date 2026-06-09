@@ -70,14 +70,25 @@ function MessageInner({ msg, deleted, onModerate }: Props) {
               {badgeIcon[b.type]}
             </span>
           ))}
-          <button
-            className="font-bold hover:underline"
-            style={{ color }}
-            onClick={() => showUser(msg.username, msg.platform)}
-            title="View profile & messages"
-          >
-            {msg.username}
-          </button>
+          <span className="group/u relative inline-flex">
+            <button
+              className="font-bold hover:underline"
+              style={{ color }}
+              onClick={() => showUser(msg.username, msg.platform)}
+              title={`${msg.platform}${msg.channel ? ` · via ${msg.channel}` : ""} — click for profile`}
+            >
+              {msg.username}
+            </button>
+            {/* hover → where this viewer is coming from (platform + which streamer's chat) */}
+            <span className="pointer-events-none absolute bottom-full left-0 z-40 mb-1 hidden whitespace-nowrap rounded-lg border border-white/10 bg-[#0b0b0b] px-2 py-1 text-[10px] leading-tight shadow-xl group-hover/u:block">
+              <span className="flex items-center gap-1">
+                <SourceBadge platform={msg.platform} compact />
+                <span className="font-semibold capitalize text-ink">{msg.platform}</span>
+                {msg.channel && <span className="text-muted">· via {msg.channel}</span>}
+              </span>
+              <span className="mt-0.5 block text-[9px] text-faint">click for full profile</span>
+            </span>
+          </span>
           {hasWallet && (
             <Wallet size={11} className="text-emerald-400" aria-label="Wallet-connected — can receive tips" />
           )}

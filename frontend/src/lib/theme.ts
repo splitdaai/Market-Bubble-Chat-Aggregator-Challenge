@@ -84,7 +84,27 @@ export const ICE_STREAM_THEME: Theme = {
   textStyle: "tight",
 };
 
-export const DEFAULT_THEME: Theme = ICE_STREAM_THEME;
+/** Bullpen Gold — matches marketbubble.chat: gold accent on warm near-black,
+ *  Inter body + serif heads, subtle (non-neon) glow. The app default. */
+export const BULLPEN_GOLD_THEME: Theme = {
+  name: "Bullpen Gold",
+  bg: "#080706",
+  surface: "rgba(28, 23, 16, 0.62)",
+  accent: "#d9a547",
+  accent2: "#e8c987",
+  text: "#f3efe7",
+  textMuted: "#9a8f7e",
+  glow: 0.4,
+  radius: 16,
+  font: "Inter",
+  bubbleStyle: "flat",
+  tile: "glass",
+  btn: "bold",
+  btnFx: "sweep",
+  textStyle: "tight",
+};
+
+export const DEFAULT_THEME: Theme = BULLPEN_GOLD_THEME;
 
 /** Terminal Pro — dense Bloomberg-style: mono everywhere, sharp corners,
  *  hairline borders, electric blue, minimal glow. */
@@ -136,6 +156,7 @@ export const NEON_BUBBLE_THEME: Theme = {
 
 
 export const THEME_PRESETS: Theme[] = [
+  BULLPEN_GOLD_THEME,
   MONO_TERMINAL_THEME,
   MARKET_BUBBLE_GREEN_THEME,
   TERMINAL_PRO_THEME,
