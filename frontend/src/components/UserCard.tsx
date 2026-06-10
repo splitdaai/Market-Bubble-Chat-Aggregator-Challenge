@@ -99,6 +99,15 @@ export function UserCard() {
     [open, listUsers],
   );
 
+  // Every platform we've seen this name on — mod actions apply across ALL of
+  // them at once (one unified viewer, one unified mod action).
+  const userPlatforms = useMemo(() => {
+    if (!open) return [] as Platform[];
+    const set = new Set<Platform>([open.platform]);
+    for (const m of userMessages) set.add(m.platform);
+    return [...set];
+  }, [open, userMessages]);
+
   // Messages to show. Real chatters have stored history. Demo users seeded by
   // the warm-start have a message count but no stored history — synthesize that
   // many timestamped lines (deterministic) so the list matches the count.
@@ -128,34 +137,40 @@ export function UserCard() {
   const activeTimeout = timeouts[key];
   const isBanned = !!banned[key];
 
+  // All mod actions fan out to every platform this viewer chats on.
+  const plural = userPlatforms.length > 1 ? ` · ${userPlatforms.length} platforms` : "";
   const handleStack = async (seconds: number) => {
-    const total = addTimeout(open.platform, open.name, seconds);
-    await moderate({ platform: open.platform, username: open.name, action: { kind: "timeout", seconds: total } });
-    push({ message: `Timed out ${open.name} · ${fmtDuration(total)} total`, tone: "ok" });
+    let total = 0;
+    for (const p of userPlatforms) total = addTimeout(p, open.name, seconds);
+    await Promise.all(userPlatforms.map((p) => moderate({ platform: p, username: open.name, action: { kind: "timeout", seconds: total } })));
+    push({ message: `Timed out ${open.name} · ${fmtDuration(total)} total${plural}`, tone: "ok" });
   };
   const handleReduce = async (seconds: number) => {
-    const total = reduceTimeout(open.platform, open.name, seconds);
+    let total = 0;
+    for (const p of userPlatforms) total = reduceTimeout(p, open.name, seconds);
     if (total > 0) {
-      await moderate({ platform: open.platform, username: open.name, action: { kind: "timeout", seconds: total } });
+      await Promise.all(userPlatforms.map((p) => moderate({ platform: p, username: open.name, action: { kind: "timeout", seconds: total } })));
       push({ message: `Reduced ${open.name} to ${fmtDuration(total)}`, tone: "ok" });
     } else {
-      await moderate({ platform: open.platform, username: open.name, action: { kind: "unban" } });
+      await Promise.all(userPlatforms.map((p) => moderate({ platform: p, username: open.name, action: { kind: "unban" } })));
       push({ message: `Timeout removed for ${open.name}`, tone: "ok" });
       setMoMode("none");
     }
   };
   const handleRemoveTimeout = async () => {
-    clearTimeout(open.platform, open.name);
-    await moderate({ platform: open.platform, username: open.name, action: { kind: "unban" } });
+    for (const p of userPlatforms) clearTimeout(p, open.name);
+    await Promise.all(userPlatforms.map((p) => moderate({ platform: p, username: open.name, action: { kind: "unban" } })));
     push({ message: `Timeout removed for ${open.name}`, tone: "ok" });
     setMoMode("none");
   };
   const handleBanToggle = async () => {
     const next = !isBanned;
-    setBanned(open.platform, open.name, next);
-    if (next) clearTimeout(open.platform, open.name);
-    await moderate({ platform: open.platform, username: open.name, action: { kind: next ? "ban" : "unban" } });
-    push({ message: next ? `Banned ${open.name}` : `Unbanned ${open.name}`, tone: next ? "error" : "ok" });
+    for (const p of userPlatforms) {
+      setBanned(p, open.name, next);
+      if (next) clearTimeout(p, open.name);
+    }
+    await Promise.all(userPlatforms.map((p) => moderate({ platform: p, username: open.name, action: { kind: next ? "ban" : "unban" } })));
+    push({ message: next ? `Banned ${open.name}${plural}` : `Unbanned ${open.name}`, tone: next ? "error" : "ok" });
   };
 
   return (

@@ -5,6 +5,7 @@ import { SourceBadge, platformColor } from "./SourceBadge";
 import { Shield, Star, Crown, BadgeCheck, Gem, Wallet } from "lucide-react";
 import { ModMenu } from "./ModMenu";
 import { useUserCardStore } from "@/store/userCardStore";
+import { useModerationStore } from "@/store/moderationStore";
 import { useModeStore } from "@/store/modeStore";
 import { viewerWallet } from "@/lib/viewerWallets";
 
@@ -33,6 +34,11 @@ function MessageInner({ msg, deleted, onModerate }: Props) {
   const [menuAt, setMenuAt] = useState<{ x: number; y: number } | null>(null);
   const showUser = useUserCardStore((s) => s.show);
   const demo = useModeStore((s) => s.demo);
+  // Banned / timed-out viewers (modded from the card) get their messages struck
+  // in the unified feed — the local enforcement layer for all platforms.
+  const modKey = `${msg.platform}:${msg.username.toLowerCase()}`;
+  const modded = useModerationStore((s) => !!s.banned[modKey] || !!s.timeouts[modKey]);
+  const struck = deleted || modded;
   const color = msg.color ?? platformColor(msg.platform);
   const hasWallet = !!viewerWallet(msg.username, demo);
 
@@ -41,7 +47,7 @@ function MessageInner({ msg, deleted, onModerate }: Props) {
       <motion.div
         layout
         initial={{ opacity: 0, x: -10, scale: 0.98 }}
-        animate={{ opacity: deleted ? 0.45 : 1, x: 0, scale: 1 }}
+        animate={{ opacity: struck ? 0.45 : 1, x: 0, scale: 1 }}
         transition={{ type: "spring", stiffness: 520, damping: 34, mass: 0.6 }}
         onContextMenu={(e) => {
           e.preventDefault();
@@ -96,7 +102,10 @@ function MessageInner({ msg, deleted, onModerate }: Props) {
             <Wallet size={11} className="text-emerald-400" aria-label="Wallet-connected — can receive tips" />
           )}
           <span className="text-[10px] tabular-nums text-muted opacity-60">{fmtTime(msg.timestamp)}</span>
-          <span className={`ml-0.5 break-words text-ink/90 ${deleted ? "line-through opacity-60" : ""}`}>
+          {modded && !deleted && (
+            <span className="rounded bg-red-500/15 px-1 py-px text-[9px] font-bold uppercase tracking-wide text-red-300">modded</span>
+          )}
+          <span className={`ml-0.5 break-words text-ink/90 ${struck ? "line-through opacity-60" : ""}`}>
             {msg.message}
           </span>
         </div>

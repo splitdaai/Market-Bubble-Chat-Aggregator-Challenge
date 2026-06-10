@@ -2,6 +2,7 @@ import { useState } from "react";
 import { motion } from "framer-motion";
 import { Trophy, Gift, MessageSquare } from "lucide-react";
 import { useStatsStore } from "@/store/statsStore";
+import { useUserCardStore } from "@/store/userCardStore";
 import { SourceBadge, platformColor } from "../SourceBadge";
 import { compact } from "@/lib/format";
 import { subRevenue } from "@/lib/revenue";
@@ -40,6 +41,7 @@ interface Row {
  */
 export function TopChatters() {
   const snap = useStatsStore((s) => s.snapshot);
+  const showUser = useUserCardStore((s) => s.show);
   const [tab, setTab] = useState<Tab>("chatters");
   const [range, setRange] = useState<RangeKey>("day");
   // The live session is "today"; longer windows accumulate (real cross-session
@@ -110,7 +112,11 @@ export function TopChatters() {
           <motion.div
             key={`${r.platform}:${r.name}`}
             layout
-            className="relative flex items-center gap-2 overflow-hidden rounded-lg border border-white/8 px-2 py-1.5"
+            role="button"
+            tabIndex={0}
+            onClick={() => showUser(r.name, r.platform)}
+            title="Open profile & mod tools"
+            className="relative flex cursor-pointer items-center gap-2 overflow-hidden rounded-lg border border-white/8 px-2 py-1.5 transition hover:border-accent/40"
           >
             <div
               className="absolute inset-y-0 left-0 -z-0 rounded-lg opacity-20"
