@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Radio, Film, TrendingUp, Play } from "lucide-react";
 import { compact } from "../../lib/format";
 import { BubbleScroll } from "../BubbleScroll";
-import { XVodPlayer, LATEST_EPISODE_BID } from "../XVodPlayer";
+import { XVodPlayer } from "../XVodPlayer";
 
 const BACKEND = (import.meta.env.VITE_BACKEND_URL as string | undefined) ?? "https://3-213-104-77.nip.io";
 
@@ -33,31 +33,6 @@ const EPISODES: { ep: number; title: string; date: string; duration: string; bid
   { ep: 1, title: "The Truth About Crypto in 2026", date: "May 1, 2026", duration: "1h 6m", bid: null },
 ];
 
-interface Clip { id: string; title: string; viewCount?: number; thumbnail?: string }
-interface Channel { live: boolean; vods: { id: string }[]; clips: Clip[] }
-
-function AnsemStream({ login }: { login: string }) {
-  const [ch, setCh] = useState<Channel | null>(null);
-  const [host, setHost] = useState<string | null>(null);
-  useEffect(() => { setHost(location.hostname); fetch(`${BACKEND}/api/twitch/channel/${login}`).then((r) => r.json()).then(setCh).catch(() => setCh({ live: false, vods: [], clips: [] })); }, [login]);
-
-  const isLive = !!ch?.live;
-  const liveSrc = host ? `https://player.twitch.tv/?channel=${login}&parent=${host}&muted=true` : null;
-  const latest = EPISODES[0]; // most recent full episode (EP5)
-  return (
-    <>
-      <div className="relative aspect-video w-full overflow-hidden rounded-xl border border-white/10 bg-black">
-        {isLive && liveSrc
-          ? <iframe key={liveSrc} src={liveSrc} title={login} allow="autoplay; fullscreen" allowFullScreen className="absolute inset-0 h-full w-full" />
-          : <XVodPlayer key={latest.bid ?? ""} id={latest.bid ?? LATEST_EPISODE_BID} autoPlay className="absolute inset-0 h-full w-full object-contain" />}
-        <span className={`absolute left-2 top-2 rounded-md px-1.5 py-0.5 text-[10px] font-black uppercase backdrop-blur ${isLive ? "bg-down/25 text-down" : "bg-black/55 text-accent"}`}>{isLive ? "Ansem Live" : "Latest Episode"}</span>
-      </div>
-      {!isLive && (
-        <p className="mt-2 text-[12px] font-semibold">{latest.title} <span className="font-normal text-faint">· EP {latest.ep} · {latest.date} · {latest.duration}</span></p>
-      )}
-    </>
-  );
-}
 
 const FEED_ACCOUNTS = [
   { name: "Ansem", handle: "blknoiz06" },
@@ -141,11 +116,6 @@ export function ContentTab() {
 
         {/* right column */}
         <div className="space-y-4 lg:col-span-8">
-          <div className="vc-glass flex flex-col rounded-2xl p-3">
-            <div className="mb-2 flex items-center gap-2"><Play size={13} className="text-accent" /><span className="text-[12px] font-bold uppercase tracking-[0.12em] text-muted">Watch · Ansem</span></div>
-            <AnsemStream login="blknoiz06" />
-          </div>
-
           <div className="vc-glass rounded-2xl p-4">
             <div className="mb-3 flex items-center gap-2">
               <Film size={14} className="text-accent" />
@@ -155,7 +125,7 @@ export function ContentTab() {
             </div>
 
             {/* featured player — autoplays the most recent (or the selected) full episode */}
-            <XVodPlayer key={vodId} id={vodId} autoPlay />
+            <XVodPlayer key={vodId} id={vodId} autoPlay className="aspect-video max-h-[420px] w-full rounded-xl border border-white/10 bg-black object-contain" />
 
             {/* numbered episode list — click to load into the player above */}
             <div className="mt-3 space-y-1.5">
