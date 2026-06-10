@@ -69,12 +69,18 @@ export async function getMarketData(): Promise<MarketData> {
 
   // Global markets — top 10 crypto by mcap + indices + commodities
   try {
-    const cg = await jget(`${CG}/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=10&page=1&price_change_percentage=24h&sparkline=true`);
-    data.global = cg.map((c: Record<string, number & string & { price: number[] }>) => ({
-      sym: (c.symbol as unknown as string).toUpperCase(), name: c.name as unknown as string,
-      price: c.current_price as unknown as number, chg: (c.price_change_percentage_24h as unknown as number) ?? 0,
-      spark: sample((c.sparkline_in_7d as unknown as { price: number[] })?.price ?? []), cls: "crypto" as const,
-    }));
+    // NB: `sparkline=true` started returning a bare `null` body from our server's
+    // IP (CoinGecko rate-shaping that heavy param), which emptied the whole crypto
+    // column. Drop it and shape a 12-pt trend from the real 24h move instead.
+    const cg = await jget(`${CG}/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=10&page=1&price_change_percentage=24h`);
+    if (!Array.isArray(cg) || !cg.length) throw new Error("empty crypto");
+    data.global = (cg as Array<{ symbol: string; name: string; current_price: number; price_change_percentage_24h: number }>).map((c) => {
+      const price = c.current_price ?? 0;
+      const chg = c.price_change_percentage_24h ?? 0;
+      const start = chg <= -100 ? price : price / (1 + chg / 100);
+      const spark = Array.from({ length: 12 }, (_, i) => start + (price - start) * (i / 11));
+      return { sym: (c.symbol ?? "").toUpperCase(), name: c.name ?? "", price, chg, spark, cls: "crypto" as const };
+    });
   } catch { /* leave empty */ }
   data.global = [...data.global, ...(await yahoo())];
 

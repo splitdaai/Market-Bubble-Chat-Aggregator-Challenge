@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Palette, Pencil, Eye, RotateCcw, Monitor, Radio, BarChart3, Plug, Sparkles, MousePointerClick, X, TrendingUp, Clapperboard, Crosshair, UserCircle2, Star, Minimize2 } from "lucide-react";
 import { useLayoutStore } from "@/store/layoutStore";
@@ -35,9 +35,22 @@ export function Topbar({ onOpenTheme, onOpenConnections, onOpenFeatures }: { onO
   // Proactive nudge on the Demo/Live toggle — dismissed once the user clicks it
   // (or the ✕). Session-only so a fresh load shows it again for the next viewer.
   // Shown in BOTH Live and Analytics views (the toggle drives data everywhere).
-  const [hintDismissed, setHintDismissed] = useState(false);
-  const showDemoHint = !hintDismissed;
-  const onToggleDemo = () => { toggleDemo(); setHintDismissed(true); };
+  const [hintDismissed, setHintDismissed] = useState(() => {
+    try { return localStorage.getItem("mb-demo-hint-dismissed") === "1"; } catch { return false; }
+  });
+  const dismissHint = () => {
+    setHintDismissed(true);
+    try { localStorage.setItem("mb-demo-hint-dismissed", "1"); } catch { /* ignore */ }
+  };
+  // Never overlap an open modal/dashboard, and auto-fade after a few seconds so
+  // it stops nagging — dismissal is then remembered across reloads.
+  const showDemoHint = !hintDismissed && !dashOpen && !accountOpen;
+  const onToggleDemo = () => { toggleDemo(); dismissHint(); };
+  useEffect(() => {
+    if (hintDismissed) return;
+    const t = setTimeout(dismissHint, 7000);
+    return () => clearTimeout(t);
+  }, [hintDismissed]);
 
   return (
     <header className="relative z-20 flex flex-wrap items-center justify-between gap-y-2 px-3 py-3 sm:px-5">
@@ -147,7 +160,7 @@ export function Topbar({ onOpenTheme, onOpenConnections, onOpenFeatures }: { onO
                     {/* caret pointing up at the toggle */}
                     <span className="absolute -top-1.5 right-7 h-3 w-3 rotate-45 border-l border-t border-accent/45 bg-black/90" />
                     <button
-                      onClick={() => setHintDismissed(true)}
+                      onClick={dismissHint}
                       title="Got it"
                       className="absolute right-1.5 top-1.5 text-white/40 transition hover:text-white"
                     >
