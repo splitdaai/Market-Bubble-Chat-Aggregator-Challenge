@@ -210,13 +210,14 @@ export function StreamPreview() {
         {/* per-streamer totals + aggregate, on the bar — hover a chip for the per-platform split */}
         {people.length > 0 && (
           <div className="flex min-w-0 flex-wrap items-center gap-1.5">
-            <span className="shrink-0 rounded-md bg-accent/15 px-1.5 py-0.5 text-[10px] font-black tabular-nums text-accent">👁 {compact(people.reduce((s, p) => s + p.total, 0))} total</span>
+            <span className="shrink-0 rounded-lg bg-accent/15 px-2.5 py-1 text-[14px] font-black tabular-nums text-accent">👁 {compact(people.reduce((s, p) => s + p.total, 0))} <span className="text-[10px] font-bold uppercase tracking-wide opacity-80">total</span></span>
             {people.map((p) => {
               const on = p.name === (focused?.meta?.displayName ?? "");
               return (
                 <div key={p.name} className="group/p relative shrink-0">
-                  <button onClick={() => { setPick(p.top); selectBroadcast("live"); }} className={`flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-bold transition ${on ? "bg-accent/20 text-accent" : "bg-white/[0.05] text-muted hover:text-ink"}`}>
-                    {p.name} <span className="tabular-nums opacity-70">{compact(p.total)}</span>
+                  <button onClick={() => { setPick(p.top); selectBroadcast("live"); }} className={`flex items-center gap-1.5 rounded-lg bg-white/[0.06] px-2.5 py-1 transition hover:bg-white/[0.1] ${on ? "ring-1 ring-accent/50" : ""}`}>
+                    <span className="text-[12px] font-semibold text-muted">{p.name}</span>
+                    <span className="text-[14px] font-black tabular-nums text-ink">{compact(p.total)}</span>
                   </button>
                   <div className="pointer-events-none absolute left-0 top-full z-30 mt-1.5 hidden min-w-[150px] rounded-xl border border-white/10 bg-[#0b0b0b] p-1.5 shadow-xl group-hover/p:block">
                     <div className="mb-1 px-1 text-[9px] font-bold uppercase tracking-wider text-faint">{p.name} · live viewers</div>
