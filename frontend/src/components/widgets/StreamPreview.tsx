@@ -196,7 +196,7 @@ export function StreamPreview() {
         </div>
         {/* per-streamer totals + aggregate, on the bar — hover a chip for the per-platform split */}
         {people.length > 0 && (
-          <div className="vc-scroll flex min-w-0 items-center gap-1.5 overflow-x-auto">
+          <div className="flex min-w-0 flex-wrap items-center gap-1.5">
             <span className="shrink-0 rounded-md bg-accent/15 px-1.5 py-0.5 text-[10px] font-black tabular-nums text-accent">👁 {compact(people.reduce((s, p) => s + p.total, 0))} total</span>
             {people.map((p) => {
               const on = p.name === (focused?.meta?.displayName ?? "");
