@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Zap } from "lucide-react";
+import { lazy, Suspense, useState } from "react";
+import { Zap, Plug, Palette } from "lucide-react";
 import type { PanelLayout } from "@shared/types";
 import { useViewerStore } from "@/store/viewerStore";
 import { useModeStore } from "@/store/modeStore";
@@ -7,6 +7,9 @@ import { useUiModeStore } from "@/store/uiModeStore";
 import { StreamPreview } from "./widgets/StreamPreview";
 import { ChatFeed } from "./ChatFeed";
 import { AccountModal } from "./AccountModal";
+
+const ConnectionsManager = lazy(() => import("./ConnectionsManager").then((m) => ({ default: m.ConnectionsManager })));
+const ThemeEditor = lazy(() => import("./ThemeEditor").then((m) => ({ default: m.ThemeEditor })));
 
 const CHAT_PANEL: PanelLayout = { i: "simple-chat", widget: "chat-feed", x: 0, y: 0, w: 12, h: 12 };
 
@@ -21,12 +24,20 @@ export function SimpleApp() {
   const toggleDemo = useModeStore((s) => s.toggle);
   const xHandle = useViewerStore((s) => s.xHandle);
   const [account, setAccount] = useState(false);
+  const [connOpen, setConnOpen] = useState(false);
+  const [themeOpen, setThemeOpen] = useState(false);
 
   return (
     <div className="vc-aurora vc-grid-texture relative flex h-screen flex-col bg-[var(--vc-bg)] text-ink">
       <header className="relative z-10 flex shrink-0 items-center gap-3 px-4 py-3">
         <img src="/market-bubble-logo.svg" alt="Market Bubble" className="h-24 w-auto" />
         <div className="ml-auto flex items-center gap-2">
+          <button onClick={() => setThemeOpen(true)} title="Theme editor" className="rounded-lg border border-white/12 p-2 text-muted transition hover:border-accent/50 hover:text-accent">
+            <Palette size={16} />
+          </button>
+          <button onClick={() => setConnOpen(true)} title="Connections — platforms & OBS" className="rounded-lg border border-white/12 p-2 text-muted transition hover:border-accent/50 hover:text-accent">
+            <Plug size={16} />
+          </button>
           <button
             onClick={toggleDemo}
             className={`rounded-full border px-2.5 py-1 text-[11px] font-bold ${demo ? "border-amber-400/40 bg-amber-400/10 text-amber-300" : "border-emerald-400/40 bg-emerald-400/10 text-emerald-300"}`}
@@ -52,6 +63,10 @@ export function SimpleApp() {
       </main>
 
       {account && <AccountModal open={account} onClose={() => setAccount(false)} />}
+      <Suspense fallback={null}>
+        {connOpen && <ConnectionsManager open={connOpen} onClose={() => setConnOpen(false)} />}
+        {themeOpen && <ThemeEditor open={themeOpen} onClose={() => setThemeOpen(false)} />}
+      </Suspense>
     </div>
   );
 }
