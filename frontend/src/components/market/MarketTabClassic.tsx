@@ -182,9 +182,9 @@ export function MarketTabClassic() {
         <p className="mt-1 text-[13px] text-muted">Classic layout — global markets, narratives, smart money, portfolios &amp; Polymarket in one terminal.</p>
 
         <PageGrid
-          pageKey="market-classic-v3"
+          pageKey="market-classic-v4"
           editMode={editMode}
-          titles={{ global: "Global Markets", tech: "Technicals", kols: "Top KOL Traders", hl: "Top Hyperliquid Traders", portfolios: "Influential Portfolios", poly: "Top Polymarket Traders", intel: "Intelligence Feed" }}
+          titles={{ global: "Global Markets", tech: "Technicals", hl: "Top Hyperliquid Traders", portfolios: "Influential Portfolios", poly: "Top Polymarket Traders", intel: "Intelligence Feed" }}
           items={[
             { id: "global", x: 0, y: 0, w: 12, h: 8, node: (
               <Panel title="Global Markets" icon={<Globe size={15} className="text-accent" />}>
@@ -196,32 +196,7 @@ export function MarketTabClassic() {
               </Panel>
             ) },
             { id: "tech", x: 0, y: 8, w: 12, h: 11, node: <TradingViewTechnicals /> },
-            { id: "kols", x: 9, y: 19, w: 3, h: 13, node: (
-              <Panel title="Top KOL Traders" icon={<XIcon size={14} className="text-accent" />} right={<span className="text-[10px] uppercase tracking-wider text-up">● verified</span>}>
-                <div className={leaderboardShell}>
-                  <div className={`${leaderboardHead} grid-cols-[minmax(0,1fr)_4.6rem]`}>
-                    <span>KOL · X</span><span className="text-right">Wallet $</span>
-                  </div>
-                  <div className={leaderboardBody} style={leaderboardRowsStyle}>
-                    {(lb?.linked ?? []).map((k) => {
-                      const open = () => setView("kol");
-                      return (
-                        <div key={k.addr} role="button" tabIndex={0} onClick={open} onKeyDown={(e) => onRowKey(e, open)} className={`${leaderboardRow} grid-cols-[minmax(0,1fr)_4.6rem]`}>
-                          <span className="min-w-0">
-                            <span className="flex items-center gap-1"><span className="truncate text-[12px] font-bold">{k.name}</span><WatchStar item={{ key: `kol:${k.xHandle}`, type: "kol", label: k.name, sub: "@" + k.xHandle }} size={10} /></span>
-                            <span className="block truncate text-[9px] text-faint">@{k.xHandle} · {k.chain === "hl" ? "HL" : "EVM"}</span>
-                          </span>
-                          <span className="text-right font-bold tabular-nums text-accent">${compact(k.value)}</span>
-                        </div>
-                      );
-                    })}
-                    {!lb && <div className="py-6 text-center text-[11px] text-faint">Loading verified KOLs…</div>}
-                    {lb && (lb.linked ?? []).length === 0 && <div className="py-6 text-center text-[11px] text-faint">No verified KOLs.</div>}
-                  </div>
-                </div>
-              </Panel>
-            ) },
-            { id: "hl", x: 0, y: 19, w: 3, h: 13, node: (
+            { id: "hl", x: 0, y: 19, w: 4, h: 13, node: (
               <Panel title="Top Hyperliquid Traders" icon={<TrendingUp size={15} className="text-up" />} right={<span className="text-[10px] uppercase tracking-wider text-up">● live</span>}>
                 <div className={leaderboardShell}>
                   <div className={`${leaderboardHead} grid-cols-[2rem_minmax(0,1fr)_4.7rem_3rem_4.3rem]`}>
@@ -244,7 +219,7 @@ export function MarketTabClassic() {
                 </div>
               </Panel>
             ) },
-            { id: "portfolios", x: 3, y: 19, w: 3, h: 13, node: (
+            { id: "portfolios", x: 4, y: 19, w: 4, h: 13, node: (
               <Panel title="Influential Portfolios" icon={<Briefcase size={15} className="text-accent" />} right={<span className="text-[10px] uppercase tracking-wider text-faint">13F · demo</span>}>
                 <div className={leaderboardShell}>
                   <div className={`${leaderboardHead} grid-cols-[2rem_minmax(0,1fr)_4.3rem_4.8rem_4rem]`}>
@@ -264,7 +239,7 @@ export function MarketTabClassic() {
                 </div>
               </Panel>
             ) },
-            { id: "poly", x: 6, y: 19, w: 3, h: 13, node: (
+            { id: "poly", x: 8, y: 19, w: 4, h: 13, node: (
               <Panel title="Top Polymarket Traders" icon={<PolymarketMark className="h-4 w-5 text-accent" />} right={<span className="text-[10px] uppercase tracking-wider text-up">● live · 30d</span>}>
                 <div className={leaderboardShell}>
                   <div className={`${leaderboardHead} grid-cols-[2rem_minmax(0,1fr)_5rem]`}>
