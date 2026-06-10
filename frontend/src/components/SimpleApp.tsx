@@ -2,6 +2,7 @@ import { lazy, Suspense, useMemo, useState } from "react";
 import { Zap, Plug, Palette, Pencil, Eye } from "lucide-react";
 import type { PanelLayout, WidgetKind } from "@shared/types";
 import { useViewerStore } from "@/store/viewerStore";
+import { useWalletStore } from "@/store/walletStore";
 import { useModeStore } from "@/store/modeStore";
 import { useUiModeStore } from "@/store/uiModeStore";
 import { renderWidget, WIDGET_META } from "./EditorCanvas";
@@ -44,6 +45,7 @@ export function SimpleApp() {
   const demo = useModeStore((s) => s.demo);
   const toggleDemo = useModeStore((s) => s.toggle);
   const xHandle = useViewerStore((s) => s.xHandle);
+  const address = useWalletStore((s) => s.address);
   const [account, setAccount] = useState(false);
   const [connOpen, setConnOpen] = useState(false);
   const [themeOpen, setThemeOpen] = useState(false);
@@ -76,7 +78,7 @@ export function SimpleApp() {
             {demo ? "DEMO" : "LIVE"}
           </button>
           <button onClick={() => setAccount(true)} className="rounded-lg border border-white/15 bg-white/[0.05] px-3 py-1.5 text-[13px] font-bold">
-            {xHandle ? `@${xHandle}` : "Connect"}
+            {xHandle ? `@${xHandle}` : address ? `${address.slice(0, 4)}…${address.slice(-4)}` : "Connect Wallet"}
           </button>
           <button
             onClick={() => setEdit((e) => !e)}

@@ -9,10 +9,10 @@ import { usePreviewStore } from "@/store/previewStore";
 import { useAudioStore } from "@/store/audioStore";
 import { useModeStore } from "@/store/modeStore";
 import { useBroadcastStore, BROADCASTS } from "@/store/broadcastStore";
-import { SourceBadge, platformColor } from "../SourceBadge";
+import { SourceBadge } from "../SourceBadge";
 import { LiveTimer } from "../LiveTimer";
 import { compact } from "@/lib/format";
-import type { Account } from "@shared/types";
+import type { Account, Platform } from "@shared/types";
 
 /** seconds → M:SS */
 function clock(s: number): string {
@@ -109,6 +109,21 @@ export function StreamPreview() {
     [channels, liveChannels, pick],
   );
   const focusViewers = focused?.viewers ?? totalViewers;
+
+  // Group channels by PERSON (Ansem / Banks / Market Bubble): one chip per
+  // person with their TOTAL viewers across platforms; hover shows the breakdown.
+  const people = useMemo(() => {
+    const map = new Map<string, { name: string; total: number; top: string; byPlatform: { platform: Platform; viewers: number; accountId: string }[] }>();
+    for (const c of channels) {
+      const name = c.meta!.displayName;
+      let p = map.get(name);
+      if (!p) { p = { name, total: 0, top: c.accountId, byPlatform: [] }; map.set(name, p); }
+      p.total += c.viewers ?? 0;
+      p.byPlatform.push({ platform: c.meta!.platform, viewers: c.viewers ?? 0, accountId: c.accountId });
+    }
+    for (const p of map.values()) { p.byPlatform.sort((a, b) => b.viewers - a.viewers); p.top = p.byPlatform[0]?.accountId ?? p.top; }
+    return [...map.values()].sort((a, b) => b.total - a.total);
+  }, [channels]);
 
   // What the preview shows, in priority order:
   //  1. a VOD the user explicitly picked          → that VOD file
@@ -299,24 +314,31 @@ export function StreamPreview() {
         </div>
       )}
 
-      {/* channel switcher */}
-      {channels.length > 1 && (
+      {/* per-person totals — hover a chip for the per-platform breakdown */}
+      {people.length > 0 && (
         <div className="vc-scroll mt-2 flex shrink-0 gap-1.5 overflow-x-auto pb-0.5">
-          {channels.map((c) => {
-            const on = c.accountId === (focused?.accountId ?? "");
+          {people.map((p) => {
+            const on = p.name === (focused?.meta?.displayName ?? "");
             return (
-              <button
-                key={c.accountId}
-                onClick={() => { setPick(c.accountId); selectBroadcast("live"); }}
-                className={`flex shrink-0 items-center gap-1.5 rounded-lg border px-2 py-1 text-[11px] font-bold transition ${
-                  on ? "bg-white/[0.06]" : "border-white/8 text-muted hover:text-ink"
-                }`}
-                style={on ? { borderColor: platformColor(c.meta!.platform), color: platformColor(c.meta!.platform) } : undefined}
-              >
-                <SourceBadge platform={c.meta!.platform} compact />
-                {c.meta!.displayName}
-                <span className="tabular-nums opacity-70">{compact(c.viewers)}</span>
-              </button>
+              <div key={p.name} className="group/p relative shrink-0">
+                <button
+                  onClick={() => { setPick(p.top); selectBroadcast("live"); }}
+                  className={`flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-[11px] font-bold transition ${on ? "border-accent/60 bg-white/[0.06] text-accent" : "border-white/8 text-muted hover:text-ink"}`}
+                >
+                  {p.name}
+                  <span className="tabular-nums opacity-70">{compact(p.total)}</span>
+                </button>
+                <div className="pointer-events-none absolute bottom-full left-0 z-30 mb-1.5 hidden min-w-[152px] rounded-xl border border-white/10 bg-[#0b0b0b] p-1.5 shadow-xl group-hover/p:block">
+                  <div className="mb-1 px-1 text-[9px] font-bold uppercase tracking-wider text-faint">{p.name} · live viewers</div>
+                  {p.byPlatform.map((b) => (
+                    <div key={b.platform} className="flex items-center justify-between gap-3 px-1 py-0.5 text-[11px]">
+                      <span className="flex items-center gap-1.5"><SourceBadge platform={b.platform} compact /><span className="capitalize text-muted">{b.platform}</span></span>
+                      <span className="tabular-nums font-semibold text-ink">{compact(b.viewers)}</span>
+                    </div>
+                  ))}
+                  <div className="mt-1 flex items-center justify-between border-t border-white/10 px-1 pt-1 text-[11px] font-bold text-accent"><span>Total</span><span className="tabular-nums">{compact(p.total)}</span></div>
+                </div>
+              </div>
             );
           })}
         </div>

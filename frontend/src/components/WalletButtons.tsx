@@ -11,6 +11,7 @@ import { discoverWallets, type WalletOption } from "@/lib/web3";
  */
 export function WalletButtons({ onConnected }: { onConnected?: () => void }) {
   const connect = useWalletStore((s) => s.connect);
+  const connectSolana = useWalletStore((s) => s.connectSolana);
   const connecting = useWalletStore((s) => s.connecting);
   const error = useWalletStore((s) => s.error);
   const [wallets, setWallets] = useState<WalletOption[]>([]);
@@ -32,21 +33,49 @@ export function WalletButtons({ onConnected }: { onConnected?: () => void }) {
     if (!useWalletStore.getState().error && useWalletStore.getState().address) onConnected?.();
   };
 
+  const onJupiter = async () => {
+    setPending("solana");
+    await connectSolana();
+    setPending(null);
+    if (useWalletStore.getState().address) onConnected?.();
+  };
+
+  // Jupiter is a Solana wallet (no EIP-6963 provider), so it gets its own button.
+  const jupiterBtn = (
+    <button
+      onClick={onJupiter}
+      disabled={connecting}
+      className="flex w-full items-center justify-center gap-2 rounded-xl border border-white/15 bg-white/[0.04] py-2.5 text-sm font-bold text-ink transition hover:border-accent/50 hover:text-accent disabled:opacity-50"
+    >
+      {connecting && pending === "solana" ? (
+        <Loader2 size={15} className="animate-spin" />
+      ) : (
+        <span className="grid h-4 w-4 place-items-center rounded-full bg-gradient-to-br from-emerald-400 to-cyan-300 text-[9px] font-black text-black">J</span>
+      )}
+      {connecting && pending === "solana" ? "Check Jupiter…" : "Connect Jupiter"}
+      <span className="text-[10px] font-normal opacity-60">· Solana</span>
+    </button>
+  );
+
   if (wallets.length === 0) {
     return (
-      <div className="rounded-lg border border-amber-400/20 bg-amber-400/5 px-3 py-2.5 text-[11px] leading-relaxed text-amber-200/90">
-        <div className="mb-1.5 flex items-center gap-1.5 font-semibold">
-          <AlertTriangle size={13} className="text-amber-400" /> No EVM wallet detected
+      <div className="flex flex-col gap-1.5">
+        <div className="rounded-lg border border-amber-400/20 bg-amber-400/5 px-3 py-2.5 text-[11px] leading-relaxed text-amber-200/90">
+          <div className="mb-1.5 flex items-center gap-1.5 font-semibold">
+            <AlertTriangle size={13} className="text-amber-400" /> No EVM wallet detected
+          </div>
+          Install{" "}
+          <a href="https://metamask.io/download/" target="_blank" rel="noreferrer" className="inline-flex items-center gap-0.5 font-semibold text-accent hover:underline">
+            MetaMask <ExternalLink size={9} />
+          </a>{" "}
+          or{" "}
+          <a href="https://phantom.app/download" target="_blank" rel="noreferrer" className="inline-flex items-center gap-0.5 font-semibold text-accent hover:underline">
+            Phantom <ExternalLink size={9} />
+          </a>
+          , then reload.
         </div>
-        Install{" "}
-        <a href="https://metamask.io/download/" target="_blank" rel="noreferrer" className="inline-flex items-center gap-0.5 font-semibold text-accent hover:underline">
-          MetaMask <ExternalLink size={9} />
-        </a>{" "}
-        or{" "}
-        <a href="https://phantom.app/download" target="_blank" rel="noreferrer" className="inline-flex items-center gap-0.5 font-semibold text-accent hover:underline">
-          Phantom <ExternalLink size={9} />
-        </a>
-        , then reload.
+        {jupiterBtn}
+        {error && <div className="text-[11px] text-red-300">{error}</div>}
       </div>
     );
   }
@@ -73,6 +102,7 @@ export function WalletButtons({ onConnected }: { onConnected?: () => void }) {
           </button>
         );
       })}
+      {jupiterBtn}
       {error && <div className="text-[11px] text-red-300">{error}</div>}
     </div>
   );

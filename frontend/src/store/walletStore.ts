@@ -21,6 +21,8 @@ interface WalletState {
   tipEnabled: boolean;
 
   connect: (rdns?: string) => Promise<void>;
+  /** Connect a Solana wallet (Jupiter / Phantom) via window.solana. */
+  connectSolana: () => Promise<void>;
   disconnect: () => void;
   setTipEnabled: (v: boolean) => void;
   /** Re-attach to an already-authorized wallet on load + watch for changes. */
@@ -45,6 +47,25 @@ export const useWalletStore = create<WalletState>()(
           set({ address: r.address, chainId: r.chainId, wallet: r.name, rdns: r.rdns, connecting: false });
         } catch (e) {
           set({ connecting: false, error: e instanceof Error ? e.message : "Wallet connection failed" });
+        }
+      },
+
+      connectSolana: async () => {
+        set({ connecting: true, error: null });
+        try {
+          const sol = (window as unknown as { solana?: { connect: () => Promise<{ publicKey?: { toString(): string } }>; publicKey?: { toString(): string }; isJupiter?: boolean; isPhantom?: boolean } }).solana;
+          if (!sol?.connect) {
+            // No Solana provider here — open Jupiter (use its in-app browser to connect).
+            window.open("https://jup.ag/", "_blank", "noopener");
+            set({ connecting: false, error: "Open this site inside the Jupiter app (or install Phantom) to connect a Solana wallet." });
+            return;
+          }
+          const resp = await sol.connect();
+          const pubkey = resp?.publicKey?.toString?.() ?? sol.publicKey?.toString?.();
+          if (!pubkey) throw new Error("No Solana account");
+          set({ address: pubkey, chainId: null, wallet: sol.isJupiter ? "Jupiter" : sol.isPhantom ? "Phantom" : "Solana", rdns: "solana", connecting: false });
+        } catch (e) {
+          set({ connecting: false, error: e instanceof Error ? e.message : "Solana connection failed" });
         }
       },
 
