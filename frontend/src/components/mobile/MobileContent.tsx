@@ -1,61 +1,87 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import Hls from "hls.js";
 import { MSection, MCard } from "./ui";
 
-/* Past full episodes — numbered by episode (EP1 = oldest), newest first. Real
- * Spotify video episodes; the most recent autoplays in the featured player. */
-const SPOTIFY_SHOW = "00yWnJPE80LSBglGwCrjZI";
-const EPISODES = [
-  { ep: 5, title: "The Dollar Is Going to Zero", date: "Jun 5, 2026", duration: "4h 42m", id: "3tb6qC1wYJ8NzmetLkRHAH" },
-  { ep: 4, title: "Why Ansem Thinks Ethereum Is Done", date: "May 22, 2026", duration: "2h 54m", id: "3hyI8cceqmXjns3j87cOio" },
-  { ep: 3, title: "How to Get Rich Playing GTA 6", date: "May 15, 2026", duration: "3h 33m", id: "7G0I5apOeMkc7oHepmUj6I" },
-  { ep: 2, title: "Why AI Is Beating Crypto Right Now", date: "May 8, 2026", duration: "3h 45m", id: "6FtrBE4TIp3pYip1hHo3XP" },
-  { ep: 1, title: "The Truth About Crypto in 2026", date: "May 1, 2026", duration: "1h 6m", id: "0xagf4GYhZvafuupXqFOsM" },
+const BACKEND = (import.meta.env.VITE_BACKEND_URL as string | undefined) ?? "https://3-213-104-77.nip.io";
+
+/* Past full episodes = the official X broadcast replays (VODs), played via the
+ * guest-only /api/x-vod proxy. Newest = highest EP number; EP1 has only a
+ * highlight clip (no full replay), so no broadcast id. */
+const EPISODES: { ep: number; title: string; date: string; duration: string; bid: string | null }[] = [
+  { ep: 5, title: "The Dollar Is Going to Zero", date: "Jun 5, 2026", duration: "4h 42m", bid: "1dxYllbQZELJX" },
+  { ep: 4, title: "Why Ansem Thinks Ethereum Is Done", date: "May 22, 2026", duration: "2h 54m", bid: "1OxwbldAYLDJB" },
+  { ep: 3, title: "How to Get Rich Playing GTA 6", date: "May 15, 2026", duration: "3h 33m", bid: "1DGleEgbRRzJL" },
+  { ep: 2, title: "Why AI Is Beating Crypto Right Now", date: "May 8, 2026", duration: "3h 45m", bid: "1DGleEqQkYVJL" },
+  { ep: 1, title: "The Truth About Crypto in 2026", date: "May 1, 2026", duration: "1h 6m", bid: null },
 ];
 
-/** Mobile Content — past full episodes, rewatchable via the Spotify player. */
+function XVodPlayer({ id, autoPlay }: { id: string; autoPlay?: boolean }) {
+  const ref = useRef<HTMLVideoElement>(null);
+  const [err, setErr] = useState(false);
+  useEffect(() => {
+    setErr(false);
+    let hls: Hls | null = null;
+    let dead = false;
+    (async () => {
+      try {
+        const r = await fetch(`${BACKEND}/api/x-vod/${id}`);
+        if (!r.ok) throw new Error("vod");
+        const { master } = await r.json();
+        const url = `${BACKEND}${master}`;
+        const v = ref.current;
+        if (!v || dead) return;
+        if (autoPlay) v.addEventListener("canplay", () => v.play().catch(() => {}), { once: true });
+        if (v.canPlayType("application/vnd.apple.mpegurl")) v.src = url;
+        else if (Hls.isSupported()) { hls = new Hls({ enableWorker: true }); hls.on(Hls.Events.ERROR, (_e, d) => { if (d.fatal) setErr(true); }); hls.loadSource(url); hls.attachMedia(v); }
+        else setErr(true);
+      } catch { setErr(true); }
+    })();
+    return () => { dead = true; hls?.destroy(); };
+  }, [id]);
+  if (err) return (
+    <div className="grid aspect-video w-full place-items-center bg-black">
+      <a href={`https://x.com/i/broadcasts/${id}`} target="_blank" rel="noreferrer" className="rounded-lg border border-accent/50 bg-accent/15 px-3 py-1.5 text-[12px] font-bold text-accent">▶ Watch on X ↗</a>
+    </div>
+  );
+  return <video ref={ref} controls autoPlay={autoPlay} muted={autoPlay} playsInline className="aspect-video w-full bg-black" />;
+}
+
+/** Mobile Content — past full episodes, rewatchable via the X replay player. */
 export function MobileContent() {
-  const [epId, setEpId] = useState(EPISODES[0].id); // default = most recent
+  const [vodId, setVodId] = useState<string>(EPISODES[0].bid!); // most recent full replay
 
   return (
     <div className="pb-6">
       <MSection title="Full Episodes">
-        {/* featured player — autoplays the most recent (or selected) episode */}
+        {/* featured player — autoplays the most recent (or selected) full episode */}
         <MCard className="overflow-hidden">
-          <iframe
-            key={epId}
-            title="Market Bubble — full episode"
-            src={`https://open.spotify.com/embed/episode/${epId}?utm_source=generator&autoplay=1`}
-            width="100%"
-            height={232}
-            frameBorder={0}
-            allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
-            allowFullScreen
-            loading="lazy"
-          />
+          <XVodPlayer key={vodId} id={vodId} autoPlay />
         </MCard>
 
         {/* numbered episode list — tap to load above */}
         <div className="mt-3 space-y-2">
           {EPISODES.map((e) => {
-            const on = e.id === epId;
+            const on = e.bid === vodId;
+            const noReplay = !e.bid;
             return (
               <button
-                key={e.id}
-                onClick={() => setEpId(e.id)}
-                className={`flex w-full items-center gap-3 rounded-xl border px-3 py-2 text-left transition ${on ? "border-accent/60 bg-accent/10" : "border-white/8 bg-white/[0.03]"}`}
+                key={e.ep}
+                disabled={noReplay}
+                onClick={() => e.bid && setVodId(e.bid)}
+                className={`flex w-full items-center gap-3 rounded-xl border px-3 py-2 text-left transition ${on ? "border-accent/60 bg-accent/10" : noReplay ? "border-white/8 bg-white/[0.01] opacity-50" : "border-white/8 bg-white/[0.03]"}`}
               >
                 <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-lg text-[13px] font-black ${on ? "bg-accent text-black" : "bg-white/8 text-accent"}`}>{e.ep}</span>
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-[13px] font-bold">{e.title}</span>
                   <span className="block text-[10px] text-muted">EP {e.ep} · {e.date} · {e.duration}</span>
                 </span>
-                {on && <span className="shrink-0 text-[10px] font-bold uppercase tracking-wider text-accent">▶</span>}
+                {noReplay ? <span className="shrink-0 text-[9px] font-bold uppercase tracking-wider text-faint">Highlight</span> : on ? <span className="shrink-0 text-[10px] font-bold uppercase tracking-wider text-accent">▶</span> : null}
               </button>
             );
           })}
         </div>
 
-        <a href={`https://open.spotify.com/show/${SPOTIFY_SHOW}`} target="_blank" rel="noreferrer" className="mt-3 block text-center text-[12px] font-bold text-accent">All episodes on Spotify ↗</a>
+        <a href="https://x.com/MarketBubble" target="_blank" rel="noreferrer" className="mt-3 block text-center text-[12px] font-bold text-accent">All episodes on X ↗</a>
       </MSection>
     </div>
   );

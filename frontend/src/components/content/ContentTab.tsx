@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import Hls from "hls.js";
 import { Radio, Film, TrendingUp, Play } from "lucide-react";
 import { compact } from "../../lib/format";
 import { BROADCASTS } from "../../store/broadcastStore";
@@ -22,14 +23,61 @@ const chip = "rounded-md border border-white/10 px-2 py-0.5 text-[10px] font-bol
 
 /* Past full episodes — numbered by episode (EP1 = oldest), newest first for display.
  * Real Spotify video episodes; the most recent autoplays in the featured player. */
-const SPOTIFY_SHOW = "00yWnJPE80LSBglGwCrjZI";
-const EPISODES = [
-  { ep: 5, title: "The Dollar Is Going to Zero", date: "Jun 5, 2026", duration: "4h 42m", id: "3tb6qC1wYJ8NzmetLkRHAH" },
-  { ep: 4, title: "Why Ansem Thinks Ethereum Is Done", date: "May 22, 2026", duration: "2h 54m", id: "3hyI8cceqmXjns3j87cOio" },
-  { ep: 3, title: "How to Get Rich Playing GTA 6", date: "May 15, 2026", duration: "3h 33m", id: "7G0I5apOeMkc7oHepmUj6I" },
-  { ep: 2, title: "Why AI Is Beating Crypto Right Now", date: "May 8, 2026", duration: "3h 45m", id: "6FtrBE4TIp3pYip1hHo3XP" },
-  { ep: 1, title: "The Truth About Crypto in 2026", date: "May 1, 2026", duration: "1h 6m", id: "0xagf4GYhZvafuupXqFOsM" },
+// Full episodes = the official X broadcast replays (VODs), played in our own
+// HLS player via the guest-only /api/x-vod proxy. Newest = highest EP number.
+// EP1 only has a highlight clip (no full replay posted), so it has no broadcast id.
+const EPISODES: { ep: number; title: string; date: string; duration: string; bid: string | null }[] = [
+  { ep: 5, title: "The Dollar Is Going to Zero", date: "Jun 5, 2026", duration: "4h 42m", bid: "1dxYllbQZELJX" },
+  { ep: 4, title: "Why Ansem Thinks Ethereum Is Done", date: "May 22, 2026", duration: "2h 54m", bid: "1OxwbldAYLDJB" },
+  { ep: 3, title: "How to Get Rich Playing GTA 6", date: "May 15, 2026", duration: "3h 33m", bid: "1DGleEgbRRzJL" },
+  { ep: 2, title: "Why AI Is Beating Crypto Right Now", date: "May 8, 2026", duration: "3h 45m", bid: "1DGleEqQkYVJL" },
+  { ep: 1, title: "The Truth About Crypto in 2026", date: "May 1, 2026", duration: "1h 6m", bid: null },
 ];
+
+/** Plays an X broadcast replay (full episode) via the guest HLS proxy — hls.js in
+ *  Chrome/Firefox, native HLS in Safari. Falls back to a "Watch on X" link. */
+function XVodPlayer({ id, autoPlay }: { id: string; autoPlay?: boolean }) {
+  const ref = useRef<HTMLVideoElement>(null);
+  const [err, setErr] = useState(false);
+  useEffect(() => {
+    setErr(false);
+    let hls: Hls | null = null;
+    let dead = false;
+    (async () => {
+      try {
+        const r = await fetch(`${BACKEND}/api/x-vod/${id}`);
+        if (!r.ok) throw new Error("vod");
+        const { master } = await r.json();
+        const url = `${BACKEND}${master}`;
+        const v = ref.current;
+        if (!v || dead) return;
+        // hls.js attaches the source async, so the autoPlay attribute misses it —
+        // kick playback (muted) once the media is ready.
+        if (autoPlay) v.addEventListener("canplay", () => v.play().catch(() => {}), { once: true });
+        if (v.canPlayType("application/vnd.apple.mpegurl")) {
+          v.src = url;
+        } else if (Hls.isSupported()) {
+          hls = new Hls({ enableWorker: true });
+          hls.on(Hls.Events.ERROR, (_e, d) => { if (d.fatal) setErr(true); });
+          hls.loadSource(url);
+          hls.attachMedia(v);
+        } else {
+          setErr(true);
+        }
+      } catch { setErr(true); }
+    })();
+    return () => { dead = true; hls?.destroy(); };
+  }, [id]);
+
+  if (err) {
+    return (
+      <div className="grid aspect-video w-full place-items-center rounded-xl border border-white/10 bg-black">
+        <a href={`https://x.com/i/broadcasts/${id}`} target="_blank" rel="noreferrer" className="rounded-lg border border-accent/50 bg-accent/15 px-4 py-2 text-sm font-bold text-accent hover:bg-accent/25">▶ Watch full replay on X ↗</a>
+      </div>
+    );
+  }
+  return <video ref={ref} controls autoPlay={autoPlay} muted={autoPlay} playsInline className="aspect-video w-full rounded-xl border border-white/10 bg-black" />;
+}
 
 interface Clip { id: string; title: string; viewCount?: number; thumbnail?: string }
 interface Channel { live: boolean; vods: { id: string }[]; clips: Clip[] }
@@ -94,7 +142,7 @@ function XTimeline({ handle, list, limit = 12 }: { handle?: string; list?: strin
 
 export function ContentTab() {
   const [feedHandle, setFeedHandle] = useState("all");
-  const [epId, setEpId] = useState(EPISODES[0].id); // default = most recent episode
+  const [vodId, setVodId] = useState<string>(EPISODES[0].bid!); // default = most recent full replay (EP5)
   const topPosts = [...FEED].sort((a, b) => b.views - a.views).slice(0, 6);
   const feedTabs = [{ name: "All", handle: "all" }, ...FEED_ACCOUNTS];
 
@@ -149,39 +197,30 @@ export function ContentTab() {
               <Film size={14} className="text-accent" />
               <span className="text-[12px] font-bold uppercase tracking-[0.12em] text-muted">Full Episodes</span>
               <span className={`${chip}`}>Rewatch</span>
-              <a href={`https://open.spotify.com/show/${SPOTIFY_SHOW}`} target="_blank" rel="noreferrer" className="ml-auto text-[11px] font-bold text-accent hover:underline">All on Spotify ↗</a>
+              <a href="https://x.com/MarketBubble" target="_blank" rel="noreferrer" className="ml-auto text-[11px] font-bold text-accent hover:underline">All on X ↗</a>
             </div>
 
-            {/* featured player — autoplays the most recent (or the selected) episode */}
-            <iframe
-              key={epId}
-              title="Market Bubble — full episode"
-              src={`https://open.spotify.com/embed/episode/${epId}?utm_source=generator&autoplay=1`}
-              width="100%"
-              height={352}
-              frameBorder={0}
-              allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
-              allowFullScreen
-              loading="lazy"
-              className="rounded-xl"
-            />
+            {/* featured player — autoplays the most recent (or the selected) full episode */}
+            <XVodPlayer key={vodId} id={vodId} autoPlay />
 
             {/* numbered episode list — click to load into the player above */}
             <div className="mt-3 space-y-1.5">
               {EPISODES.map((e) => {
-                const on = e.id === epId;
+                const on = e.bid === vodId;
+                const noReplay = !e.bid;
                 return (
                   <button
-                    key={e.id}
-                    onClick={() => setEpId(e.id)}
-                    className={`flex w-full items-center gap-3 rounded-xl border px-3 py-2 text-left transition ${on ? "border-accent/60 bg-accent/10" : "border-white/8 bg-white/[0.02] hover:border-accent/40"}`}
+                    key={e.ep}
+                    disabled={noReplay}
+                    onClick={() => e.bid && setVodId(e.bid)}
+                    className={`flex w-full items-center gap-3 rounded-xl border px-3 py-2 text-left transition ${on ? "border-accent/60 bg-accent/10" : noReplay ? "border-white/8 bg-white/[0.01] opacity-50" : "border-white/8 bg-white/[0.02] hover:border-accent/40"}`}
                   >
                     <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-lg text-[13px] font-black ${on ? "bg-accent text-black" : "bg-white/8 text-accent"}`}>{e.ep}</span>
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-[13px] font-bold">{e.title}</span>
                       <span className="block text-[10px] text-faint">EP {e.ep} · {e.date} · {e.duration}</span>
                     </span>
-                    {on ? <span className="shrink-0 text-[10px] font-bold uppercase tracking-wider text-accent">▶ Now playing</span> : <Play size={15} className="shrink-0 text-muted" />}
+                    {noReplay ? <span className="shrink-0 text-[10px] font-bold uppercase tracking-wider text-faint">Highlight only</span> : on ? <span className="shrink-0 text-[10px] font-bold uppercase tracking-wider text-accent">▶ Now playing</span> : <Play size={15} className="shrink-0 text-muted" />}
                   </button>
                 );
               })}
@@ -202,7 +241,7 @@ export function ContentTab() {
           </div>
         </div>
       </div>
-      <p className="mt-5 text-center text-[11px] text-faint"><span className="font-bold text-up">● Live</span> — the Watch player &amp; clips are real (Twitch via backend). Feed &amp; trending are demo until an X tracked-list key is added.</p>
+      <p className="mt-5 text-center text-[11px] text-faint"><span className="font-bold text-up">● Live</span> — full episodes are the real X broadcast replays (guest stream, no login). Watch player &amp; clips are real Twitch; feed &amp; trending are demo until an X tracked-list key is added.</p>
     </div>
     </div>
   );
