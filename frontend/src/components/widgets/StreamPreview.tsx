@@ -146,9 +146,10 @@ export function StreamPreview() {
 
   const liveView = shownBroadcast.live;
   const embedUrl = liveView && !demo ? liveEmbedUrl(focused?.meta) : null;
-  // No live stream actively embedding → play the most recent full episode replay
-  // in the preview. A real connected/live channel (embedUrl) overrides it.
-  const showEpisode = !embedUrl && !statsWarming;
+  // Only the "live" entry (no real stream active) falls back to the most recent
+  // full episode replay. A specific past broadcast picked from the Broadcasts
+  // list plays its own recording (broadcast.live === false → the <video> below).
+  const showEpisode = broadcast.live && !embedUrl && !statsWarming;
   const previewSrc = shownBroadcast.src;
 
   // Seek to the start frame + (re)start playback whenever the source (VOD or
