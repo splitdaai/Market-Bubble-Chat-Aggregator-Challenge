@@ -247,36 +247,27 @@ body::-webkit-scrollbar-thumb:hover { background: rgba(var(--vc-accent-rgb), 0.6
 }
 .vc-scroll::-webkit-scrollbar-thumb:hover { background: rgba(var(--vc-accent-rgb), 0.7); }
 
-/* ── Boot loading screen — white pulse draws the logo on, then fills ──────── */
+/* ── Boot loading screen — logo static white; only the chart/pulse line draws ─ */
 @keyframes mb-line-draw { to { stroke-dashoffset: 0; } }
-@keyframes mb-fill-in { to { fill: #f4efe6; } }
-.mb-loader .mb-logo-stage { filter: drop-shadow(0 0 20px rgba(244, 239, 230, 0.18)); }
-.mb-loader .market-logo { display: block; width: 22rem; height: auto; overflow: visible; }
-.mb-loader .logo-path {
-  fill: #f4efe600;            /* transparent until the fill-in */
-  stroke: #f4efe6;            /* the white pulse */
-  stroke-dasharray: 1;
-  stroke-dashoffset: 1;
-  stroke-linecap: round;
-  stroke-linejoin: round;
+@keyframes mb-fill-in { to { fill-opacity: 1; } }
+.mb-loader .mb-logo-draw { filter: drop-shadow(0 0 20px rgba(244, 239, 230, 0.14)); }
+.mb-loader .mb-logo-draw svg { display: block; width: 22rem; height: auto; overflow: visible; }
+/* the whole logo is shown static, in white */
+.mb-loader .mb-logo-draw path { fill: #f4efe6; }
+/* …except the chart / pulse line (9th path) which draws on from its left start, then fills */
+.mb-loader .mb-logo-draw path:nth-of-type(9) {
+  fill: #f4efe6;
+  fill-opacity: 0;
+  stroke: #f4efe6;
   stroke-width: 2.2px;
   vector-effect: non-scaling-stroke;
-  animation: mb-line-draw 1.2s cubic-bezier(.65, 0, .35, 1) var(--d, .15s) forwards,
-             mb-fill-in 0.6s ease var(--f, 1.35s) forwards;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: mb-line-draw 1.4s cubic-bezier(.5, 0, .2, 1) 0.25s forwards,
+             mb-fill-in 0.5s ease 1.6s forwards;
 }
-/* staggered so the pulse travels left → right through the logo */
-.mb-loader .logo-path:nth-of-type(1)  { --d: .15s; --f: 1.35s; }
-.mb-loader .logo-path:nth-of-type(2)  { --d: .21s; --f: 1.41s; }
-.mb-loader .logo-path:nth-of-type(3)  { --d: .27s; --f: 1.47s; }
-.mb-loader .logo-path:nth-of-type(4)  { --d: .33s; --f: 1.53s; }
-.mb-loader .logo-path:nth-of-type(5)  { --d: .39s; --f: 1.59s; }
-.mb-loader .logo-path:nth-of-type(6)  { --d: .45s; --f: 1.65s; }
-.mb-loader .logo-path:nth-of-type(7)  { --d: .51s; --f: 1.71s; }
-.mb-loader .logo-path:nth-of-type(8)  { --d: .57s; --f: 1.77s; }
-.mb-loader .logo-path:nth-of-type(9)  { --d: .63s; --f: 1.83s; }
-.mb-loader .logo-path:nth-of-type(10) { --d: .69s; --f: 1.89s; }
-.mb-loader .logo-path:nth-of-type(11) { --d: .75s; --f: 1.95s; }
-.mb-loader .logo-path:nth-of-type(12) { --d: .81s; --f: 2.01s; }
 
 /* ---- react-grid-layout theming ---- */
 .react-grid-item.react-grid-placeholder {
