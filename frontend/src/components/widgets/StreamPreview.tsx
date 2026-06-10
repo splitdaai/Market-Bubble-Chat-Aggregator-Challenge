@@ -104,9 +104,17 @@ export function StreamPreview() {
   const statsWarming = channels.length === 0 && accounts.some((a) => a.connected);
   const anyLive = liveChannels.length > 0 || statsWarming;
 
+  // Default focus = the Market Bubble channel (the home stream). Only fall back
+  // to the busiest live channel if MB isn't connected at all.
+  const mbLive = useMemo(() => liveChannels.find((c) => /market\s*bubble/i.test(c.meta!.displayName)), [liveChannels]);
   const focused = useMemo(
-    () => channels.find((c) => c.accountId === pick) ?? liveChannels[0] ?? channels[0],
-    [channels, liveChannels, pick],
+    () =>
+      channels.find((c) => c.accountId === pick) ??
+      mbLive ??
+      channels.find((c) => /market\s*bubble/i.test(c.meta!.displayName)) ??
+      liveChannels[0] ??
+      channels[0],
+    [channels, liveChannels, pick, mbLive],
   );
   const focusViewers = focused?.viewers ?? totalViewers;
 
@@ -134,6 +142,11 @@ export function StreamPreview() {
   const latestVod = useMemo(() => BROADCASTS.find((b) => !b.live) ?? BROADCASTS[BROADCASTS.length - 1], []);
   const fallbackToVod = broadcast.live && !anyLive;
   const shownBroadcast = fallbackToVod ? latestVod : broadcast;
+
+  // Market Bubble offline (live mode, no explicit pick) → show the LAST EPISODE
+  // (the pinned X broadcast) instead of someone else's stream or a local file.
+  const LAST_EPISODE_TWEET = "2062633295792271762";
+  const showEpisode = broadcast.live && !demo && !pick && !statsWarming && !mbLive;
 
   const liveView = shownBroadcast.live;
   const embedUrl = liveView && !demo ? liveEmbedUrl(focused?.meta) : null;
@@ -241,7 +254,19 @@ export function StreamPreview() {
       {/* 16:9 preview — real stream video (fully visible, never cropped), with
           the chat-velocity chart as a fallback skin */}
       <div className="relative min-h-0 flex-1 overflow-hidden rounded-xl border border-white/10 bg-black">
-        {embedUrl ? (
+        {showEpisode ? (
+          /* Market Bubble offline → the last episode, embedded from X. */
+          <div className="vc-scroll absolute inset-0 flex justify-center overflow-y-auto">
+            <iframe
+              key="last-episode"
+              src={`https://platform.twitter.com/embed/Tweet.html?dnt=true&theme=dark&id=${LAST_EPISODE_TWEET}`}
+              title="Market Bubble — last episode"
+              allow="autoplay; fullscreen; encrypted-media; picture-in-picture"
+              allowFullScreen
+              className="h-full w-[550px] max-w-full"
+            />
+          </div>
+        ) : embedUrl ? (
           /* Live mode: the focused channel's real platform player. */
           <iframe
             key={embedUrl}
@@ -269,7 +294,7 @@ export function StreamPreview() {
           />
         )}
         {/* big center play affordance when paused */}
-        {!embedUrl && videoOk && !playing && (
+        {!showEpisode && !embedUrl && videoOk && !playing && (
           <button
             onClick={togglePlay}
             className="absolute inset-0 z-[5] grid place-items-center bg-black/30"
@@ -280,7 +305,7 @@ export function StreamPreview() {
             </span>
           </button>
         )}
-        {!embedUrl && !videoOk && (
+        {!showEpisode && !embedUrl && !videoOk && (
           <>
             <img src="/logo-white.png" alt="" className="pointer-events-none absolute left-1/2 top-1/2 h-1/2 -translate-x-1/2 -translate-y-1/2 opacity-[0.06]" />
             <svg viewBox="0 0 100 56" preserveAspectRatio="none" className="absolute inset-0 h-full w-full">
@@ -297,7 +322,12 @@ export function StreamPreview() {
           </>
         )}
 
-        {shownBroadcast.live ? (
+        {showEpisode ? (
+          <span className="absolute left-2 top-2 z-[5] flex items-center gap-1.5 rounded-md bg-black/55 px-1.5 py-0.5 text-[10px] font-black uppercase tracking-wider text-accent backdrop-blur">
+            <span className="rounded bg-accent/20 px-1">Last episode</span>
+            <span className="normal-case text-white/90">Market Bubble · from X</span>
+          </span>
+        ) : shownBroadcast.live ? (
           <span className="absolute left-2 top-2 flex items-center gap-1.5 rounded-md bg-black/55 px-1.5 py-0.5 text-[10px] font-black uppercase tracking-wider text-red-400 backdrop-blur">
             <span className="relative flex h-1.5 w-1.5"><span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-500/70" /><span className="relative h-1.5 w-1.5 rounded-full bg-red-500" /></span>
             Live
@@ -313,7 +343,7 @@ export function StreamPreview() {
       </div>
 
       {/* transport — play/pause + seek the whole clip */}
-      {!embedUrl && videoOk && (
+      {!showEpisode && !embedUrl && videoOk && (
         <div className="mt-2 flex shrink-0 items-center gap-2">
           <button onClick={togglePlay} title={playing ? "Pause" : "Play"} className="grid h-7 w-7 shrink-0 place-items-center rounded-lg border border-white/12 text-white transition hover:border-accent/60 hover:text-accent">
             {playing ? <Pause size={14} /> : <Play size={14} className="ml-0.5" />}
