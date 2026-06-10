@@ -10,7 +10,7 @@ export interface PageGridItem { id: string; x: number; y: number; w: number; h: 
  * Drag/resize/add/remove/persist wrapper for a page's panels — same editing model
  * as the Live dashboard, self-contained per page (layout + hidden set in localStorage).
  */
-export function PageGrid({ pageKey, items, editMode, titles = {} }: { pageKey: string; items: PageGridItem[]; editMode: boolean; titles?: Record<string, string> }) {
+export function PageGrid({ pageKey, items, editMode, titles = {}, defaultHidden = [] }: { pageKey: string; items: PageGridItem[]; editMode: boolean; titles?: Record<string, string>; defaultHidden?: string[] }) {
   const storeKey = `mb-pagegrid-${pageKey}`;
   const hideKey = `${storeKey}-hidden`;
   const def: Layout[] = items.map((i) => ({ i: i.id, x: i.x, y: i.y, w: i.w, h: i.h }));
@@ -25,7 +25,7 @@ export function PageGrid({ pageKey, items, editMode, titles = {} }: { pageKey: s
     } catch { /* ignore */ }
     return def;
   });
-  const [hidden, setHidden] = useState<string[]>(() => { try { return JSON.parse(localStorage.getItem(hideKey) || "[]"); } catch { return []; } });
+  const [hidden, setHidden] = useState<string[]>(() => { try { const s = localStorage.getItem(hideKey); return s ? JSON.parse(s) : defaultHidden; } catch { return defaultHidden; } });
   const [addOpen, setAddOpen] = useState(false);
 
   const onChange = (l: Layout[]) => { setLayout(l); try { localStorage.setItem(storeKey, JSON.stringify(l)); } catch { /* ignore */ } };

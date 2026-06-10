@@ -21,7 +21,7 @@ const StreamPreview = lazy(() => import("./widgets/StreamPreview").then((m) => (
 const OpsPanel = lazy(() => import("./widgets/OpsPanel").then((m) => ({ default: m.OpsPanel })));
 const PolymarketPanel = lazy(() => import("./widgets/PolymarketPanel").then((m) => ({ default: m.PolymarketPanel })));
 
-const WIDGET_META: Record<WidgetKind, { label: string; icon: React.ReactNode }> = {
+export const WIDGET_META: Record<WidgetKind, { label: string; icon: React.ReactNode }> = {
   "chat-feed": { label: "Chat Feed", icon: <MessageSquare size={15} /> },
   "connection-status": { label: "Connections", icon: <Activity size={15} /> },
   stats: { label: "Live Stats", icon: <BarChart3 size={15} /> },
@@ -38,7 +38,7 @@ const WIDGET_META: Record<WidgetKind, { label: string; icon: React.ReactNode }> 
   polymarket: { label: "Polymarket", icon: <TrendingUp size={15} /> },
 };
 
-function renderWidget(panel: PanelLayout, onEditButton: (b?: ActionButton) => void) {
+export function renderWidget(panel: PanelLayout, onEditButton: (b?: ActionButton) => void) {
   switch (panel.widget) {
     case "chat-feed": return <ChatFeed panel={panel} />;
     case "connection-status": return <ConnectionStatusWidget />;
