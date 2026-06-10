@@ -12,6 +12,7 @@ import { AccountModal } from "./AccountModal";
 
 const ConnectionsManager = lazy(() => import("./ConnectionsManager").then((m) => ({ default: m.ConnectionsManager })));
 const ThemeEditor = lazy(() => import("./ThemeEditor").then((m) => ({ default: m.ThemeEditor })));
+const UserCard = lazy(() => import("./UserCard").then((m) => ({ default: m.UserCard })));
 
 // Default placement + size for each addable widget on the Simple canvas.
 const GEO: Record<string, [number, number, number, number]> = {
@@ -135,6 +136,7 @@ export function SimpleApp() {
 
       {account && <AccountModal open={account} onClose={() => setAccount(false)} />}
       <Suspense fallback={null}>
+        <UserCard />
         {connOpen && <ConnectionsManager open={connOpen} onClose={() => setConnOpen(false)} />}
         {themeOpen && <ThemeEditor open={themeOpen} onClose={() => setThemeOpen(false)} />}
       </Suspense>

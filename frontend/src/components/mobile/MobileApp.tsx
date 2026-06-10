@@ -6,6 +6,7 @@ import { useViewerStore } from "@/store/viewerStore";
 import { useUiModeStore } from "@/store/uiModeStore";
 import { AccountModal } from "../AccountModal";
 import { WatchlistDashboard } from "../WatchlistDashboard";
+import { UserCard } from "../UserCard";
 import { MobileLive } from "./MobileLive";
 import { MobileMarket } from "./MobileMarket";
 import { MobileKol } from "./MobileKol";
@@ -93,6 +94,7 @@ export function MobileApp() {
 
       {account && <AccountModal open={account} onClose={() => setAccount(false)} onOpenDashboard={() => { setAccount(false); setDash(true); }} />}
       <WatchlistDashboard open={dash} onClose={() => setDash(false)} />
+      <UserCard />
     </div>
   );
 }
