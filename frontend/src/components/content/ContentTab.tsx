@@ -51,14 +51,18 @@ function XVodPlayer({ id, autoPlay }: { id: string; autoPlay?: boolean }) {
         const url = `${BACKEND}${master}`;
         const v = ref.current;
         if (!v || dead) return;
-        // hls.js attaches the source async, so the autoPlay attribute misses it —
-        // kick playback (muted) once the media is ready.
-        if (autoPlay) v.addEventListener("canplay", () => v.play().catch(() => {}), { once: true });
+        // Set the muted PROPERTY (React's `muted` attr alone won't satisfy Chrome's
+        // autoplay policy) and kick play() once ready — hls.js attaches async, so the
+        // autoPlay attribute misses it.
+        v.muted = !!autoPlay;
+        const kick = () => { if (autoPlay) { v.muted = true; v.play().catch(() => {}); } };
+        v.addEventListener("canplay", kick, { once: true });
         if (v.canPlayType("application/vnd.apple.mpegurl")) {
           v.src = url;
         } else if (Hls.isSupported()) {
           hls = new Hls({ enableWorker: true });
           hls.on(Hls.Events.ERROR, (_e, d) => { if (d.fatal) setErr(true); });
+          hls.on(Hls.Events.MANIFEST_PARSED, kick);
           hls.loadSource(url);
           hls.attachMedia(v);
         } else {
