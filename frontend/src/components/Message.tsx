@@ -61,10 +61,13 @@ function MessageInner({ msg, deleted, onModerate }: Props) {
         }
       >
         <div className="flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5 text-[13px] leading-snug">
-          <SourceBadge platform={msg.platform} compact />
-          {msg.channel && (
-            <span className="text-[10px] font-semibold text-muted/80" title={`Watching ${msg.channel}`}>{msg.channel}</span>
-          )}
+          <span className="group/src relative inline-flex">
+            <SourceBadge platform={msg.platform} compact />
+            {/* hover the icon → which platform + streamer's chat it's from */}
+            <span className="pointer-events-none absolute bottom-full left-0 z-40 mb-1 hidden whitespace-nowrap rounded-md border border-white/10 bg-[#0b0b0b] px-1.5 py-0.5 text-[10px] font-semibold shadow-lg group-hover/src:block">
+              <span className="capitalize text-muted">{msg.platform}</span>{msg.channel ? <span className="text-ink"> · {msg.channel}</span> : null}
+            </span>
+          </span>
           {msg.badges?.map((b, idx) => (
             <span key={idx} title={b.label} className="inline-grid place-items-center">
               {badgeIcon[b.type]}
