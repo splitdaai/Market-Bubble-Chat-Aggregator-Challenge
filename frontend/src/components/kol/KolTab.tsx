@@ -29,8 +29,8 @@ interface HlTrader { name: string; addr: string; pnl: number; roi?: number; valu
 interface Linked { name: string; xHandle: string; addr: string; chain: "hl" | "evm"; value: number; pnl: number; top?: string }
 interface Holding { sym: string; amount: number; usd: number }
 interface Position { coin: string; long: boolean; szi: number; entry: number; upnl: number; lev: number; value: number }
-interface Fill { coin: string; buy: boolean; sz: number; px: number; t: number; dir: string }
-interface WalletData { addr: string; accountValue: number; positions: Position[]; fills: Fill[]; chart: Record<string, number[]> }
+interface Fill { coin: string; buy: boolean; sz: number; px: number; t: number; dir: string; closedPnl?: number }
+interface WalletData { addr: string; accountValue: number; positions: Position[]; fills: Fill[]; chart: Record<string, number[]>; kpis?: { winRate: number | null; trades: number; wins: number } }
 
 function XPosts({ handle }: { handle: string }) {
   const ref = useRef<HTMLDivElement>(null);
@@ -69,7 +69,7 @@ function HlWalletModal({ trader, onClose }: { trader: HlTrader; onClose: () => v
         </div>
 
         <div className="grid grid-cols-2 gap-2 p-4 pb-0 sm:grid-cols-4">
-          {[["Account value", usd(w?.accountValue ?? trader.value)], ["30D PnL", (trader.pnl >= 0 ? "+" : "") + usd(trader.pnl), trader.pnl >= 0 ? "up" : "down"], ["30D ROI", (trader.roi ?? 0).toFixed(1) + "%", "accent"], ["Open positions", String(w?.positions.length ?? "…")]].map(([l, v, tone]) => (
+          {[["Account value", usd(w?.accountValue ?? trader.value)], ["30D PnL", (trader.pnl >= 0 ? "+" : "") + usd(trader.pnl), trader.pnl >= 0 ? "up" : "down"], ["30D ROI", (trader.roi ?? 0).toFixed(1) + "%", "accent"], ["Win rate", w?.kpis ? (w.kpis.winRate != null ? `${w.kpis.winRate}%` : "n/a") : "…", (w?.kpis?.winRate ?? 0) >= 50 ? "up" : "down"]].map(([l, v, tone]) => (
             <div key={l} className="rounded-xl border border-white/8 bg-white/[0.02] px-3 py-2 text-center"><div className="text-[9px] uppercase tracking-wider text-faint">{l}</div><div className={`mt-0.5 text-[16px] font-extrabold tabular-nums ${tone === "up" ? "text-up" : tone === "accent" ? "text-accent" : ""}`}>{v}</div></div>
           ))}
         </div>
@@ -120,6 +120,7 @@ function HlWalletModal({ trader, onClose }: { trader: HlTrader; onClose: () => v
                   <span className="font-mono font-bold text-accent">{f.coin}</span>
                   <span className="truncate text-faint">{f.dir}</span>
                   <span className="ml-auto tabular-nums text-muted">{compact(f.sz)} @ ${compact(f.px)}</span>
+                  {f.closedPnl ? <span className={`tabular-nums font-bold ${f.closedPnl >= 0 ? "text-up" : "text-down"}`}>{f.closedPnl >= 0 ? "+" : ""}{usd(f.closedPnl)}</span> : null}
                   <span className="w-10 text-right text-[9px] text-faint">{fmtTime(f.t)}</span>
                 </div>
               ))}
@@ -267,7 +268,7 @@ export function KolTab() {
               <div className="py-10 text-center text-[12px] text-faint">Loading live Hyperliquid wallets…</div>
             ) : (
               <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                {wallets.slice(0, 20).map((t, i) => (
+                {wallets.slice(0, 50).map((t, i) => (
                   <div key={t.addr} role="button" tabIndex={0} onClick={() => setOpenWallet(t)} className="group flex cursor-pointer items-center gap-3 rounded-xl border border-white/8 bg-white/[0.02] p-2.5 transition hover:border-accent/40 hover:bg-accent/5">
                     <span className="w-4 text-[11px] font-bold tabular-nums text-faint">{i + 1}</span>
                     <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-accent/15 text-[11px] font-black text-accent">HL</span>

@@ -212,7 +212,7 @@ export async function getLeaderboards() {
     data.hyperliquid = rows
       .map((r) => ({ r, m: perf(r, "month") }))
       .sort((a, b) => b.m.pnl - a.m.pnl)
-      .slice(0, 20)
+      .slice(0, 50)
       .map(({ r, m }) => ({
         name: shortIfAddr(r.displayName || r.ethAddress),
         addr: r.ethAddress,
@@ -263,7 +263,7 @@ export async function getHlWallet(addr: string) {
   const hit = hlWalletCache.get(key);
   if (hit && Date.now() < hit.exp) return hit.data;
   const post = (body: unknown) => jget("https://api.hyperliquid.xyz/info", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
-  const out: { addr: string; accountValue: number; positions: unknown[]; fills: unknown[]; chart: Record<string, number[]> } = { addr, accountValue: 0, positions: [], fills: [], chart: {} };
+  const out: { addr: string; accountValue: number; positions: unknown[]; fills: unknown[]; chart: Record<string, number[]>; kpis: { winRate: number | null; trades: number; wins: number } } = { addr, accountValue: 0, positions: [], fills: [], chart: {}, kpis: { winRate: null, trades: 0, wins: 0 } };
   try {
     const [cs, pf, uf] = await Promise.all([
       post({ type: "clearinghouseState", user: addr }),
@@ -279,7 +279,12 @@ export async function getHlWallet(addr: string) {
     const pmap: Record<string, { accountValueHistory?: [number, string][] }> = Object.fromEntries(pf as [string, { accountValueHistory?: [number, string][] }][]);
     const series = (w: string) => (pmap[w]?.accountValueHistory ?? []).map((x) => +x[1]);
     out.chart = { day: series("day"), week: series("week"), month: series("month"), allTime: series("allTime") };
-    out.fills = (uf as { coin: string; side: string; sz: string; px: string; time: number; dir?: string }[] ?? []).slice(0, 40).map((f) => ({ coin: f.coin, buy: f.side === "B", sz: +f.sz, px: +f.px, t: f.time, dir: f.dir ?? "" }));
+    const fillsRaw = (uf as { coin: string; side: string; sz: string; px: string; time: number; dir?: string; closedPnl?: string }[]) ?? [];
+    out.fills = fillsRaw.slice(0, 40).map((f) => ({ coin: f.coin, buy: f.side === "B", sz: +f.sz, px: +f.px, t: f.time, dir: f.dir ?? "", closedPnl: +(f.closedPnl ?? 0) }));
+    // Win rate over closing trades (fills that realized PnL).
+    const closings = fillsRaw.filter((f) => +(f.closedPnl ?? 0) !== 0);
+    const wins = closings.filter((f) => +(f.closedPnl ?? 0) > 0).length;
+    out.kpis = { winRate: closings.length ? Math.round((wins / closings.length) * 100) : null, trades: closings.length, wins };
   } catch { /* leave empty */ }
   hlWalletCache.set(key, { exp: Date.now() + 120_000, data: out });
   return out;
