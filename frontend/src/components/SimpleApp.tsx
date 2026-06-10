@@ -15,20 +15,21 @@ const ThemeEditor = lazy(() => import("./ThemeEditor").then((m) => ({ default: m
 
 // Default placement + size for each addable widget on the Simple canvas.
 const GEO: Record<string, [number, number, number, number]> = {
-  "stream-preview": [0, 0, 8, 12],
-  "chat-feed": [8, 0, 4, 12],
-  stats: [0, 12, 4, 5],
-  "top-chatters": [4, 12, 4, 7],
-  polymarket: [8, 12, 4, 8],
-  "user-list": [0, 17, 4, 7],
-  clips: [4, 19, 4, 6],
-  giveaway: [8, 20, 4, 7],
-  "hype-meter": [0, 24, 4, 4],
-  "mood-meter": [4, 25, 4, 4],
-  "connection-status": [8, 27, 4, 4],
-  "clip-radar": [0, 28, 4, 5],
-  "button-deck": [4, 29, 4, 4],
-  ops: [0, 33, 6, 6],
+  // Stream + chat fill the viewport by default (the clean stock layout).
+  "stream-preview": [0, 0, 8, 16],
+  "chat-feed": [8, 0, 4, 16],
+  stats: [0, 16, 4, 5],
+  "top-chatters": [4, 16, 4, 7],
+  polymarket: [8, 16, 4, 8],
+  "user-list": [0, 21, 4, 7],
+  clips: [4, 23, 4, 6],
+  giveaway: [8, 24, 4, 7],
+  "hype-meter": [0, 28, 4, 4],
+  "mood-meter": [4, 29, 4, 4],
+  "connection-status": [8, 31, 4, 4],
+  "clip-radar": [0, 32, 4, 5],
+  "button-deck": [4, 33, 4, 4],
+  ops: [0, 37, 6, 6],
 };
 
 const ALL = Object.keys(WIDGET_META) as WidgetKind[];
