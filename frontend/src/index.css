@@ -247,26 +247,17 @@ body::-webkit-scrollbar-thumb:hover { background: rgba(var(--vc-accent-rgb), 0.6
 }
 .vc-scroll::-webkit-scrollbar-thumb:hover { background: rgba(var(--vc-accent-rgb), 0.7); }
 
-/* ── Boot loading screen — logo static white; only the chart/pulse line draws ─ */
-@keyframes mb-line-draw { to { stroke-dashoffset: 0; } }
-@keyframes mb-fill-in { to { fill-opacity: 1; } }
+/* ── Boot loading screen — logo static white; the squiggle wipes in L→R ────── */
+@keyframes mb-sq-wipe { to { clip-path: inset(0 0 0 0); } }
 .mb-loader .mb-logo-draw { filter: drop-shadow(0 0 20px rgba(244, 239, 230, 0.14)); }
 .mb-loader .mb-logo-draw svg { display: block; width: 22rem; height: auto; overflow: visible; }
 /* the whole logo is shown static, in white */
 .mb-loader .mb-logo-draw path { fill: #f4efe6; }
-/* …except the chart / pulse line (9th path) which draws on from its left start, then fills */
-.mb-loader .mb-logo-draw path:nth-of-type(9) {
-  fill: #f4efe6;
-  fill-opacity: 0;
-  stroke: #f4efe6;
-  stroke-width: 2.2px;
-  vector-effect: non-scaling-stroke;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  stroke-dasharray: 1;
-  stroke-dashoffset: 1;
-  animation: mb-line-draw 1.4s cubic-bezier(.5, 0, .2, 1) 0.25s forwards,
-             mb-fill-in 0.5s ease 1.6s forwards;
+/* …except the squiggle line, which loads left → right (the g.mb-sq overlay:
+   its letter areas overlap the static copy invisibly; only the line sweeps in) */
+.mb-loader .mb-logo-draw g.mb-sq {
+  clip-path: inset(0 100% 0 0);
+  animation: mb-sq-wipe 1.5s cubic-bezier(.5, 0, .2, 1) 0.35s forwards;
 }
 
 /* ---- react-grid-layout theming ---- */
