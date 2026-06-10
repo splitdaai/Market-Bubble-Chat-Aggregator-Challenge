@@ -11,6 +11,7 @@ import { useModeStore } from "@/store/modeStore";
 import { useBroadcastStore, BROADCASTS } from "@/store/broadcastStore";
 import { SourceBadge } from "../SourceBadge";
 import { LiveTimer } from "../LiveTimer";
+import { XVodPlayer, LATEST_EPISODE_BID } from "../XVodPlayer";
 import { compact } from "@/lib/format";
 import type { Account, Platform } from "@shared/types";
 
@@ -143,15 +144,11 @@ export function StreamPreview() {
   const fallbackToVod = broadcast.live && !anyLive;
   const shownBroadcast = fallbackToVod ? latestVod : broadcast;
 
-  // Market Bubble offline (live mode, no explicit pick) → show the LAST EPISODE
-  // (the pinned X broadcast) instead of someone else's stream or a local file.
-  const LAST_EPISODE_TWEET = "2062633295792271762";
-  const showEpisode = broadcast.live && !demo && !pick && !statsWarming && !mbLive;
-
   const liveView = shownBroadcast.live;
   const embedUrl = liveView && !demo ? liveEmbedUrl(focused?.meta) : null;
-  // Play the selected broadcast recording directly (the MarketBubble show) — a
-  // plain <video>, so there's no cross-origin iframe to "refuse to connect".
+  // No live stream actively embedding → play the most recent full episode replay
+  // in the preview. A real connected/live channel (embedUrl) overrides it.
+  const showEpisode = !embedUrl && !statsWarming;
   const previewSrc = shownBroadcast.src;
 
   // Seek to the start frame + (re)start playback whenever the source (VOD or
@@ -255,19 +252,7 @@ export function StreamPreview() {
       {/* 16:9 preview — real stream video (fully visible, never cropped), with
           the chat-velocity chart as a fallback skin */}
       <div className="relative min-h-0 flex-1 overflow-hidden rounded-xl border border-white/10 bg-black">
-        {showEpisode ? (
-          /* Market Bubble offline → the last episode, embedded from X. */
-          <div className="vc-scroll absolute inset-0 flex justify-center overflow-y-auto">
-            <iframe
-              key="last-episode"
-              src={`https://platform.twitter.com/embed/Tweet.html?dnt=true&theme=dark&id=${LAST_EPISODE_TWEET}`}
-              title="Market Bubble — last episode"
-              allow="autoplay; fullscreen; encrypted-media; picture-in-picture"
-              allowFullScreen
-              className="h-full w-[550px] max-w-full"
-            />
-          </div>
-        ) : embedUrl ? (
+        {embedUrl ? (
           /* Live mode: the focused channel's real platform player. */
           <iframe
             key={embedUrl}
@@ -277,6 +262,9 @@ export function StreamPreview() {
             allowFullScreen
             className="absolute inset-0 h-full w-full"
           />
+        ) : showEpisode ? (
+          /* No live stream active → play the most recent full episode replay. */
+          <XVodPlayer key={LATEST_EPISODE_BID} id={LATEST_EPISODE_BID} autoPlay className="absolute inset-0 h-full w-full object-contain" />
         ) : (
           <video
             ref={videoRef}

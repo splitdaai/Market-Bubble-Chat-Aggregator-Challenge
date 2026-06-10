@@ -1,9 +1,8 @@
 import { useEffect, useRef, useState } from "react";
-import Hls from "hls.js";
 import { Radio, Film, TrendingUp, Play } from "lucide-react";
 import { compact } from "../../lib/format";
-import { BROADCASTS } from "../../store/broadcastStore";
 import { BubbleScroll } from "../BubbleScroll";
+import { XVodPlayer, LATEST_EPISODE_BID } from "../XVodPlayer";
 
 const BACKEND = (import.meta.env.VITE_BACKEND_URL as string | undefined) ?? "https://3-213-104-77.nip.io";
 
@@ -34,55 +33,6 @@ const EPISODES: { ep: number; title: string; date: string; duration: string; bid
   { ep: 1, title: "The Truth About Crypto in 2026", date: "May 1, 2026", duration: "1h 6m", bid: null },
 ];
 
-/** Plays an X broadcast replay (full episode) via the guest HLS proxy — hls.js in
- *  Chrome/Firefox, native HLS in Safari. Falls back to a "Watch on X" link. */
-function XVodPlayer({ id, autoPlay }: { id: string; autoPlay?: boolean }) {
-  const ref = useRef<HTMLVideoElement>(null);
-  const [err, setErr] = useState(false);
-  useEffect(() => {
-    setErr(false);
-    let hls: Hls | null = null;
-    let dead = false;
-    (async () => {
-      try {
-        const r = await fetch(`${BACKEND}/api/x-vod/${id}`);
-        if (!r.ok) throw new Error("vod");
-        const { master } = await r.json();
-        const url = `${BACKEND}${master}`;
-        const v = ref.current;
-        if (!v || dead) return;
-        // Set the muted PROPERTY (React's `muted` attr alone won't satisfy Chrome's
-        // autoplay policy) and kick play() once ready — hls.js attaches async, so the
-        // autoPlay attribute misses it.
-        v.muted = !!autoPlay;
-        const kick = () => { if (autoPlay) { v.muted = true; v.play().catch(() => {}); } };
-        v.addEventListener("canplay", kick, { once: true });
-        if (v.canPlayType("application/vnd.apple.mpegurl")) {
-          v.src = url;
-        } else if (Hls.isSupported()) {
-          hls = new Hls({ enableWorker: true });
-          hls.on(Hls.Events.ERROR, (_e, d) => { if (d.fatal) setErr(true); });
-          hls.on(Hls.Events.MANIFEST_PARSED, kick);
-          hls.loadSource(url);
-          hls.attachMedia(v);
-        } else {
-          setErr(true);
-        }
-      } catch { setErr(true); }
-    })();
-    return () => { dead = true; hls?.destroy(); };
-  }, [id]);
-
-  if (err) {
-    return (
-      <div className="grid aspect-video w-full place-items-center rounded-xl border border-white/10 bg-black">
-        <a href={`https://x.com/i/broadcasts/${id}`} target="_blank" rel="noreferrer" className="rounded-lg border border-accent/50 bg-accent/15 px-4 py-2 text-sm font-bold text-accent hover:bg-accent/25">▶ Watch full replay on X ↗</a>
-      </div>
-    );
-  }
-  return <video ref={ref} controls autoPlay={autoPlay} muted={autoPlay} playsInline className="aspect-video w-full rounded-xl border border-white/10 bg-black" />;
-}
-
 interface Clip { id: string; title: string; viewCount?: number; thumbnail?: string }
 interface Channel { live: boolean; vods: { id: string }[]; clips: Clip[] }
 
@@ -93,17 +43,17 @@ function AnsemStream({ login }: { login: string }) {
 
   const isLive = !!ch?.live;
   const liveSrc = host ? `https://player.twitch.tv/?channel=${login}&parent=${host}&muted=true` : null;
-  const broadcast = BROADCASTS[0]; // most recent Market Bubble broadcast
+  const latest = EPISODES[0]; // most recent full episode (EP5)
   return (
     <>
       <div className="relative aspect-video w-full overflow-hidden rounded-xl border border-white/10 bg-black">
         {isLive && liveSrc
           ? <iframe key={liveSrc} src={liveSrc} title={login} allow="autoplay; fullscreen" allowFullScreen className="absolute inset-0 h-full w-full" />
-          : <video key={broadcast.src} src={`${broadcast.src}#t=2`} controls preload="metadata" playsInline className="absolute inset-0 h-full w-full object-cover" />}
-        <span className={`absolute left-2 top-2 rounded-md px-1.5 py-0.5 text-[10px] font-black uppercase backdrop-blur ${isLive ? "bg-down/25 text-down" : "bg-black/55 text-accent"}`}>{isLive ? "Ansem Live" : "Latest Broadcast"}</span>
+          : <XVodPlayer key={latest.bid ?? ""} id={latest.bid ?? LATEST_EPISODE_BID} autoPlay className="absolute inset-0 h-full w-full object-contain" />}
+        <span className={`absolute left-2 top-2 rounded-md px-1.5 py-0.5 text-[10px] font-black uppercase backdrop-blur ${isLive ? "bg-down/25 text-down" : "bg-black/55 text-accent"}`}>{isLive ? "Ansem Live" : "Latest Episode"}</span>
       </div>
       {!isLive && (
-        <p className="mt-2 text-[12px] font-semibold">{broadcast.title} <span className="font-normal text-faint">· {broadcast.date} · {broadcast.duration}</span></p>
+        <p className="mt-2 text-[12px] font-semibold">{latest.title} <span className="font-normal text-faint">· EP {latest.ep} · {latest.date} · {latest.duration}</span></p>
       )}
     </>
   );

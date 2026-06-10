@@ -1,8 +1,6 @@
-import { useEffect, useRef, useState } from "react";
-import Hls from "hls.js";
+import { useState } from "react";
 import { MSection, MCard } from "./ui";
-
-const BACKEND = (import.meta.env.VITE_BACKEND_URL as string | undefined) ?? "https://3-213-104-77.nip.io";
+import { XVodPlayer } from "../XVodPlayer";
 
 /* Past full episodes = the official X broadcast replays (VODs), played via the
  * guest-only /api/x-vod proxy. Newest = highest EP number; EP1 has only a
@@ -14,39 +12,6 @@ const EPISODES: { ep: number; title: string; date: string; duration: string; bid
   { ep: 2, title: "Why AI Is Beating Crypto Right Now", date: "May 8, 2026", duration: "3h 45m", bid: "1DGleEqQkYVJL" },
   { ep: 1, title: "The Truth About Crypto in 2026", date: "May 1, 2026", duration: "1h 6m", bid: null },
 ];
-
-function XVodPlayer({ id, autoPlay }: { id: string; autoPlay?: boolean }) {
-  const ref = useRef<HTMLVideoElement>(null);
-  const [err, setErr] = useState(false);
-  useEffect(() => {
-    setErr(false);
-    let hls: Hls | null = null;
-    let dead = false;
-    (async () => {
-      try {
-        const r = await fetch(`${BACKEND}/api/x-vod/${id}`);
-        if (!r.ok) throw new Error("vod");
-        const { master } = await r.json();
-        const url = `${BACKEND}${master}`;
-        const v = ref.current;
-        if (!v || dead) return;
-        v.muted = !!autoPlay;
-        const kick = () => { if (autoPlay) { v.muted = true; v.play().catch(() => {}); } };
-        v.addEventListener("canplay", kick, { once: true });
-        if (v.canPlayType("application/vnd.apple.mpegurl")) v.src = url;
-        else if (Hls.isSupported()) { hls = new Hls({ enableWorker: true }); hls.on(Hls.Events.ERROR, (_e, d) => { if (d.fatal) setErr(true); }); hls.on(Hls.Events.MANIFEST_PARSED, kick); hls.loadSource(url); hls.attachMedia(v); }
-        else setErr(true);
-      } catch { setErr(true); }
-    })();
-    return () => { dead = true; hls?.destroy(); };
-  }, [id]);
-  if (err) return (
-    <div className="grid aspect-video w-full place-items-center bg-black">
-      <a href={`https://x.com/i/broadcasts/${id}`} target="_blank" rel="noreferrer" className="rounded-lg border border-accent/50 bg-accent/15 px-3 py-1.5 text-[12px] font-bold text-accent">▶ Watch on X ↗</a>
-    </div>
-  );
-  return <video ref={ref} controls autoPlay={autoPlay} muted={autoPlay} playsInline className="aspect-video w-full bg-black" />;
-}
 
 /** Mobile Content — past full episodes, rewatchable via the X replay player. */
 export function MobileContent() {
