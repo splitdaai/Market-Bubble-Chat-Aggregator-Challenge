@@ -16,6 +16,7 @@ import { twitchViewers, kickViewers, youtubeViewers } from "./stats/viewers.ts";
 import { mountAuth, getAccounts, getToken, refreshToken } from "./auth.ts";
 import { getTwitchChannel } from "./twitchChannel.ts";
 import { getMarketData, getPriceHistory, getLeaderboards, getHlWallet, getEvmWallet } from "./marketData.ts";
+import { resolveXVod, proxyHls } from "./xVod.ts";
 
 const PORT = Number(process.env.PORT ?? 4000);
 // Non-wildcard CORS allowlist in production (comma-separated origins); "*" only
@@ -39,6 +40,34 @@ app.get("/api/twitch/channel/:login", async (req, res) => {
     res.json(data);
   } catch {
     res.status(502).json({ error: "twitch fetch failed" });
+  }
+});
+
+// X broadcast replay (VOD) — resolve a broadcast id to a proxied HLS master URL.
+// Guest-only (no login, no ban risk); full episode video plays in our own player.
+app.get("/api/x-vod/:id", async (req, res) => {
+  try {
+    const v = await resolveXVod(req.params.id);
+    if (!v) return res.status(404).json({ error: "unavailable" });
+    res.set("Cache-Control", "public, max-age=300");
+    res.json({ master: `/api/x-hls?u=${encodeURIComponent(v.master)}`, title: v.title, state: v.state });
+  } catch {
+    res.status(502).json({ error: "x vod failed" });
+  }
+});
+
+// HLS proxy for the pscp.tv playlists + segments (adds the Referer the CDN needs).
+app.get("/api/x-hls", async (req, res) => {
+  try {
+    const out = await proxyHls(String(req.query.u ?? ""));
+    if (!out) return res.status(400).end();
+    res.status(out.status);
+    res.set("Access-Control-Allow-Origin", "*");
+    res.set("Content-Type", out.contentType);
+    res.set("Cache-Control", "public, max-age=60");
+    res.send(out.body);
+  } catch {
+    res.status(502).end();
   }
 });
 
