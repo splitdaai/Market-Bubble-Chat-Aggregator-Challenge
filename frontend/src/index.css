@@ -247,17 +247,22 @@ body::-webkit-scrollbar-thumb:hover { background: rgba(var(--vc-accent-rgb), 0.6
 }
 .vc-scroll::-webkit-scrollbar-thumb:hover { background: rgba(var(--vc-accent-rgb), 0.7); }
 
-/* ── Boot loading screen — logo static white; the squiggle wipes in L→R ────── */
+/* ── Boot loading screen — logo static; the pulse line travels its full path:
+   squiggle wipes L→R along the bottom, then the stem + arrow rise bottom→top ── */
 @keyframes mb-sq-wipe { to { clip-path: inset(0 0 0 0); } }
 .mb-loader .mb-logo-draw { filter: drop-shadow(0 0 20px rgba(244, 239, 230, 0.14)); }
 .mb-loader .mb-logo-draw svg { display: block; width: 22rem; height: auto; overflow: visible; }
-/* the whole logo is shown static, in white */
+/* the logo letters are shown static, in white */
 .mb-loader .mb-logo-draw path { fill: #f4efe6; }
-/* …except the squiggle line, which loads left → right (the g.mb-sq overlay:
-   its letter areas overlap the static copy invisibly; only the line sweeps in) */
+/* stage 1: the bottom squiggle loads left → right */
 .mb-loader .mb-logo-draw g.mb-sq {
   clip-path: inset(0 100% 0 0);
-  animation: mb-sq-wipe 1.5s cubic-bezier(.5, 0, .2, 1) 0.35s forwards;
+  animation: mb-sq-wipe 1.05s cubic-bezier(.45, 0, .35, 1) 0.35s forwards;
+}
+/* stage 2: the vertical stem + arrow load bottom → top (continues the pulse) */
+.mb-loader .mb-logo-draw g.mb-up {
+  clip-path: inset(100% 0 0 0);
+  animation: mb-sq-wipe 0.95s cubic-bezier(.4, 0, .3, 1) 1.3s forwards;
 }
 
 /* ---- react-grid-layout theming ---- */
