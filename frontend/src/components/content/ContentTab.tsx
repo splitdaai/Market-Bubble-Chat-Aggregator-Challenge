@@ -20,6 +20,17 @@ const FEED = [
 const xUrl = (h: string) => `https://x.com/${h.replace(/^@/, "")}`;
 const chip = "rounded-md border border-white/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-muted";
 
+/* Past full episodes — numbered by episode (EP1 = oldest), newest first for display.
+ * Real Spotify video episodes; the most recent autoplays in the featured player. */
+const SPOTIFY_SHOW = "00yWnJPE80LSBglGwCrjZI";
+const EPISODES = [
+  { ep: 5, title: "The Dollar Is Going to Zero", date: "Jun 5, 2026", duration: "4h 42m", id: "3tb6qC1wYJ8NzmetLkRHAH" },
+  { ep: 4, title: "Why Ansem Thinks Ethereum Is Done", date: "May 22, 2026", duration: "2h 54m", id: "3hyI8cceqmXjns3j87cOio" },
+  { ep: 3, title: "How to Get Rich Playing GTA 6", date: "May 15, 2026", duration: "3h 33m", id: "7G0I5apOeMkc7oHepmUj6I" },
+  { ep: 2, title: "Why AI Is Beating Crypto Right Now", date: "May 8, 2026", duration: "3h 45m", id: "6FtrBE4TIp3pYip1hHo3XP" },
+  { ep: 1, title: "The Truth About Crypto in 2026", date: "May 1, 2026", duration: "1h 6m", id: "0xagf4GYhZvafuupXqFOsM" },
+];
+
 interface Clip { id: string; title: string; viewCount?: number; thumbnail?: string }
 interface Channel { live: boolean; vods: { id: string }[]; clips: Clip[] }
 
@@ -83,6 +94,7 @@ function XTimeline({ handle, list, limit = 12 }: { handle?: string; list?: strin
 
 export function ContentTab() {
   const [feedHandle, setFeedHandle] = useState("all");
+  const [epId, setEpId] = useState(EPISODES[0].id); // default = most recent episode
   const topPosts = [...FEED].sort((a, b) => b.views - a.views).slice(0, 6);
   const feedTabs = [{ name: "All", handle: "all" }, ...FEED_ACCOUNTS];
 
@@ -133,24 +145,46 @@ export function ContentTab() {
           </div>
 
           <div className="vc-glass rounded-2xl p-4">
-            <div className="mb-3 flex items-center gap-2"><Film size={14} className="text-accent" /><span className="text-[12px] font-bold uppercase tracking-[0.12em] text-muted">Full Episodes</span><span className={`ml-auto ${chip}`}>Market Bubble</span></div>
+            <div className="mb-3 flex items-center gap-2">
+              <Film size={14} className="text-accent" />
+              <span className="text-[12px] font-bold uppercase tracking-[0.12em] text-muted">Full Episodes</span>
+              <span className={`${chip}`}>Rewatch</span>
+              <a href={`https://open.spotify.com/show/${SPOTIFY_SHOW}`} target="_blank" rel="noreferrer" className="ml-auto text-[11px] font-bold text-accent hover:underline">All on Spotify ↗</a>
+            </div>
 
-            <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
-              {BROADCASTS.map((b) => (
-                <a key={b.id} href={b.src} target="_blank" rel="noreferrer" className="group overflow-hidden rounded-xl border border-white/8 bg-white/[0.02] transition hover:border-accent/50">
-                  <div className="relative aspect-video w-full bg-black">
-                    <video src={`${b.src}#t=2`} preload="metadata" muted playsInline className="absolute inset-0 h-full w-full object-cover" />
-                    <span className="absolute inset-0 grid place-items-center bg-black/25 opacity-85 transition group-hover:opacity-100"><Play size={22} className="text-white drop-shadow" /></span>
-                    <span className={`absolute left-1 top-1 rounded px-1 text-[8px] font-black uppercase tracking-wide ${b.live ? "bg-down/80 text-white" : "bg-black/70 text-accent"}`}>{b.live ? "● Live" : "Episode"}</span>
-                    <span className="absolute bottom-1 right-1 rounded bg-black/70 px-1 text-[9px] font-bold tabular-nums">{b.duration}</span>
-                    <span className="absolute bottom-1 left-1 rounded bg-black/65 px-1 text-[8px] font-bold text-muted">Market Bubble</span>
-                  </div>
-                  <div className="px-2 py-1.5">
-                    <div className="truncate text-[11px] font-semibold">{b.title}</div>
-                    <div className="text-[9px] text-faint">{b.date}</div>
-                  </div>
-                </a>
-              ))}
+            {/* featured player — autoplays the most recent (or the selected) episode */}
+            <iframe
+              key={epId}
+              title="Market Bubble — full episode"
+              src={`https://open.spotify.com/embed/episode/${epId}?utm_source=generator&autoplay=1`}
+              width="100%"
+              height={352}
+              frameBorder={0}
+              allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
+              allowFullScreen
+              loading="lazy"
+              className="rounded-xl"
+            />
+
+            {/* numbered episode list — click to load into the player above */}
+            <div className="mt-3 space-y-1.5">
+              {EPISODES.map((e) => {
+                const on = e.id === epId;
+                return (
+                  <button
+                    key={e.id}
+                    onClick={() => setEpId(e.id)}
+                    className={`flex w-full items-center gap-3 rounded-xl border px-3 py-2 text-left transition ${on ? "border-accent/60 bg-accent/10" : "border-white/8 bg-white/[0.02] hover:border-accent/40"}`}
+                  >
+                    <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-lg text-[13px] font-black ${on ? "bg-accent text-black" : "bg-white/8 text-accent"}`}>{e.ep}</span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-[13px] font-bold">{e.title}</span>
+                      <span className="block text-[10px] text-faint">EP {e.ep} · {e.date} · {e.duration}</span>
+                    </span>
+                    {on ? <span className="shrink-0 text-[10px] font-bold uppercase tracking-wider text-accent">▶ Now playing</span> : <Play size={15} className="shrink-0 text-muted" />}
+                  </button>
+                );
+              })}
             </div>
           </div>
 
