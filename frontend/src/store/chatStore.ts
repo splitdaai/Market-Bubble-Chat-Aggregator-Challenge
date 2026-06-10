@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import type { ChatMessage, ConnectionStatus, Platform } from "@shared/types";
+import { moderate } from "@/lib/automod";
 
 /** Hard cap so the live feed never leaks memory during a long stream. */
 const MAX_MESSAGES = 400;
@@ -38,8 +39,12 @@ export const useChatStore = create<ChatState>((set) => ({
   deleted: new Set(),
   isMock: true,
 
-  addMessage: (m) =>
+  addMessage: (rawMsg) =>
     set((s) => {
+      // Auto-mod: drop hard slurs entirely, censor profanity in everything else.
+      const mod = moderate(rawMsg.message);
+      if (mod.blocked) return s;
+      const m = mod.text === rawMsg.message ? rawMsg : { ...rawMsg, message: mod.text };
       const next = s.messages.length >= MAX_MESSAGES
         ? [...s.messages.slice(s.messages.length - MAX_MESSAGES + 1), m]
         : [...s.messages, m];

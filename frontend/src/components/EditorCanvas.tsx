@@ -1,7 +1,7 @@
 import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import GridLayout, { WidthProvider, type Layout as RGLLayout } from "react-grid-layout";
 import { useToastStore } from "@/store/toastStore";
-import { GripVertical, X, Plus, MessageSquare, Activity, BarChart3, Flame, Zap, Smile, Scissors, Trophy, Gift, Film, Users, Monitor, LayoutGrid, TrendingUp } from "lucide-react";
+import { GripVertical, X, Plus, MessageSquare, Activity, BarChart3, Flame, Zap, Smile, Scissors, Trophy, Film, Users, Monitor, LayoutGrid, TrendingUp } from "lucide-react";
 import { useLayoutStore } from "@/store/layoutStore";
 import type { PanelLayout, WidgetKind, ActionButton } from "@shared/types";
 
@@ -14,7 +14,7 @@ const ButtonDeck = lazy(() => import("./widgets/ButtonDeck").then((m) => ({ defa
 const MoodMeter = lazy(() => import("./widgets/MoodMeter").then((m) => ({ default: m.MoodMeter })));
 const ClipRadar = lazy(() => import("./widgets/ClipRadar").then((m) => ({ default: m.ClipRadar })));
 const TopChatters = lazy(() => import("./widgets/TopChatters").then((m) => ({ default: m.TopChatters })));
-const GiveawayBot = lazy(() => import("./widgets/GiveawayBot").then((m) => ({ default: m.GiveawayBot })));
+const ChatVibe = lazy(() => import("./widgets/ChatVibe").then((m) => ({ default: m.ChatVibe })));
 const Clips = lazy(() => import("./widgets/Clips").then((m) => ({ default: m.Clips })));
 const UserList = lazy(() => import("./widgets/UserList").then((m) => ({ default: m.UserList })));
 const StreamPreview = lazy(() => import("./widgets/StreamPreview").then((m) => ({ default: m.StreamPreview })));
@@ -30,7 +30,7 @@ export const WIDGET_META: Record<WidgetKind, { label: string; icon: React.ReactN
   "mood-meter": { label: "Mood Meter", icon: <Smile size={15} /> },
   "clip-radar": { label: "Clip Radar", icon: <Scissors size={15} /> },
   "top-chatters": { label: "Top Chatters", icon: <Trophy size={15} /> },
-  giveaway: { label: "Giveaway Bot", icon: <Gift size={15} /> },
+  giveaway: { label: "Chat Vibe", icon: <Activity size={15} /> },
   clips: { label: "Clips", icon: <Film size={15} /> },
   "user-list": { label: "Users", icon: <Users size={15} /> },
   "stream-preview": { label: "Stream Preview", icon: <Monitor size={15} /> },
@@ -48,7 +48,7 @@ export function renderWidget(panel: PanelLayout, onEditButton: (b?: ActionButton
     case "mood-meter": return <MoodMeter />;
     case "clip-radar": return <ClipRadar />;
     case "top-chatters": return <TopChatters />;
-    case "giveaway": return <GiveawayBot />;
+    case "giveaway": return <ChatVibe />;
     case "clips": return <Clips />;
     case "user-list": return <UserList />;
     case "stream-preview": return <StreamPreview />;

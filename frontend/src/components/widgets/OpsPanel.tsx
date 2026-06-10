@@ -1,14 +1,14 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { Gift, Film, Radio } from "lucide-react";
-import { GiveawayBot } from "./GiveawayBot";
+import { Activity, Film, Radio } from "lucide-react";
+import { ChatVibe } from "./ChatVibe";
 import { Clips } from "./Clips";
 import { Broadcasts } from "./Broadcasts";
 
-type Tab = "giveaway" | "clips" | "broadcasts";
+type Tab = "vibe" | "clips" | "broadcasts";
 
 const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
-  { id: "giveaway", label: "Giveaways", icon: <Gift size={15} /> },
+  { id: "vibe", label: "Chat Vibe", icon: <Activity size={15} /> },
   { id: "clips", label: "Clips", icon: <Film size={15} /> },
   { id: "broadcasts", label: "Broadcasts", icon: <Radio size={15} /> },
 ];
@@ -18,7 +18,7 @@ const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
  * glowy pill buttons with an animated active indicator.
  */
 export function OpsPanel() {
-  const [tab, setTab] = useState<Tab>("giveaway");
+  const [tab, setTab] = useState<Tab>("vibe");
   return (
     <div className="flex h-full flex-col">
       <div className="flex shrink-0 gap-2 p-2">
@@ -54,7 +54,7 @@ export function OpsPanel() {
         })}
       </div>
       <div className="min-h-0 flex-1">
-        {tab === "giveaway" && <GiveawayBot />}
+        {tab === "vibe" && <ChatVibe />}
         {tab === "clips" && <Clips />}
         {tab === "broadcasts" && <Broadcasts />}
       </div>

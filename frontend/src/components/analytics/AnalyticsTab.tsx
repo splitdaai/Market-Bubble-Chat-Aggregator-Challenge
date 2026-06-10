@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import {
-  Users, Eye, Clock, MessageSquare, DollarSign, Gift, TrendingUp, Radio, ArrowRight, RotateCcw,
+  Users, Eye, Clock, MessageSquare, DollarSign, Gift, TrendingUp, Radio, ArrowRight, RotateCcw, UserPlus,
 } from "lucide-react";
 import type { StreamSession, Platform, KpiKey } from "@shared/types";
 import { useAnalyticsStore } from "@/store/analyticsStore";
@@ -106,6 +106,7 @@ export function AnalyticsTab() {
     { label: "Unique Chatters", icon: <MessageSquare size={14} />, field: "uniqueChatters", fmt: fmtInt },
     { label: "Donations", icon: <DollarSign size={14} />, field: "donated", fmt: fmtMoney },
     { label: "Sub Revenue", icon: <Gift size={14} />, field: "subs", fmt: fmtMoney },
+    { label: "New Followers", icon: <UserPlus size={14} />, field: "followersGained", fmt: fmtInt },
   ];
 
   return (
