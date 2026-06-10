@@ -2,9 +2,9 @@ import { useEffect, useState } from "react";
 import { LOGO_SVG } from "@/lib/logoSvg";
 
 /**
- * Boot loading screen — the REAL Market Bubble logo draws itself on (stroke
- * draw-on of the actual logo paths), then fills solid white, with a glow, then
- * the overlay fades into the app. Shown once per page load.
+ * Boot loading screen — the REAL Market Bubble logo, shown static, with only the
+ * pulse/chart line running through the middle loading left→right; then the
+ * overlay fades into the app. Shown once per page load.
  * `?loaderhold` keeps it up for previewing.
  */
 export function LoadingScreen() {
