@@ -8,6 +8,7 @@ import { PolymarketMark } from "../Brand";
 import { TradingViewTechnicals, MiniChart, TechWidget, tvSymbolFor } from "./TradingViewTechnicals";
 import { HlTraderModal, PortfolioModal, PolyTraderModal } from "./Dashboards";
 import { WatchStar } from "../WatchStar";
+import { IntelFeed } from "./IntelFeed";
 import { compact } from "../../lib/format";
 
 interface HlRow { name: string; addr?: string; pnl: number; roi?: number; trend?: number[] }
@@ -73,14 +74,6 @@ const PORTFOLIOS = [
   { fund: "Tiger Global", top: "COIN", value: 1.45e9, chg: 6.2 },
   { fund: "Polygon Vent.", top: "MATIC", value: 0.6e9, chg: -2.4 },
 ];
-const NEWS = [
-  { src: "CoinDesk", t: "8m", tone: "bull", title: "Solana DEX volume hits new ATH as memecoin activity surges" },
-  { src: "The Block", t: "23m", tone: "bull", title: "BlackRock files for in-kind redemptions on spot BTC ETF" },
-  { src: "Decrypt", t: "41m", tone: "bull", title: "AI-agent tokens add $4B in market cap over the past week" },
-  { src: "Bloomberg", t: "1h", tone: "bear", title: "Fed minutes signal caution; rate-cut odds slip below 20%" },
-  { src: "Reuters", t: "1h", tone: "neutral", title: "Dollar softens as risk appetite returns to global markets" },
-];
-const toneColor: Record<string, string> = { bull: "text-up", bear: "text-down", neutral: "text-muted" };
 const LEADERBOARD_LIMIT = 20;
 const leaderboardShell = "grid min-h-0 flex-1 grid-rows-[auto_1fr] text-[12px] leading-none";
 const leaderboardHead = "grid items-center pb-1 text-[9px] uppercase tracking-wider text-faint";
@@ -260,16 +253,9 @@ export function MarketTabClassic() {
                 </div>
               </Panel>
             ) },
-            { id: "intel", x: 0, y: 32, w: 12, h: 6, node: (
-              <Panel title="Intelligence Feed" icon={<Newspaper size={15} className="text-accent" />}>
-                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                  {NEWS.map((n, i) => (
-                    <div key={i} className="rounded-lg border border-white/8 bg-white/[0.02] p-2.5">
-                      <div className="mb-1 flex items-center gap-2 text-[10px] text-faint"><span className="font-bold text-muted">{n.src}</span><span>· {n.t}</span><span className={`ml-auto rounded px-1 font-bold uppercase ${toneColor[n.tone]}`}>{n.tone}</span></div>
-                      <div className="text-[12.5px] font-medium leading-snug">{n.title}</div>
-                    </div>
-                  ))}
-                </div>
+            { id: "intel", x: 0, y: 32, w: 12, h: 8, node: (
+              <Panel title="Intelligence Feed" icon={<Newspaper size={15} className="text-accent" />} right={<span className="text-[10px] uppercase tracking-wider text-up">● live · AI-scored</span>}>
+                <IntelFeed />
               </Panel>
             ) },
           ]}
