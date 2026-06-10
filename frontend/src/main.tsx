@@ -10,6 +10,7 @@ import "./mb-theme.css";
 import "./mobile.css";
 import { applyTheme } from "./lib/theme";
 import { useThemeStore } from "./store/themeStore";
+import { LoadingScreen } from "./components/LoadingScreen";
 
 // A new deploy changes chunk hashes, so a tab opened before the deploy requests
 // an old chunk that no longer exists → blank screen when it lazy-loads a view
@@ -32,6 +33,7 @@ const queryClient = new QueryClient();
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
+      <LoadingScreen />
       <App />
     </QueryClientProvider>
   </StrictMode>,

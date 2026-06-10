@@ -1,5 +1,6 @@
 import { lazy, Suspense, useMemo, useState } from "react";
-import { Zap, Plug, Palette, Pencil, Eye } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Zap, Plug, Palette, Pencil, Eye, Wallet } from "lucide-react";
 import type { PanelLayout, WidgetKind } from "@shared/types";
 import { useViewerStore } from "@/store/viewerStore";
 import { useWalletStore } from "@/store/walletStore";
@@ -35,6 +36,35 @@ const ALL = Object.keys(WIDGET_META) as WidgetKind[];
 const DEFAULT_HIDDEN = ALL.filter((k) => k !== "stream-preview" && k !== "chat-feed");
 const TITLES = Object.fromEntries(ALL.map((k) => [k, WIDGET_META[k].label]));
 
+/** Icon button with a springy label that pops out on hover. */
+function IconPop({ icon, label, onClick, active }: { icon: React.ReactNode; label: string; onClick: () => void; active?: boolean }) {
+  const [hover, setHover] = useState(false);
+  return (
+    <div className="relative" onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}>
+      <button
+        onClick={onClick}
+        className={`grid h-9 w-9 place-items-center rounded-xl border transition ${active ? "border-accent/60 bg-accent/15 text-accent" : "border-white/12 bg-white/[0.03] text-muted hover:border-accent/50 hover:text-accent"}`}
+      >
+        {icon}
+      </button>
+      <AnimatePresence>
+        {hover && (
+          <motion.div
+            initial={{ opacity: 0, y: 6, scale: 0.8 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 6, scale: 0.8 }}
+            transition={{ type: "spring", stiffness: 540, damping: 24 }}
+            className="pointer-events-none absolute left-1/2 top-full z-50 mt-2 -translate-x-1/2 whitespace-nowrap rounded-lg border border-accent/40 bg-[#0b0b0b] px-2.5 py-1 text-[11px] font-bold text-accent shadow-[0_8px_24px_rgba(0,0,0,0.55)]"
+          >
+            <span className="absolute -top-1 left-1/2 h-2 w-2 -translate-x-1/2 rotate-45 border-l border-t border-accent/40 bg-[#0b0b0b]" />
+            {label}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
 /**
  * Simple (stock) shell — stream + unified chat by default, but a full editable
  * canvas underneath: hit Edit → "Add tile" to drop in ANY Pro widget, then
@@ -62,24 +92,23 @@ export function SimpleApp() {
     [],
   );
 
-  const iconBtn = "rounded-lg border border-white/12 p-2 text-muted transition hover:border-accent/50 hover:text-accent";
+  const walletLabel = xHandle ? `@${xHandle}` : address ? `${address.slice(0, 4)}…${address.slice(-4)}` : "Wallet Connect";
 
   return (
     <div className="vc-aurora vc-grid-texture relative flex h-screen flex-col bg-[var(--vc-bg)] text-ink">
       <header className="relative z-10 flex shrink-0 items-center gap-3 px-4 py-3">
         <img src="/market-bubble-logo.svg" alt="Market Bubble" className="h-24 w-auto" />
         <div className="ml-auto flex items-center gap-2">
-          <button onClick={() => setThemeOpen(true)} title="Theme editor" className={iconBtn}><Palette size={16} /></button>
-          <button onClick={() => setConnOpen(true)} title="Connections — platforms & OBS" className={iconBtn}><Plug size={16} /></button>
+          {/* DEMO sits at the far-left of the button cluster */}
           <button
             onClick={toggleDemo}
-            className={`rounded-full border px-2.5 py-1 text-[11px] font-bold ${demo ? "border-amber-400/40 bg-amber-400/10 text-amber-300" : "border-emerald-400/40 bg-emerald-400/10 text-emerald-300"}`}
+            className={`mr-1 rounded-full border px-2.5 py-1 text-[11px] font-bold ${demo ? "border-amber-400/40 bg-amber-400/10 text-amber-300" : "border-emerald-400/40 bg-emerald-400/10 text-emerald-300"}`}
           >
             {demo ? "DEMO" : "LIVE"}
           </button>
-          <button onClick={() => setAccount(true)} className="rounded-lg border border-white/15 bg-white/[0.05] px-3 py-1.5 text-[13px] font-bold">
-            {xHandle ? `@${xHandle}` : address ? `${address.slice(0, 4)}…${address.slice(-4)}` : "Connect Wallet"}
-          </button>
+          <IconPop icon={<Palette size={16} />} label="Theme Editor" onClick={() => setThemeOpen(true)} />
+          <IconPop icon={<Plug size={16} />} label="Connections" onClick={() => setConnOpen(true)} />
+          <IconPop icon={<Wallet size={16} />} label={walletLabel} onClick={() => setAccount(true)} active={!!(xHandle || address)} />
           <button
             onClick={() => setEdit((e) => !e)}
             title="Add tiles & rearrange your layout"
