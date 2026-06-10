@@ -283,14 +283,33 @@ export function StreamPreview() {
             <span className="truncate normal-case text-white/90">{shownBroadcast.title}</span>
           </span>
         )}
-        <span className="absolute right-2 top-2 rounded-md bg-black/55 px-1.5 py-0.5 text-[11px] font-bold tabular-nums text-ink backdrop-blur">👁 {compact(focusViewers)}</span>
-        {liveView && focused?.meta && (
-          <span className="absolute bottom-2 left-2 flex items-center gap-1.5 rounded-md bg-black/55 px-1.5 py-0.5 backdrop-blur">
-            <SourceBadge platform={focused.meta.platform} compact />
-            <span className="text-[11px] font-semibold text-ink">{focused.meta.displayName}</span>
-          </span>
+        <span className="absolute right-2 top-2 flex items-center gap-1 rounded-md bg-black/60 px-2 py-0.5 text-[12px] font-black tabular-nums text-ink backdrop-blur">👁 {compact(people.length ? people.reduce((s, p) => s + p.total, 0) : focusViewers)} <span className="text-[9px] font-bold uppercase tracking-wide text-muted">total</span></span>
+        {/* per-person viewer totals overlaid at the TOP of the stream (always visible) — hover for the per-platform breakdown */}
+        {people.length > 0 && (
+          <div className="vc-scroll absolute left-2 right-24 top-9 z-[4] flex items-start gap-1.5 overflow-x-auto">
+            {people.map((p) => {
+              const on = p.name === (focused?.meta?.displayName ?? "");
+              return (
+                <div key={p.name} className="group/p relative shrink-0">
+                  <button onClick={() => { setPick(p.top); selectBroadcast("live"); }} className={`flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-bold backdrop-blur transition ${on ? "bg-accent/90 text-black" : "bg-black/55 text-ink hover:bg-black/75"}`}>
+                    {p.name} <span className={`tabular-nums ${on ? "text-black/70" : "text-muted"}`}>{compact(p.total)}</span>
+                  </button>
+                  <div className="pointer-events-none absolute left-0 top-full z-30 mt-1.5 hidden min-w-[150px] rounded-xl border border-white/10 bg-[#0b0b0b] p-1.5 shadow-xl group-hover/p:block">
+                    <div className="mb-1 px-1 text-[9px] font-bold uppercase tracking-wider text-faint">{p.name} · live viewers</div>
+                    {p.byPlatform.map((b) => (
+                      <div key={b.platform} className="flex items-center justify-between gap-3 px-1 py-0.5 text-[11px]">
+                        <span className="flex items-center gap-1.5"><SourceBadge platform={b.platform} compact /><span className="capitalize text-muted">{b.platform}</span></span>
+                        <span className="tabular-nums font-semibold text-ink">{compact(b.viewers)}</span>
+                      </div>
+                    ))}
+                    <div className="mt-1 flex items-center justify-between border-t border-white/10 px-1 pt-1 text-[11px] font-bold text-accent"><span>Total</span><span className="tabular-nums">{compact(p.total)}</span></div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         )}
-        <span className="absolute bottom-2 right-2 rounded-md bg-black/55 px-1.5 py-0.5 text-[9px] tabular-nums text-muted backdrop-blur">{velocity[velocity.length - 1] ?? 0} msg/min</span>
+        <span className="absolute bottom-2 right-2 z-[4] rounded-md bg-black/55 px-1.5 py-0.5 text-[9px] tabular-nums text-muted backdrop-blur">{velocity[velocity.length - 1] ?? 0} msg/min</span>
       </div>
 
       {/* transport — play/pause + seek the whole clip */}
@@ -314,35 +333,6 @@ export function StreamPreview() {
         </div>
       )}
 
-      {/* per-person totals — hover a chip for the per-platform breakdown */}
-      {people.length > 0 && (
-        <div className="vc-scroll mt-2 flex shrink-0 gap-1.5 overflow-x-auto pb-0.5">
-          {people.map((p) => {
-            const on = p.name === (focused?.meta?.displayName ?? "");
-            return (
-              <div key={p.name} className="group/p relative shrink-0">
-                <button
-                  onClick={() => { setPick(p.top); selectBroadcast("live"); }}
-                  className={`flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-[11px] font-bold transition ${on ? "border-accent/60 bg-white/[0.06] text-accent" : "border-white/8 text-muted hover:text-ink"}`}
-                >
-                  {p.name}
-                  <span className="tabular-nums opacity-70">{compact(p.total)}</span>
-                </button>
-                <div className="pointer-events-none absolute bottom-full left-0 z-30 mb-1.5 hidden min-w-[152px] rounded-xl border border-white/10 bg-[#0b0b0b] p-1.5 shadow-xl group-hover/p:block">
-                  <div className="mb-1 px-1 text-[9px] font-bold uppercase tracking-wider text-faint">{p.name} · live viewers</div>
-                  {p.byPlatform.map((b) => (
-                    <div key={b.platform} className="flex items-center justify-between gap-3 px-1 py-0.5 text-[11px]">
-                      <span className="flex items-center gap-1.5"><SourceBadge platform={b.platform} compact /><span className="capitalize text-muted">{b.platform}</span></span>
-                      <span className="tabular-nums font-semibold text-ink">{compact(b.viewers)}</span>
-                    </div>
-                  ))}
-                  <div className="mt-1 flex items-center justify-between border-t border-white/10 px-1 pt-1 text-[11px] font-bold text-accent"><span>Total</span><span className="tabular-nums">{compact(p.total)}</span></div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
     </div>
   );
 }

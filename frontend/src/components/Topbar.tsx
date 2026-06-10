@@ -194,15 +194,6 @@ export function Topbar({ onOpenTheme, onOpenConnections, onOpenFeatures }: { onO
 
         <motion.button
           whileTap={{ scale: 0.95 }}
-          onClick={() => setUiMode("simple")}
-          title="Simple view — just the stream + unified chat"
-          className="ml-1 flex items-center gap-1.5 rounded-xl border border-white/15 bg-white/[0.04] px-3 py-2 text-sm font-bold text-ink transition hover:border-accent/50 hover:text-accent"
-        >
-          <Minimize2 size={15} /> <span className="hidden sm:inline">Simple</span>
-        </motion.button>
-
-        <motion.button
-          whileTap={{ scale: 0.95 }}
           onClick={() => setDashOpen(true)}
           title="Watchlist dashboard"
           className="ml-1 flex items-center gap-1.5 rounded-xl border border-white/15 bg-white/[0.04] px-3 py-2 text-sm font-bold text-ink transition hover:border-gold/50 hover:text-gold"
@@ -235,6 +226,16 @@ export function Topbar({ onOpenTheme, onOpenConnections, onOpenFeatures }: { onO
             {editMode ? "Done" : "Edit"}
           </motion.button>
         )}
+
+        {/* Simple toggle — far right, mirroring the Pro button's position in Simple view */}
+        <motion.button
+          whileTap={{ scale: 0.95 }}
+          onClick={() => setUiMode("simple")}
+          title="Simple view — just the stream + unified chat"
+          className="ml-1 flex items-center gap-1.5 rounded-xl border border-accent/50 bg-accent/10 px-3.5 py-2 text-sm font-bold text-accent transition hover:bg-accent/20"
+        >
+          <Minimize2 size={15} /> <span className="hidden sm:inline">Simple</span>
+        </motion.button>
       </div>
       <AccountModal open={accountOpen} onClose={() => setAccountOpen(false)} onOpenDashboard={() => setDashOpen(true)} />
       <WatchlistDashboard open={dashOpen} onClose={() => setDashOpen(false)} />
