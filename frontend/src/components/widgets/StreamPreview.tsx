@@ -150,7 +150,7 @@ export function StreamPreview() {
   // on the "live" entry with no active stream — the most recent episode. EP1 has
   // no replay (bid null) so it falls through to its local highlight clip.
   const playEpisodeId = broadcast.live ? LATEST_EPISODE_BID : (broadcast.bid || null);
-  const showEpisode = !!playEpisodeId && !embedUrl && !statsWarming;
+  const showEpisode = !!playEpisodeId && !embedUrl;
   const previewSrc = shownBroadcast.src;
 
   // Seek to the start frame + (re)start playback whenever the source (VOD or

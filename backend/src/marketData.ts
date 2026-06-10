@@ -50,13 +50,13 @@ async function yahoo() {
   const out: MarketData["global"] = [];
   await Promise.all(syms.map(async ([y, sym, name, cls]) => {
     try {
-      const j = await jget(`https://query1.finance.yahoo.com/v8/finance/chart/${y}?range=5d&interval=1d`, { headers: { "User-Agent": "Mozilla/5.0" } });
+      const j = await jget(`https://query1.finance.yahoo.com/v8/finance/chart/${y}?range=5d&interval=30m`, { headers: { "User-Agent": "Mozilla/5.0" } });
       const res = j.chart.result[0];
       let price = res.meta.regularMarketPrice;
       const prev = res.meta.chartPreviousClose ?? res.meta.previousClose ?? price;
       if ((sym === "US10Y" || sym === "US30Y") && price > 20) price /= 10;
       const closes = (res.indicators.quote[0].close ?? []).filter((x: number) => x != null);
-      out.push({ sym, name, price, chg: ((price - prev) / prev) * 100, spark: sample(closes, 12), cls });
+      out.push({ sym, name, price, chg: ((price - prev) / prev) * 100, spark: sample(closes, 24), cls });
     } catch { /* skip */ }
   }));
   return out;
@@ -78,7 +78,19 @@ export async function getMarketData(): Promise<MarketData> {
       const price = c.current_price ?? 0;
       const chg = c.price_change_percentage_24h ?? 0;
       const start = chg <= -100 ? price : price / (1 + chg / 100);
-      const spark = Array.from({ length: 12 }, (_, i) => start + (price - start) * (i / 11));
+      // Realistic intraday-looking walk: trend from 24h-ago price → now, with
+      // seeded jitter (deterministic per symbol) that settles toward the close.
+      let seed = 0;
+      for (const ch2 of (c.symbol ?? "x")) seed = (seed * 31 + ch2.charCodeAt(0)) >>> 0;
+      const rnd = () => { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff - 0.5; };
+      const span = Math.abs(price - start) || price * 0.015;
+      const N = 30;
+      const spark = Array.from({ length: N }, (_, i) => {
+        const t = i / (N - 1);
+        return Math.max(0, start + (price - start) * t + rnd() * span * 1.3 * (1 - t * 0.35));
+      });
+      spark[0] = start;
+      spark[N - 1] = price;
       return { sym: (c.symbol ?? "").toUpperCase(), name: c.name ?? "", price, chg, spark, cls: "crypto" as const };
     });
   } catch { /* leave empty */ }

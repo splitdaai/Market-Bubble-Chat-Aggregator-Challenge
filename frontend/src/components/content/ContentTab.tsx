@@ -1,10 +1,9 @@
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { Radio, Film, TrendingUp, Play } from "lucide-react";
 import { compact } from "../../lib/format";
 import { BubbleScroll } from "../BubbleScroll";
 import { XVodPlayer } from "../XVodPlayer";
 
-const BACKEND = (import.meta.env.VITE_BACKEND_URL as string | undefined) ?? "https://3-213-104-77.nip.io";
 
 /* ── feed: Ansem / Banks / Market Bubble only (demo until an X list is wired) ── */
 const FEED = [
@@ -39,36 +38,6 @@ const FEED_ACCOUNTS = [
   { name: "Banks", handle: "Banks" },
   { name: "Market Bubble", handle: "marketbubble" },
 ];
-/** Public X List id of the 3 accounts → a single time-interleaved "All" feed.
- *  Empty = fall back to stacking each account's recent tweets. */
-const FEED_LIST_ID = "";
-
-/** Embedded X (Twitter) timeline — real recent tweets; clicking opens the tweet.
- *  Pass `handle` for one profile, or `list` for a List (interleaved). */
-function XTimeline({ handle, list, limit = 12 }: { handle?: string; list?: string; limit?: number }) {
-  const ref = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    const href = list ? `https://twitter.com/i/lists/${list}` : `https://twitter.com/${handle}`;
-    el.innerHTML = `<a class="twitter-timeline" data-theme="dark" data-chrome="noheader nofooter noborders transparent" data-tweet-limit="${limit}" href="${href}">Tweets</a>`;
-    const w = window as unknown as { twttr?: { widgets: { load: (e?: HTMLElement) => void } } };
-    if (w.twttr?.widgets) {
-      w.twttr.widgets.load(el);
-    } else if (!document.getElementById("twttr-wjs")) {
-      const s = document.createElement("script");
-      s.id = "twttr-wjs";
-      s.src = "https://platform.twitter.com/widgets.js";
-      s.async = true;
-      document.body.appendChild(s);
-    } else {
-      const iv = setInterval(() => { const ww = (window as unknown as { twttr?: { widgets: { load: (e?: HTMLElement) => void } } }).twttr; if (ww?.widgets) { ww.widgets.load(el); clearInterval(iv); } }, 300);
-      setTimeout(() => clearInterval(iv), 6000);
-    }
-  }, [handle, list, limit]);
-  return <div ref={ref} />;
-}
-
 export function ContentTab() {
   const [feedHandle, setFeedHandle] = useState("all");
   const [vodId, setVodId] = useState<string>(EPISODES[0].bid!); // default = most recent full replay (EP5)
@@ -97,20 +66,27 @@ export function ContentTab() {
             ))}
           </div>
           <BubbleScroll className="flex-1">
-            {feedHandle === "all" ? (
-              FEED_LIST_ID ? (
-                <XTimeline list={FEED_LIST_ID} limit={20} />
-              ) : (
-                FEED_ACCOUNTS.map((a) => (
-                  <div key={a.handle} className="mb-4">
-                    <div className="mb-1 px-1 text-[10px] font-bold uppercase tracking-wider text-faint">{a.name}</div>
-                    <XTimeline handle={a.handle} limit={5} />
+            <div className="space-y-2">
+              {(feedHandle === "all" ? FEED : FEED.filter((f) => f.handle.replace(/^@/, "").toLowerCase() === feedHandle.toLowerCase())).map((p, i) => (
+                <a key={i} href={xUrl(p.handle)} target="_blank" rel="noreferrer" className="block rounded-xl border border-white/8 bg-white/[0.02] p-3 transition hover:border-accent/40 hover:bg-accent/[0.04]">
+                  <div className="flex items-center gap-2">
+                    <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-accent/20 text-[11px] font-black text-accent">{p.name[0]}</span>
+                    <div className="min-w-0">
+                      <div className="truncate text-[12.5px] font-bold text-ink">{p.name}</div>
+                      <div className="truncate text-[10px] text-faint">{p.handle}</div>
+                    </div>
+                    {p.ticker !== "—" && <span className="ml-auto shrink-0 rounded bg-accent/15 px-1.5 py-0.5 text-[10px] font-bold text-accent">${p.ticker}</span>}
                   </div>
-                ))
-              )
-            ) : (
-              <XTimeline key={feedHandle} handle={feedHandle} limit={14} />
-            )}
+                  <p className="mt-2 text-[13px] leading-snug text-ink/90">{p.text}</p>
+                  <div className="mt-2 flex items-center gap-4 text-[10px] text-faint">
+                    <span>♥ {compact(p.likes)}</span>
+                    <span>⟳ {compact(p.reposts)}</span>
+                    <span>👁 {compact(p.views)}</span>
+                    <span className="ml-auto font-bold text-up">+{p.d1h}% 1h</span>
+                  </div>
+                </a>
+              ))}
+            </div>
           </BubbleScroll>
         </div>
 
