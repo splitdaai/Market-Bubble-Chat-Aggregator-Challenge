@@ -11,8 +11,8 @@ export function LoadingScreen() {
   const [phase, setPhase] = useState<"in" | "out" | "gone">("in");
   useEffect(() => {
     if (typeof window !== "undefined" && window.location.search.includes("loaderhold")) return;
-    const t1 = setTimeout(() => setPhase("out"), 2650);
-    const t2 = setTimeout(() => setPhase("gone"), 3150);
+    const t1 = setTimeout(() => setPhase("out"), 1350);
+    const t2 = setTimeout(() => setPhase("gone"), 1850);
     return () => { clearTimeout(t1); clearTimeout(t2); };
   }, []);
   if (phase === "gone") return null;

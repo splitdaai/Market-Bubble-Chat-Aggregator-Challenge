@@ -257,12 +257,12 @@ body::-webkit-scrollbar-thumb:hover { background: rgba(var(--vc-accent-rgb), 0.6
 /* stage 1: the bottom squiggle loads left → right */
 .mb-loader .mb-logo-draw g.mb-sq {
   clip-path: inset(0 100% 0 0);
-  animation: mb-sq-wipe 1.05s cubic-bezier(.45, 0, .35, 1) 0.35s forwards;
+  animation: mb-sq-wipe 0.55s cubic-bezier(.45, 0, .35, 1) 0.15s forwards;
 }
 /* stage 2: the vertical stem + arrow load bottom → top (continues the pulse) */
 .mb-loader .mb-logo-draw g.mb-up {
   clip-path: inset(100% 0 0 0);
-  animation: mb-sq-wipe 0.95s cubic-bezier(.4, 0, .3, 1) 1.3s forwards;
+  animation: mb-sq-wipe 0.5s cubic-bezier(.4, 0, .3, 1) 0.65s forwards;
 }
 
 /* ---- react-grid-layout theming ---- */
