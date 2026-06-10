@@ -1,6 +1,6 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Gift, Play, Square, Dices, RotateCcw, Users } from "lucide-react";
+import { Gift, Play, Square, Dices, RotateCcw, Users, Timer } from "lucide-react";
 import { useGiveawayStore, entrantsByPlatform } from "@/store/giveawayStore";
 import { SourceBadge, platformColor } from "../SourceBadge";
 import { burst } from "../Particles";
@@ -25,6 +25,26 @@ export function GiveawayBot() {
   const rootRef = useRef<HTMLDivElement>(null);
   const counts = entrantsByPlatform(entrants);
   const ALL = useActivePlatforms();
+
+  // Auto-draw timer: 0 = manual; otherwise auto-pick a winner after N seconds.
+  const [autoSec, setAutoSec] = useState(0);
+  const [remaining, setRemaining] = useState<number | null>(null);
+  const fmt = (s: number) => `${Math.floor(s / 60)}:${(s % 60).toString().padStart(2, "0")}`;
+
+  // Arm the countdown when the giveaway opens (with a timer set); clear otherwise.
+  useEffect(() => {
+    if (phase === "running") setRemaining((r) => (autoSec > 0 && r === null ? autoSec : r));
+    else setRemaining(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase]);
+
+  // Tick down once per second; auto-draw at zero.
+  useEffect(() => {
+    if (phase !== "running" || remaining === null) return;
+    if (remaining <= 0) { setRemaining(null); draw(); return; }
+    const t = setTimeout(() => setRemaining((r) => (r === null ? null : r - 1)), 1000);
+    return () => clearTimeout(t);
+  }, [phase, remaining, draw]);
 
   // Confetti when a winner is revealed.
   useEffect(() => {
@@ -64,11 +84,28 @@ export function GiveawayBot() {
               <input type="checkbox" checked={config.uniqueOnly} onChange={(e) => setConfig({ uniqueOnly: e.target.checked })} className="accent-[var(--vc-accent)]" />
               One entry per viewer
             </label>
+            {/* auto-draw timer */}
+            <div>
+              <span className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-muted">Auto-draw timer</span>
+              <div className="flex flex-wrap items-center gap-1">
+                {[{ l: "Manual", v: 0 }, { l: "60s", v: 60 }, { l: "120s", v: 120 }, { l: "180s", v: 180 }].map((o) => (
+                  <button key={o.v} onClick={() => setAutoSec(o.v)} className={`rounded-lg border px-2.5 py-1 text-[11px] font-bold transition ${autoSec === o.v ? "border-accent/60 bg-accent/15 text-accent" : "border-white/12 text-muted hover:text-ink"}`}>{o.l}</button>
+                ))}
+                <input
+                  type="number"
+                  min={5}
+                  placeholder="custom s"
+                  value={autoSec > 0 && ![60, 120, 180].includes(autoSec) ? autoSec : ""}
+                  onChange={(e) => setAutoSec(Math.max(0, Math.floor(Number(e.target.value)) || 0))}
+                  className="vc-input w-[5.5rem] text-[11px]"
+                />
+              </div>
+            </div>
             <button
               onClick={start}
               className="mt-1 flex items-center justify-center gap-2 rounded-xl border border-accent/50 bg-accent/20 py-2 text-sm font-bold text-accent shadow-neon transition hover:bg-accent/30"
             >
-              <Play size={15} /> Open Giveaway
+              <Play size={15} /> {autoSec > 0 ? `Open · auto-draw ${fmt(autoSec)}` : "Open Giveaway"}
             </button>
           </motion.div>
         )}
@@ -88,6 +125,15 @@ export function GiveawayBot() {
               </motion.div>
               <div className="text-[10px] text-muted">entrants for <span className="font-semibold text-ink">{config.prize}</span></div>
             </div>
+
+            {/* auto-draw countdown */}
+            {remaining !== null && (
+              <div className="mt-2 flex items-center justify-center gap-2 rounded-lg border border-accent/30 bg-accent/[0.06] py-1.5">
+                <Timer size={14} className={`text-accent ${remaining <= 5 ? "animate-pulse" : ""}`} />
+                <span className="text-[10px] uppercase tracking-wider text-muted">auto-draw in</span>
+                <span className={`text-lg font-black tabular-nums ${remaining <= 5 ? "text-down" : "text-accent"}`}>{fmt(remaining)}</span>
+              </div>
+            )}
 
             {/* per-platform entry split */}
             <div className="mt-2 grid grid-cols-4 gap-1">

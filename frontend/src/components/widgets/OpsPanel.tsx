@@ -1,15 +1,15 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { Activity, Film, Radio } from "lucide-react";
+import { Activity, Gift, Radio } from "lucide-react";
 import { ChatVibe } from "./ChatVibe";
-import { Clips } from "./Clips";
+import { GiveawayBot } from "./GiveawayBot";
 import { Broadcasts } from "./Broadcasts";
 
-type Tab = "vibe" | "clips" | "broadcasts";
+type Tab = "vibe" | "giveaway" | "broadcasts";
 
 const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
   { id: "vibe", label: "Chat Vibe", icon: <Activity size={15} /> },
-  { id: "clips", label: "Clips", icon: <Film size={15} /> },
+  { id: "giveaway", label: "Giveaway", icon: <Gift size={15} /> },
   { id: "broadcasts", label: "Broadcasts", icon: <Radio size={15} /> },
 ];
 
@@ -55,7 +55,7 @@ export function OpsPanel() {
       </div>
       <div className="min-h-0 flex-1">
         {tab === "vibe" && <ChatVibe />}
-        {tab === "clips" && <Clips />}
+        {tab === "giveaway" && <GiveawayBot />}
         {tab === "broadcasts" && <Broadcasts />}
       </div>
     </div>
