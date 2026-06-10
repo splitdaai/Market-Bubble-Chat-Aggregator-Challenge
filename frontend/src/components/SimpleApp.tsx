@@ -25,7 +25,7 @@ export function SimpleApp() {
   return (
     <div className="vc-aurora vc-grid-texture relative flex h-screen flex-col bg-[var(--vc-bg)] text-ink">
       <header className="relative z-10 flex shrink-0 items-center gap-3 px-4 py-3">
-        <img src="/market-bubble-logo.svg" alt="Market Bubble" className="h-48 w-auto" />
+        <img src="/market-bubble-logo.svg" alt="Market Bubble" className="h-24 w-auto" />
         <div className="ml-auto flex items-center gap-2">
           <button
             onClick={toggleDemo}
