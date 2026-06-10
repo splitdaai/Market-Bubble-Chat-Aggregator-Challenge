@@ -12,20 +12,24 @@ export interface Broadcast {
   /** Seconds into the clip to start playback at (defaults to 0). */
   startAt?: number;
   live?: boolean;
+  /** X broadcast id — when set, the preview plays the FULL episode replay via the
+   *  HLS proxy instead of the local highlight clip. */
+  bid?: string | null;
 }
 
 /**
- * The live stream + recent VODs. The live tile streams the full broadcast; each
- * VOD is its own distinct recording file (a different highlight segment), so
- * selecting one genuinely loads different footage in the preview.
+ * The live stream + the real past episodes. Each past entry maps to its actual X
+ * broadcast replay (`bid`) so selecting it streams the FULL episode in the
+ * preview; the local `src` clip is just the list thumbnail / fallback. EP1 has
+ * only a highlight (no full replay posted), so it keeps the local clip.
  */
 export const BROADCASTS: Broadcast[] = [
   { id: "live", title: "LIVE with Mike Majlak", date: "now", duration: "LIVE", src: "/stream-preview.mp4", startAt: 0, live: true },
-  { id: "vod-1", title: "Ansem & Banks: Market Open Mayhem", date: "Yesterday", duration: "3:42:10", src: "/vods/vod-1.mp4" },
-  { id: "vod-2", title: "Fed Day Special ft. Mike Majlak", date: "3 days ago", duration: "2:58:33", src: "/vods/vod-2.mp4" },
-  { id: "vod-3", title: "Weekend Degen Trading Session", date: "5 days ago", duration: "4:12:05", src: "/vods/vod-3.mp4" },
-  { id: "vod-4", title: "$50k Polymarket Giveaway Stream", date: "1 week ago", duration: "3:30:00", src: "/vods/vod-4.mp4" },
-  { id: "vod-5", title: "All-Time-High Party 🎉", date: "2 weeks ago", duration: "5:01:48", src: "/vods/vod-5.mp4" },
+  { id: "ep-5", title: "The Dollar Is Going to Zero", date: "Jun 5, 2026", duration: "4:42:00", src: "/vods/vod-1.mp4", bid: "1dxYllbQZELJX" },
+  { id: "ep-4", title: "Why Ansem Thinks Ethereum Is Done", date: "May 22, 2026", duration: "2:54:00", src: "/vods/vod-2.mp4", bid: "1OxwbldAYLDJB" },
+  { id: "ep-3", title: "How to Get Rich Playing GTA 6", date: "May 15, 2026", duration: "3:33:00", src: "/vods/vod-3.mp4", bid: "1DGleEgbRRzJL" },
+  { id: "ep-2", title: "Why AI Is Beating Crypto Right Now", date: "May 8, 2026", duration: "3:45:00", src: "/vods/vod-4.mp4", bid: "1DGleEqQkYVJL" },
+  { id: "ep-1", title: "The Truth About Crypto in 2026", date: "May 1, 2026", duration: "1:06:00", src: "/vods/vod-5.mp4", bid: null },
 ];
 
 interface BroadcastState {

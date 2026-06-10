@@ -146,10 +146,11 @@ export function StreamPreview() {
 
   const liveView = shownBroadcast.live;
   const embedUrl = liveView && !demo ? liveEmbedUrl(focused?.meta) : null;
-  // Only the "live" entry (no real stream active) falls back to the most recent
-  // full episode replay. A specific past broadcast picked from the Broadcasts
-  // list plays its own recording (broadcast.live === false → the <video> below).
-  const showEpisode = broadcast.live && !embedUrl && !statsWarming;
+  // The full-episode replay to play: a picked past episode's X broadcast id, or —
+  // on the "live" entry with no active stream — the most recent episode. EP1 has
+  // no replay (bid null) so it falls through to its local highlight clip.
+  const playEpisodeId = broadcast.live ? LATEST_EPISODE_BID : (broadcast.bid || null);
+  const showEpisode = !!playEpisodeId && !embedUrl && !statsWarming;
   const previewSrc = shownBroadcast.src;
 
   // Seek to the start frame + (re)start playback whenever the source (VOD or
@@ -265,7 +266,7 @@ export function StreamPreview() {
           />
         ) : showEpisode ? (
           /* No live stream active → play the most recent full episode replay. */
-          <XVodPlayer key={LATEST_EPISODE_BID} id={LATEST_EPISODE_BID} autoPlay className="absolute inset-0 h-full w-full object-contain" />
+          <XVodPlayer key={playEpisodeId ?? ""} id={playEpisodeId ?? LATEST_EPISODE_BID} autoPlay className="absolute inset-0 h-full w-full object-contain" />
         ) : (
           <video
             ref={videoRef}
