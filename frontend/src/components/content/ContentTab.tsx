@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Radio, Film, TrendingUp, Play } from "lucide-react";
+import { Radio, Film, TrendingUp, Play, BadgeCheck, MessageCircle, Repeat2, Heart, BarChart3 } from "lucide-react";
 import { compact } from "../../lib/format";
 import { BubbleScroll } from "../BubbleScroll";
 import { XVodPlayer } from "../XVodPlayer";
@@ -18,6 +18,24 @@ const FEED = [
 ];
 const xUrl = (h: string) => `https://x.com/${h.replace(/^@/, "")}`;
 const chip = "rounded-md border border-white/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-muted";
+const FEED_TIMES = ["2m", "8m", "14m", "23m", "31m", "47m", "1h", "1h"];
+
+/** Real X profile picture (via unavatar) with a colored-initial fallback. */
+function XAvatar({ handle, name }: { handle: string; name: string }) {
+  const [err, setErr] = useState(false);
+  const h = handle.replace(/^@/, "");
+  if (err) return <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-accent/20 text-[13px] font-black text-accent">{name[0]}</span>;
+  return <img src={`https://unavatar.io/twitter/${h}`} alt={name} onError={() => setErr(true)} className="h-10 w-10 shrink-0 rounded-full bg-white/5 object-cover" />;
+}
+
+/** The X logo glyph. */
+function XLogo({ className = "h-3.5 w-3.5" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={`${className} fill-current`} aria-hidden>
+      <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+    </svg>
+  );
+}
 
 /* Past full episodes — numbered by episode (EP1 = oldest), newest first for display.
  * Real Spotify video episodes; the most recent autoplays in the featured player. */
@@ -68,21 +86,26 @@ export function ContentTab() {
           <BubbleScroll className="flex-1">
             <div className="space-y-2">
               {(feedHandle === "all" ? FEED : FEED.filter((f) => f.handle.replace(/^@/, "").toLowerCase() === feedHandle.toLowerCase())).map((p, i) => (
-                <a key={i} href={xUrl(p.handle)} target="_blank" rel="noreferrer" className="block rounded-xl border border-white/8 bg-white/[0.02] p-3 transition hover:border-accent/40 hover:bg-accent/[0.04]">
-                  <div className="flex items-center gap-2">
-                    <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-accent/20 text-[11px] font-black text-accent">{p.name[0]}</span>
-                    <div className="min-w-0">
-                      <div className="truncate text-[12.5px] font-bold text-ink">{p.name}</div>
-                      <div className="truncate text-[10px] text-faint">{p.handle}</div>
+                <a key={i} href={xUrl(p.handle)} target="_blank" rel="noreferrer" className="block rounded-2xl border border-white/10 bg-white/[0.02] p-3 transition hover:bg-white/[0.05]">
+                  <div className="flex gap-2.5">
+                    <XAvatar handle={p.handle} name={p.name} />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-1 text-[13px]">
+                        <span className="truncate font-bold text-ink">{p.name}</span>
+                        <BadgeCheck size={14} className="shrink-0 text-[#1d9bf0]" />
+                        <span className="truncate text-muted">{p.handle}</span>
+                        <span className="shrink-0 text-muted">· {FEED_TIMES[i % FEED_TIMES.length]}</span>
+                        <XLogo className="ml-auto h-3.5 w-3.5 shrink-0 text-muted" />
+                      </div>
+                      <p className="mt-0.5 whitespace-pre-wrap text-[14px] leading-snug text-ink">{p.text}</p>
+                      {/* X action bar */}
+                      <div className="mt-2.5 flex items-center justify-between pr-4 text-[12px] text-muted">
+                        <span className="flex items-center gap-1.5 transition hover:text-[#1d9bf0]"><MessageCircle size={15} /> {compact(Math.round(p.reposts * 0.4))}</span>
+                        <span className="flex items-center gap-1.5 transition hover:text-up"><Repeat2 size={16} /> {compact(p.reposts)}</span>
+                        <span className="flex items-center gap-1.5 transition hover:text-down"><Heart size={15} /> {compact(p.likes)}</span>
+                        <span className="flex items-center gap-1.5"><BarChart3 size={15} /> {compact(p.views)}</span>
+                      </div>
                     </div>
-                    {p.ticker !== "—" && <span className="ml-auto shrink-0 rounded bg-accent/15 px-1.5 py-0.5 text-[10px] font-bold text-accent">${p.ticker}</span>}
-                  </div>
-                  <p className="mt-2 text-[13px] leading-snug text-ink/90">{p.text}</p>
-                  <div className="mt-2 flex items-center gap-4 text-[10px] text-faint">
-                    <span>♥ {compact(p.likes)}</span>
-                    <span>⟳ {compact(p.reposts)}</span>
-                    <span>👁 {compact(p.views)}</span>
-                    <span className="ml-auto font-bold text-up">+{p.d1h}% 1h</span>
                   </div>
                 </a>
               ))}
