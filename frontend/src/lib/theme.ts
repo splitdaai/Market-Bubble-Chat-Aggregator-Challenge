@@ -84,10 +84,31 @@ export const ICE_STREAM_THEME: Theme = {
   textStyle: "tight",
 };
 
+/** On Air — the show's broadcast aesthetic: warm LA-sunset espresso, cream
+ *  text, champagne gold + sunset amber, Playfair-serif headlines. Matches the
+ *  countdown art / episode thumbnails. The app default. */
+export const ON_AIR_THEME: Theme = {
+  name: "Market Bubble · On Air",
+  bg: "#0c0907",
+  surface: "rgba(36, 27, 17, 0.55)",
+  accent: "#e3b964",
+  accent2: "#e8854e",
+  text: "#f6efdf",
+  textMuted: "#a89678",
+  glow: 0.45,
+  radius: 18,
+  font: "Inter",
+  bubbleStyle: "flat",
+  tile: "glass",
+  btn: "bold",
+  btnFx: "sweep",
+  textStyle: "serif",
+};
+
 /** Bullpen Gold — matches marketbubble.chat: gold accent on warm near-black,
- *  Inter body + serif heads, subtle (non-neon) glow. The app default. */
+ *  Inter body + serif heads, subtle (non-neon) glow. */
 export const BULLPEN_GOLD_THEME: Theme = {
-  name: "Market Bubble",
+  name: "Bullpen Gold",
   bg: "#080706",
   surface: "rgba(28, 23, 16, 0.62)",
   accent: "#d9a547",
@@ -104,7 +125,7 @@ export const BULLPEN_GOLD_THEME: Theme = {
   textStyle: "tight",
 };
 
-export const DEFAULT_THEME: Theme = BULLPEN_GOLD_THEME;
+export const DEFAULT_THEME: Theme = ON_AIR_THEME;
 
 /** Terminal Pro — dense Bloomberg-style: mono everywhere, sharp corners,
  *  hairline borders, electric blue, minimal glow. */
@@ -156,6 +177,7 @@ export const NEON_BUBBLE_THEME: Theme = {
 
 
 export const THEME_PRESETS: Theme[] = [
+  ON_AIR_THEME,
   BULLPEN_GOLD_THEME,
   MONO_TERMINAL_THEME,
   MARKET_BUBBLE_GREEN_THEME,
