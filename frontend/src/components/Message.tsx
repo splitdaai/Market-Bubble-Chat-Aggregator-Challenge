@@ -1,4 +1,5 @@
-import { memo, useState } from "react";
+import { memo, useMemo, useState } from "react";
+import { getEmoteUrl, useEmoteStore } from "@/lib/emotes";
 import { motion } from "framer-motion";
 import type { ChatMessage, ModerationAction } from "@shared/types";
 import { SourceBadge, platformColor } from "./SourceBadge";
@@ -41,6 +42,19 @@ function MessageInner({ msg, deleted, onModerate }: Props) {
   const struck = deleted || modded;
   const color = msg.color ?? platformColor(msg.platform);
   const hasWallet = !!viewerWallet(msg.username, demo);
+
+  // Render 7TV/BTTV/FFZ/Twitch emotes as inline images. Tokenized once per
+  // message (re-runs when new emote sets finish loading).
+  const emoteVersion = useEmoteStore((s) => s.version);
+  const parts = useMemo(() => {
+    void emoteVersion;
+    const tokens = msg.message.split(/(\s+)/);
+    if (!tokens.some((t) => getEmoteUrl(t))) return null; // fast path: plain text
+    return tokens.map((t, i) => {
+      const url = getEmoteUrl(t);
+      return url ? <img key={i} src={url} alt={t} title={t} loading="lazy" className="-my-1 inline-block h-[24px] w-auto align-middle" /> : t;
+    });
+  }, [msg.message, emoteVersion]);
 
   return (
     <>
@@ -106,7 +120,7 @@ function MessageInner({ msg, deleted, onModerate }: Props) {
             <span className="rounded bg-red-500/15 px-1 py-px text-[9px] font-bold uppercase tracking-wide text-red-300">modded</span>
           )}
           <span className={`ml-0.5 break-words text-ink/90 ${struck ? "line-through opacity-60" : ""}`}>
-            {msg.message}
+            {parts ?? msg.message}
           </span>
         </div>
 

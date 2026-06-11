@@ -320,6 +320,24 @@ export function mountAuth(app: Express, publicUrl: string, onChange: () => void)
     }
   });
 
+  // Watch an arbitrary PUBLIC channel — no OAuth needed. Twitch (anonymous IRC)
+  // and Kick (public Pusher socket) are readable by channel name, so the team can
+  // aggregate any channel's chat into the unified feed. Capped + sanitized.
+  app.post("/auth/watch", (req: Request, res: Response) => {
+    const platform = String(req.body?.platform ?? "");
+    const channel = String(req.body?.channel ?? "").trim().replace(/^[@#]/, "").toLowerCase();
+    if (platform !== "twitch" && platform !== "kick") return res.status(400).json({ error: "watch supports Twitch & Kick (X/YouTube need OAuth)" });
+    if (!/^[a-z0-9_]{2,30}$/.test(channel)) return res.status(400).json({ error: "invalid channel name" });
+    if (accounts.filter((a) => a.platform === platform).length >= 8) return res.status(429).json({ error: "channel limit reached for this platform" });
+    const id = `${platform}:${channel}`;
+    if (!accounts.some((a) => a.id === id)) {
+      accounts.push({ id, platform, handle: channel, displayName: channel, connected: true });
+      persistStore();
+      onChange();
+    }
+    res.json({ ok: true, id });
+  });
+
   app.delete("/auth/account/:id", (req: Request, res: Response) => {
     const i = accounts.findIndex((a) => a.id === req.params.id);
     if (i >= 0) {

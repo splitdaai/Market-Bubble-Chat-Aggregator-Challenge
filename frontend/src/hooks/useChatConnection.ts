@@ -8,6 +8,7 @@ import { useAnalyticsStore } from "@/store/analyticsStore";
 import { useModeStore } from "@/store/modeStore";
 import { useConnectionsStore } from "@/store/connectionsStore";
 import { DEMO_ACCOUNTS } from "@/lib/accounts";
+import { initEmotes } from "@/lib/emotes";
 
 /**
  * Boots the transport (real Socket.io if VITE_BACKEND_URL is set, else the mock
@@ -48,6 +49,10 @@ export function useChatConnection() {
     } else {
       useAnalyticsStore.setState({ live: true, sessions: [] });
     }
+
+    // Emotes: load 7TV/BTTV/FFZ global sets + per-channel sets for every
+    // connected Twitch channel so chat renders real emote images.
+    initEmotes(useConnectionsStore.getState().accounts.filter((a) => a.platform === "twitch").map((a) => a.handle));
 
     const conn = connect({
       onMessage: (m) => {

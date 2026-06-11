@@ -40,6 +40,14 @@ const LINES = [
   "yo this stream is actually insane 🔥",
   "first time catching you live, instant follow",
   "W content as always",
+  "Kappa Kappa Kappa",
+  "LUL that take",
+  "PogChamp what a call",
+  "monkaS this chart",
+  "FeelsGoodMan green candles",
+  "KKona brother",
+  "EZ Clap",
+  "SourPls vibes",
   "how is the aggregator handling all 3 chats at once??",
   "neon theme goes so hard",
   "GG that was clean",
@@ -119,12 +127,14 @@ function makeHype(): { text: string; event?: ChatEvent } {
 
 /** Generate a single believable message from one of the connected accounts. */
 export function makeMockMessage(forced?: Platform): ChatMessage {
-  // Demo chat always reflects the canonical demo channels (Ansem / Banks /
-  // Market Bubble), independent of any real accounts. In Live mode the backend
-  // replaces the connections store with the user's own channels (e.g. splitdawig)
-  // and persists it — so without this, switching back to Demo would attribute
-  // mock chat to the live channels instead of the demo trio.
-  const source = useModeStore.getState().demo ? DEMO_ACCOUNTS : useConnectionsStore.getState().accounts;
+  // Demo chat reflects the connections STORE (so channels the user adds/toggles
+  // in the Connections modal show up in the demo feed) — but only while the demo
+  // seed (Ansem/Banks/Market Bubble) is still present. After a Live session the
+  // backend replaces the store with the user's real channels; in that case fall
+  // back to the canonical demo trio so mock chat is never attributed to them.
+  const stored = useConnectionsStore.getState().accounts;
+  const hasDemoSeed = stored.some((a) => DEMO_ACCOUNTS.some((d) => d.id === a.id));
+  const source = useModeStore.getState().demo ? (hasDemoSeed ? stored : DEMO_ACCOUNTS) : stored;
   const accounts = connectedAccounts(source);
   const pool = forced ? accounts.filter((a) => a.platform === forced) : accounts;
   const account = pool.length ? pick(pool) : null;

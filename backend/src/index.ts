@@ -12,7 +12,7 @@ import { YouTubeConnector } from "./platforms/youtube.ts";
 import { bindHub } from "./sockets/hub.ts";
 import { StatsAggregator } from "./stats/aggregator.ts";
 import { HistoryStore } from "./history/store.ts";
-import { twitchViewers, kickViewers, youtubeViewers } from "./stats/viewers.ts";
+import { twitchViewers, kickChannel, youtubeViewers, twitchFollowers } from "./stats/viewers.ts";
 import { mountAuth, getAccounts, getToken, refreshToken } from "./auth.ts";
 import { getTwitchChannel } from "./twitchChannel.ts";
 import { getMarketData, getPriceHistory, getLeaderboards, getHlWallet, getEvmWallet } from "./marketData.ts";
@@ -154,6 +154,15 @@ function buildConnectors(): Connector[] {
 /** Poll the real platform APIs for live viewer counts into the aggregator.
  *  Channels come from the CONNECTED accounts (any account, summed per platform),
  *  with env channels as an optional fallback — nothing is hard-coded. */
+// Follower totals per platform from the previous poll — new follows are the
+// positive delta between ticks (first tick just sets the baseline).
+const lastFollowers: Partial<Record<string, number>> = {};
+function bumpFollows(p: "twitch" | "kick" | "youtube" | "x", total: number) {
+  const prev = lastFollowers[p];
+  if (prev != null && total > prev) aggregator.addFollows(p, total - prev);
+  lastFollowers[p] = total;
+}
+
 function startViewerPollers() {
   const tick = async () => {
     const { TWITCH_CLIENT_ID, TWITCH_CLIENT_SECRET, TWITCH_CHANNEL, KICK_CHANNEL, YOUTUBE_VIDEO_ID, YOUTUBE_API_KEY } = process.env;
@@ -171,18 +180,32 @@ function startViewerPollers() {
       for (const ch of tw) { const v = await twitchViewers(ch, TWITCH_CLIENT_ID, TWITCH_CLIENT_SECRET); if (v != null) total += v; }
       aggregator.setViewers("twitch", total);
     }
-    // Kick: sum across every connected Kick channel (+ env fallback).
+    // Kick: one call per channel gets viewers AND follower totals (curl-first —
+    // Cloudflare blocks Node fetch's TLS fingerprint on kick.com).
     const kk = channelsFor("kick");
     if (KICK_CHANNEL && !kk.includes(KICK_CHANNEL.toLowerCase())) kk.push(KICK_CHANNEL.toLowerCase());
     if (kk.length) {
-      let total = 0;
-      for (const ch of kk) { const v = await kickViewers(ch); if (v != null) total += v; }
+      let total = 0; let fTotal = 0; let fOk = true;
+      for (const ch of kk) {
+        const d = await kickChannel(ch);
+        if (d) { total += d.viewers; fTotal += d.followers; } else fOk = false;
+      }
       aggregator.setViewers("kick", total);
+      if (fOk) bumpFollows("kick", fTotal);
     }
-    // YouTube viewer count from an env video id (legacy "x" slot mapping).
-    if (YOUTUBE_VIDEO_ID && YOUTUBE_API_KEY && !process.env.X_BEARER_TOKEN) {
+    // YouTube concurrent viewers — now correctly attributed to the youtube slot.
+    if (YOUTUBE_VIDEO_ID && YOUTUBE_API_KEY) {
       const v = await youtubeViewers(YOUTUBE_VIDEO_ID, YOUTUBE_API_KEY);
-      if (v != null) aggregator.setViewers("x", v);
+      if (v != null) aggregator.setViewers("youtube", v);
+    }
+    // Twitch follower totals (decapi.me, no auth) — diffed into followsGained.
+    if (tw.length) {
+      let fTotal = 0; let fOk = true;
+      for (const ch of tw) {
+        const f = await twitchFollowers(ch);
+        if (f != null) fTotal += f; else fOk = false;
+      }
+      if (fOk) bumpFollows("twitch", fTotal);
     }
   };
   tick();

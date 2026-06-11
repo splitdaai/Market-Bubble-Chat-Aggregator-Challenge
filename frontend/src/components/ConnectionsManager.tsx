@@ -4,6 +4,7 @@ import { X, Plug, ShieldCheck, MonitorPlay, Loader2, Check, ExternalLink, Plus, 
 import type { Platform } from "@shared/types";
 import { CHAT_PLATFORMS, SourceBadge, platformLabel, platformColor } from "./SourceBadge";
 import { useConnectionsStore } from "@/store/connectionsStore";
+import { useModeStore } from "@/store/modeStore";
 import { useToastStore } from "@/store/toastStore";
 import { useWalletStore } from "@/store/walletStore";
 import { connectObs, addOverlaySource, type ObsClient } from "@/lib/obs";
@@ -66,6 +67,31 @@ export function ConnectionsManager({ open, onClose }: { open: boolean; onClose: 
   const removeAccountFull = (id: string) => {
     removeAccount(id);
     if (BACKEND) fetch(`${BACKEND}/auth/account/${encodeURIComponent(id)}`, { method: "DELETE" }).catch(() => {});
+  };
+
+  // Watch an arbitrary public channel (Twitch/Kick read no-auth by channel name).
+  // Demo: added to the local store (mock chat picks it up). Live: registered on
+  // the backend, which spins up a real anonymous chat connector.
+  const addAccount = useConnectionsStore((s) => s.addAccount);
+  const demo = useModeStore((s) => s.demo);
+  const [watchInput, setWatchInput] = useState<Record<string, string>>({});
+  const watchChannel = async (p: Platform) => {
+    const ch = (watchInput[p] ?? "").trim().replace(/^[@#]/, "").toLowerCase();
+    if (!/^[a-z0-9_]{2,30}$/.test(ch)) { push({ message: "Enter a valid channel name (letters, numbers, _)", tone: "error" }); return; }
+    addAccount(p, ch, ch);
+    setWatchInput((s) => ({ ...s, [p]: "" }));
+    if (!demo && BACKEND) {
+      try {
+        const r = await fetch(`${BACKEND}/auth/watch`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ platform: p, channel: ch }) });
+        const j = await r.json().catch(() => ({}));
+        if (!r.ok) throw new Error(j.error || `HTTP ${r.status}`);
+        push({ message: `Watching ${ch} — its ${platformLabel(p)} chat now streams into the feed`, tone: "ok" });
+      } catch (e) {
+        push({ message: `Couldn't watch ${ch}: ${e instanceof Error ? e.message : e}`, tone: "error" });
+      }
+    } else {
+      push({ message: `Added ${ch} (${platformLabel(p)}) to the feed`, tone: "ok" });
+    }
   };
 
   const dockUrl = typeof window !== "undefined" ? `${window.location.origin}${window.location.pathname}?dock=1` : "";
@@ -235,6 +261,29 @@ export function ConnectionsManager({ open, onClose }: { open: boolean; onClose: 
                         </div>
                       ))}
                     </div>
+
+                    {/* Watch any public channel — Twitch & Kick chat is readable
+                        by name (no login), so the team can pull any channel in. */}
+                    {(p === "twitch" || p === "kick") && (
+                      <form
+                        onSubmit={(e) => { e.preventDefault(); void watchChannel(p); }}
+                        className="mt-1.5 flex items-center gap-1.5"
+                      >
+                        <input
+                          value={watchInput[p] ?? ""}
+                          onChange={(e) => setWatchInput((s) => ({ ...s, [p]: e.target.value }))}
+                          placeholder={`Watch any ${platformLabel(p)} channel — e.g. xqc`}
+                          className="vc-input flex-1 text-xs"
+                        />
+                        <button
+                          type="submit"
+                          disabled={!(watchInput[p] ?? "").trim()}
+                          className="flex items-center gap-1 rounded-md border border-white/15 px-2.5 py-1.5 text-[10px] font-bold text-muted transition hover:border-accent/50 hover:text-accent disabled:opacity-40"
+                        >
+                          <Plus size={11} /> Watch
+                        </button>
+                      </form>
+                    )}
                   </div>
                 );
               })}
