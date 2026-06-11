@@ -57,8 +57,8 @@ function HlWalletModal({ trader, onClose }: { trader: HlTrader; onClose: () => v
   const chgPct = series.length > 1 ? (series[series.length - 1] / series[0] - 1) * 100 : 0;
 
   return (
-    <motion.div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/70 p-4 backdrop-blur-sm" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose}>
-      <motion.div className="mb-tab mt-8 w-full max-w-4xl rounded-2xl border border-white/10 bg-[#111]" initial={{ scale: 0.96, y: 12 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.96, opacity: 0 }} onClick={(e) => e.stopPropagation()}>
+    <motion.div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/70 px-4 pb-10 pt-24 backdrop-blur-sm" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose}>
+      <motion.div className="mb-tab w-full max-w-5xl rounded-2xl border border-white/10 bg-[#111]" initial={{ scale: 0.96, y: 12 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.96, opacity: 0 }} onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center gap-3 border-b border-white/8 p-4">
           <span className="grid h-11 w-11 place-items-center rounded-full bg-accent/20 text-[15px] font-black text-accent">HL</span>
           <div className="min-w-0 flex-1">
@@ -96,7 +96,7 @@ function HlWalletModal({ trader, onClose }: { trader: HlTrader; onClose: () => v
           {/* real open positions */}
           <div>
             <div className="mb-2 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-muted"><Wallet size={12} /> Open positions</div>
-            <div className="max-h-72 space-y-1 overflow-y-auto pr-1">
+            <div className="max-h-[340px] space-y-1 overflow-y-auto pr-1">
               {(w?.positions ?? []).map((p, i) => (
                 <div key={i} className="flex items-center gap-2 rounded-lg bg-white/[0.02] px-2.5 py-1.5 text-[11.5px]">
                   <span className={`font-bold ${p.long ? "text-up" : "text-down"}`}>{p.long ? "LONG" : "SHORT"}</span>
@@ -113,7 +113,7 @@ function HlWalletModal({ trader, onClose }: { trader: HlTrader; onClose: () => v
           {/* real recent fills */}
           <div>
             <div className="mb-2 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-muted"><Activity size={12} className="text-up" /> Recent trades (live fills)</div>
-            <div className="max-h-72 space-y-1 overflow-y-auto pr-1">
+            <div className="max-h-[340px] space-y-1 overflow-y-auto pr-1">
               {(w?.fills ?? []).map((f, i) => (
                 <div key={i} className="flex items-center gap-2 rounded-lg bg-white/[0.02] px-2.5 py-1.5 text-[11.5px]">
                   <span className={`flex items-center gap-0.5 font-bold ${f.buy ? "text-up" : "text-down"}`}>{f.buy ? <ArrowUpRight size={12} /> : <ArrowDownRight size={12} />}{f.buy ? "BUY" : "SELL"}</span>

@@ -264,6 +264,10 @@ export async function getLeaderboards() {
     const perf = (r: typeof rows[number], w: string) => { const e = r.windowPerformances.find((p) => p[0] === w); return e ? { pnl: +e[1].pnl, roi: +e[1].roi } : { pnl: 0, roi: 0 }; };
     data.hyperliquid = rows
       .map((r) => ({ r, m: perf(r, "month") }))
+      // Only ACTIVE, funded accounts — many top-PnL wallets have withdrawn or are
+      // vault shells (accountValue 0) and would open to an empty dashboard. A
+      // funded account reliably shows live positions / fills / portfolio.
+      .filter(({ r, m }) => +r.accountValue >= 50_000 && m.pnl > 0)
       .sort((a, b) => b.m.pnl - a.m.pnl)
       .slice(0, 50)
       .map(({ r, m }) => ({
