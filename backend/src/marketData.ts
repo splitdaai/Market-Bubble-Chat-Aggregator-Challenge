@@ -27,6 +27,37 @@ const jget = async (url: string, init?: RequestInit) => {
   if (!r.ok) throw new Error(`${r.status} ${url}`);
   return r.json();
 };
+
+/** Realistic intraday-looking 30pt walk from 24h-ago price → now (seeded per symbol). */
+function walkSpark(sym: string, price: number, chg: number): number[] {
+  const start = chg <= -100 ? price : price / (1 + chg / 100);
+  let seed = 0;
+  for (const ch of sym) seed = (seed * 31 + ch.charCodeAt(0)) >>> 0;
+  const rnd = () => { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff - 0.5; };
+  const span = Math.abs(price - start) || price * 0.015;
+  const N = 30;
+  const spark = Array.from({ length: N }, (_, i) => {
+    const t = i / (N - 1);
+    return Math.max(0, start + (price - start) * t + rnd() * span * 1.3 * (1 - t * 0.35));
+  });
+  spark[0] = start;
+  spark[N - 1] = price;
+  return spark;
+}
+
+/** Last successful crypto rows — reused when every source fails (never empty). */
+let lastCrypto: MarketData["global"] = [];
+
+/** Kraken result keys → display symbols (Kraken renames pairs in responses). */
+const KRAKEN_SYM: Record<string, string> = {
+  XXBTZUSD: "BTC", XBTUSD: "BTC", XETHZUSD: "ETH", ETHUSD: "ETH", SOLUSD: "SOL",
+  XXRPZUSD: "XRP", XRPUSD: "XRP", ADAUSD: "ADA", XDGUSD: "DOGE", DOGEUSD: "DOGE",
+  XLTCZUSD: "LTC", LTCUSD: "LTC", LINKUSD: "LINK", AVAXUSD: "AVAX", DOTUSD: "DOT",
+};
+const CRYPTO_NAMES: Record<string, string> = {
+  BTC: "Bitcoin", ETH: "Ethereum", SOL: "Solana", XRP: "XRP", ADA: "Cardano",
+  DOGE: "Dogecoin", LTC: "Litecoin", LINK: "Chainlink", AVAX: "Avalanche", DOT: "Polkadot",
+};
 const estViews = (name: string) => {
   let h = 0;
   for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) >>> 0;
@@ -67,33 +98,37 @@ export async function getMarketData(): Promise<MarketData> {
 
   const data: MarketData = { global: [], narratives: [], movers: [], gauges: { fearGreed: 50, fearGreedLabel: "—", btcDominance: 0, totalMcap: 0, altSeason: 0 }, polymarket: [] };
 
-  // Global markets — top 10 crypto by mcap + indices + commodities
+  // Global markets — top 10 crypto by mcap + indices + commodities.
+  // CoinGecko intermittently shadow-limits datacenter IPs (200 + null/empty
+  // body), so: CG → Kraken public ticker fallback → last-good (never empty).
   try {
-    // NB: `sparkline=true` started returning a bare `null` body from our server's
-    // IP (CoinGecko rate-shaping that heavy param), which emptied the whole crypto
-    // column. Drop it and shape a 12-pt trend from the real 24h move instead.
     const cg = await jget(`${CG}/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=10&page=1&price_change_percentage=24h`);
     if (!Array.isArray(cg) || !cg.length) throw new Error("empty crypto");
     data.global = (cg as Array<{ symbol: string; name: string; current_price: number; price_change_percentage_24h: number }>).map((c) => {
       const price = c.current_price ?? 0;
       const chg = c.price_change_percentage_24h ?? 0;
-      const start = chg <= -100 ? price : price / (1 + chg / 100);
-      // Realistic intraday-looking walk: trend from 24h-ago price → now, with
-      // seeded jitter (deterministic per symbol) that settles toward the close.
-      let seed = 0;
-      for (const ch2 of (c.symbol ?? "x")) seed = (seed * 31 + ch2.charCodeAt(0)) >>> 0;
-      const rnd = () => { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff - 0.5; };
-      const span = Math.abs(price - start) || price * 0.015;
-      const N = 30;
-      const spark = Array.from({ length: N }, (_, i) => {
-        const t = i / (N - 1);
-        return Math.max(0, start + (price - start) * t + rnd() * span * 1.3 * (1 - t * 0.35));
-      });
-      spark[0] = start;
-      spark[N - 1] = price;
-      return { sym: (c.symbol ?? "").toUpperCase(), name: c.name ?? "", price, chg, spark, cls: "crypto" as const };
+      return { sym: (c.symbol ?? "").toUpperCase(), name: c.name ?? "", price, chg, spark: walkSpark(c.symbol ?? "x", price, chg), cls: "crypto" as const };
     });
-  } catch { /* leave empty */ }
+    lastCrypto = data.global;
+  } catch {
+    try {
+      const j = await jget("https://api.kraken.com/0/public/Ticker?pair=XBTUSD,ETHUSD,SOLUSD,XRPUSD,ADAUSD,DOGEUSD,LTCUSD,LINKUSD,AVAXUSD,DOTUSD") as { result?: Record<string, { c: string[]; o: string }> };
+      const out: MarketData["global"] = [];
+      for (const [k, v] of Object.entries(j.result ?? {})) {
+        const sym = KRAKEN_SYM[k];
+        if (!sym) continue;
+        const price = +v.c[0];
+        const open = +v.o;
+        const chg = open ? ((price - open) / open) * 100 : 0;
+        out.push({ sym, name: CRYPTO_NAMES[sym] ?? sym, price, chg, spark: walkSpark(sym, price, chg), cls: "crypto" });
+      }
+      if (!out.length) throw new Error("kraken empty");
+      data.global = out;
+      lastCrypto = out;
+    } catch {
+      data.global = lastCrypto; // stale-if-error — show the last good set
+    }
+  }
   data.global = [...data.global, ...(await yahoo())];
 
   // Narratives (real names + 24h Δ; estimated views)
