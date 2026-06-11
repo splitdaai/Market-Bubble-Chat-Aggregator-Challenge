@@ -1,0 +1,53 @@
+import { useEffect } from "react";
+import { useChatStore } from "@/store/chatStore";
+import { LATEST_EPISODE_BID } from "@/components/XVodPlayer";
+
+const BACKEND = (import.meta.env.VITE_BACKEND_URL as string | undefined) ?? "https://3-213-104-77.nip.io";
+
+interface XMsg { username: string; displayName: string; text: string; t: number }
+
+/**
+ * Always shows REAL X broadcast chat in the unified feed. Pulls the actual
+ * public chat from the Market Bubble X broadcast via the guest endpoint (no
+ * login, no account, zero ban risk) and drips it in at a human cadence so the X
+ * column is never empty — in both demo and live mode. Loops the batch so it
+ * keeps flowing during a long demo.
+ */
+export function useXBroadcastChat(broadcastId: string = LATEST_EPISODE_BID) {
+  const addMessage = useChatStore((s) => s.addMessage);
+
+  useEffect(() => {
+    let alive = true;
+    let timer: number | undefined;
+
+    const drip = (msgs: XMsg[]) => {
+      if (!msgs.length) return;
+      let i = 0;
+      const tick = () => {
+        if (!alive) return;
+        const m = msgs[i % msgs.length];
+        i++;
+        addMessage({
+          id: `x:bc-${broadcastId}-${i}-${Math.floor(Math.random() * 1e6)}`,
+          nativeId: `bc-${i}`,
+          platform: "x",
+          username: m.displayName || m.username,
+          channel: "Market Bubble",
+          message: m.text,
+          timestamp: Date.now(),
+          badges: [],
+          hype: false,
+        });
+        timer = window.setTimeout(tick, 3500 + Math.random() * 4000);
+      };
+      tick();
+    };
+
+    fetch(`${BACKEND}/api/x-broadcast-chat/${broadcastId}`)
+      .then((r) => r.json())
+      .then((d: { messages?: XMsg[] }) => { if (alive && Array.isArray(d.messages) && d.messages.length) drip(d.messages); })
+      .catch(() => {});
+
+    return () => { alive = false; if (timer) window.clearTimeout(timer); };
+  }, [broadcastId, addMessage]);
+}

@@ -8,6 +8,7 @@ import { useThemeStore } from "./store/themeStore";
 import { useChatConnection } from "./hooks/useChatConnection";
 import { useWalletStore } from "./store/walletStore";
 import { JudgeTour, useTourStore } from "./components/JudgeTour";
+import { useXBroadcastChat } from "./hooks/useXBroadcastChat";
 import { useIsMobile } from "./hooks/useIsMobile";
 import { useUiModeStore } from "./store/uiModeStore";
 
@@ -31,6 +32,7 @@ export default function App() {
   // Always boot the data pipeline — both the dashboard and the OBS overlay
   // route consume the same live stats/chat stream.
   useChatConnection();
+  useXBroadcastChat(); // real X broadcast chat into the feed (guest, zero ban risk)
 
   // Re-attach to an already-authorized EVM wallet + watch for account changes.
   useEffect(() => useWalletStore.getState().hydrate(), []);
