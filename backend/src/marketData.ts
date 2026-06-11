@@ -349,9 +349,13 @@ export async function getHlWallet(addr: string) {
       const szi = +pos.szi;
       return { coin: pos.coin, long: szi >= 0, szi, entry: +(pos.entryPx ?? 0), upnl: +(pos.unrealizedPnl ?? 0), lev: pos.leverage?.value ?? 0, value: Math.abs(+(pos.positionValue ?? 0)) };
     });
+    // Use the PERP account-value history (perpDay/perpWeek/…) so the chart's
+    // latest point equals the live clearinghouse accountValue and the positions/
+    // fills below — the plain day/week series include spot+vault and would end
+    // at a different number than the "Account value" KPI.
     const pmap: Record<string, { accountValueHistory?: [number, string][] }> = Object.fromEntries(pf as [string, { accountValueHistory?: [number, string][] }][]);
     const series = (w: string) => (pmap[w]?.accountValueHistory ?? []).map((x) => +x[1]);
-    out.chart = { day: series("day"), week: series("week"), month: series("month"), allTime: series("allTime") };
+    out.chart = { day: series("perpDay"), week: series("perpWeek"), month: series("perpMonth"), allTime: series("perpAllTime") };
     const fillsRaw = (uf as { coin: string; side: string; sz: string; px: string; time: number; dir?: string; closedPnl?: string }[]) ?? [];
     out.fills = fillsRaw.slice(0, 40).map((f) => ({ coin: f.coin, buy: f.side === "B", sz: +f.sz, px: +f.px, t: f.time, dir: f.dir ?? "", closedPnl: +(f.closedPnl ?? 0) }));
     // Win rate over closing trades (fills that realized PnL).

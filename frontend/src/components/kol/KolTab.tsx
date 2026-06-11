@@ -54,7 +54,10 @@ function HlWalletModal({ trader, onClose }: { trader: HlTrader; onClose: () => v
     return () => { on = false; };
   }, [trader.addr]);
   const series = w?.chart?.[range] ?? [];
-  const chgPct = series.length > 1 ? (series[series.length - 1] / series[0] - 1) * 100 : 0;
+  // % change off the first NON-ZERO point — "All" starts at $0 (first deposit),
+  // which would otherwise divide-by-zero into Infinity%.
+  const base = series.find((v) => v > 0) ?? 0;
+  const chgPct = base > 0 && series.length > 1 ? (series[series.length - 1] / base - 1) * 100 : 0;
 
   return (
     <motion.div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/70 px-4 pb-10 pt-24 backdrop-blur-sm" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose}>
