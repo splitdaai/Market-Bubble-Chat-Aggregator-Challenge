@@ -356,6 +356,15 @@ export async function getHlWallet(addr: string) {
     const pmap: Record<string, { accountValueHistory?: [number, string][] }> = Object.fromEntries(pf as [string, { accountValueHistory?: [number, string][] }][]);
     const series = (w: string) => (pmap[w]?.accountValueHistory ?? []).map((x) => +x[1]);
     out.chart = { day: series("perpDay"), week: series("perpWeek"), month: series("perpMonth"), allTime: series("perpAllTime") };
+    // The history is sampled, so its last point can lag the real-time account
+    // value by a few minutes. Append the live clearinghouse value so every chart
+    // ENDS exactly at the "Account value" KPI — the line's tip is always current.
+    if (out.accountValue > 0) {
+      for (const k of Object.keys(out.chart)) {
+        const s = out.chart[k];
+        if (s.length && Math.abs(s[s.length - 1] - out.accountValue) > out.accountValue * 0.0005) s.push(out.accountValue);
+      }
+    }
     const fillsRaw = (uf as { coin: string; side: string; sz: string; px: string; time: number; dir?: string; closedPnl?: string }[]) ?? [];
     out.fills = fillsRaw.slice(0, 40).map((f) => ({ coin: f.coin, buy: f.side === "B", sz: +f.sz, px: +f.px, t: f.time, dir: f.dir ?? "", closedPnl: +(f.closedPnl ?? 0) }));
     // Win rate over closing trades (fills that realized PnL).
