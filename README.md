@@ -125,15 +125,6 @@ syncs `frontend/dist/` to S3 on every push to `main` (needs the repo secrets
 `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY`). Manual: `npm run build` in
 `frontend/` then `aws s3 sync dist/ s3://<bucket>/ --delete`.
 
-## 🔒 Security notes
-
-No secrets are committed (`.env*` is gitignored; only `.env.example` is tracked).
-Chat / usernames / market data are rendered as escaped React text (no `innerHTML`).
-Tipping validates the recipient address before signing and never holds keys. No
-visitor analytics live in this repo — there is no tracking code and no visitor
-data in git. The backend is a single-operator scaffold — add an auth gate + a
-non-wildcard `CORS_ORIGIN` before exposing it publicly.
-
 ## 📄 License
 
 Proprietary — © 2026 Market Bubble, all rights reserved. Shared for evaluation

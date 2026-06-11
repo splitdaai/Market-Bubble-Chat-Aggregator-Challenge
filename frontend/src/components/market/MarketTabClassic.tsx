@@ -158,7 +158,7 @@ export function MarketTabClassic() {
         <p className="mt-1 text-[13px] text-muted">Classic layout — global markets, narratives, smart money, portfolios &amp; Polymarket in one terminal.</p>
 
         <PageGrid
-          pageKey="market-classic-v4"
+          pageKey="market-classic-v5"
           editMode={editMode}
           titles={{ global: "Global Markets", tech: "Technicals", hl: "Top Hyperliquid Traders", portfolios: "Influential Portfolios", poly: "Top Polymarket Traders", intel: "Intelligence Feed" }}
           items={[
@@ -239,7 +239,7 @@ export function MarketTabClassic() {
                 </div>
               </Panel>
             ) },
-            { id: "intel", x: 0, y: 32, w: 12, h: 8, node: (
+            { id: "intel", x: 0, y: 32, w: 12, h: 14, node: (
               <Panel title="Intelligence Feed" icon={<Newspaper size={15} className="text-accent" />} right={<span className="text-[10px] uppercase tracking-wider text-up">● live · AI-scored</span>}>
                 <IntelFeed />
               </Panel>
