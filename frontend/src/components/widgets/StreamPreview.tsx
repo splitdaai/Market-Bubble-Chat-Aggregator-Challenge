@@ -253,7 +253,7 @@ export function StreamPreview() {
                   style={{ borderColor: on ? `${hue}99` : "rgba(255,255,255,0.08)", background: `linear-gradient(135deg, ${hue}${on ? "29" : "14"}, transparent 70%)`, boxShadow: on ? `0 0 18px ${hue}40` : undefined }}
                 >
                   <div className="flex items-center gap-2.5">
-                    <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full text-[13px] font-black" style={{ background: `${hue}2e`, color: hue, boxShadow: `0 0 12px ${hue}45` }}>{p.name[0]}</span>
+                    <XPfp name={p.name} hue={hue} />
                     <div className="min-w-0">
                       <div className="truncate text-[12.5px] font-bold leading-tight text-ink">{p.name}</div>
                       <div className="mt-0.5 flex items-center gap-1">
@@ -398,4 +398,15 @@ function AnimNum({ value, className, style }: { value: number; className?: strin
   useEffect(() => { mv.set(value); }, [value, mv]);
   useEffect(() => spring.on("change", (v) => setDisp(v)), [spring]);
   return <span className={className} style={style}>{compact(Math.max(0, Math.round(disp)))}</span>;
+}
+
+/** The streamer's X profile picture (via unavatar), colored-initial fallback. */
+function XPfp({ name, hue }: { name: string; hue: string }) {
+  const accounts = useConnectionsStore((s) => s.accounts);
+  const [err, setErr] = useState(false);
+  const handle = accounts.find((a) => a.platform === "x" && a.displayName === name)?.handle.replace(/^@/, "");
+  if (!handle || err) {
+    return <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full text-[13px] font-black" style={{ background: `${hue}2e`, color: hue, boxShadow: `0 0 12px ${hue}45` }}>{name[0]}</span>;
+  }
+  return <img src={`https://unavatar.io/twitter/${handle}`} alt={name} onError={() => setErr(true)} className="h-8 w-8 shrink-0 rounded-full object-cover" style={{ boxShadow: `0 0 0 2px ${hue}66, 0 0 12px ${hue}45` }} />;
 }
