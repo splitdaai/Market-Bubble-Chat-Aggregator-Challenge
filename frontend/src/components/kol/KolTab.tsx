@@ -80,6 +80,7 @@ function HlWalletModal({ trader, onClose }: { trader: HlTrader; onClose: () => v
             <div className="mb-2 flex items-center justify-between">
               <span className="flex items-center gap-1 text-[10px] uppercase tracking-wider text-faint"><Trophy size={12} className="text-gold" /> Account value · live</span>
               <div className="flex items-center gap-2">
+                {series.length > 1 && <span className="text-[13px] font-extrabold tabular-nums">{usd(series[series.length - 1])}</span>}
                 <div className="flex gap-0.5 rounded-lg border border-white/10 bg-black/40 p-0.5">
                   {[["day", "1D"], ["week", "7D"], ["month", "30D"], ["allTime", "All"]].map(([k, l]) => (
                     <button key={k} onClick={() => setRange(k)} className={`rounded-md px-1.5 py-0.5 text-[10px] font-bold transition ${range === k ? "bg-accent/20 text-accent" : "text-faint hover:text-ink"}`}>{l}</button>
@@ -88,7 +89,19 @@ function HlWalletModal({ trader, onClose }: { trader: HlTrader; onClose: () => v
                 <span className={`text-[11px] font-bold tabular-nums ${chgPct >= 0 ? "text-up" : "text-down"}`}>{chgPct >= 0 ? "▲" : "▼"} {Math.abs(chgPct).toFixed(1)}%</span>
               </div>
             </div>
-            {series.length > 1 ? <Sparkline data={series} width={900} height={130} fitWidth color={chgPct >= 0 ? "#16e6a4" : "#ff5a6a"} /> : <div className="py-10 text-center text-[12px] text-faint">{w ? "No history for this window." : "Loading live wallet…"}</div>}
+            {series.length > 1 ? (
+              <div className="flex gap-2">
+                {/* $ Y-axis: high / mid / low of the visible window */}
+                <div className="flex w-12 shrink-0 flex-col justify-between py-0.5 text-right text-[9px] tabular-nums text-faint">
+                  <span>{usd(Math.max(...series))}</span>
+                  <span>{usd((Math.max(...series) + Math.min(...series)) / 2)}</span>
+                  <span>{usd(Math.min(...series))}</span>
+                </div>
+                <div className="min-w-0 flex-1">
+                  <Sparkline data={series} width={900} height={130} fitWidth color={chgPct >= 0 ? "#16e6a4" : "#ff5a6a"} />
+                </div>
+              </div>
+            ) : <div className="py-10 text-center text-[12px] text-faint">{w ? "No history for this window." : "Loading live wallet…"}</div>}
           </div>
         </div>
 
