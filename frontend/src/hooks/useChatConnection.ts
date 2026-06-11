@@ -9,6 +9,9 @@ import { useModeStore } from "@/store/modeStore";
 import { useConnectionsStore } from "@/store/connectionsStore";
 import { DEMO_ACCOUNTS } from "@/lib/accounts";
 import { initEmotes } from "@/lib/emotes";
+import { setViewerWallet } from "@/lib/viewerWallets";
+import { useViewerStore } from "@/store/viewerStore";
+import { useWalletStore } from "@/store/walletStore";
 
 /**
  * Boots the transport (real Socket.io if VITE_BACKEND_URL is set, else the mock
@@ -82,6 +85,16 @@ export function useChatConnection() {
     // (`conn.raw` only exists for the real backend socket, never in demo.)
     conn.raw?.on("accounts", (accs) => useConnectionsStore.getState().setAccounts(accs));
 
+    // Tip registry (live mode): handle → EVM address for every viewer who
+    // registered a tip wallet. Feeds viewerWallet(), which is what puts the 💰
+    // tippable icon next to a chat name.
+    conn.raw?.on("wallets", (map) => {
+      for (const [h, addr] of Object.entries(map)) {
+        setViewerWallet(h, addr);
+        setViewerWallet(`@${h}`, addr); // chat usernames may carry the @ prefix
+      }
+    });
+
     // Drive the stats read-model on a steady cadence.
     const ticker = window.setInterval(tick, 1500);
 
@@ -91,4 +104,22 @@ export function useChatConnection() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [demo]);
+
+  // Auto-register the viewer's tip address: once they're signed in with X AND
+  // have a wallet connected AND tips enabled, tell the backend; disconnecting
+  // the wallet or toggling tips off unregisters. Authenticated by the signed
+  // X chat token, so only the real @handle can set its own address.
+  const chatToken = useViewerStore((s) => s.chatToken);
+  const address = useWalletStore((s) => s.address);
+  const tipEnabled = useWalletStore((s) => s.tipEnabled);
+  useEffect(() => {
+    const BACKEND = import.meta.env.VITE_BACKEND_URL as string | undefined;
+    if (demo || !BACKEND || !chatToken) return;
+    const evm = address && /^0x[a-fA-F0-9]{40}$/.test(address) ? address : null;
+    fetch(`${BACKEND}/api/wallet/register`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ token: chatToken, address: tipEnabled ? evm : null }),
+    }).catch(() => {});
+  }, [demo, chatToken, address, tipEnabled]);
 }

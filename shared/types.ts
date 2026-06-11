@@ -412,6 +412,12 @@ export interface ServerToClientEvents {
   history: (sessions: StreamSession[]) => void;
   /** [BACKEND] Connected accounts after OAuth (live mode), pushed on change. */
   accounts: (accounts: Account[]) => void;
+  /**
+   * [BACKEND] Tip registry: lowercase X handle → EVM address, broadcast on
+   * connect + whenever a viewer registers/unregisters their tip address. The
+   * single source of truth for which chat names show as tippable.
+   */
+  wallets: (map: Record<string, string>) => void;
 }
 
 export interface ClientToServerEvents {

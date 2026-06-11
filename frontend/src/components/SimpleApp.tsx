@@ -16,9 +16,10 @@ const UserCard = lazy(() => import("./UserCard").then((m) => ({ default: m.UserC
 
 // Default placement + size for each addable widget on the Simple canvas.
 const GEO: Record<string, [number, number, number, number]> = {
-  // Stream + chat fill the viewport by default (the clean stock layout).
-  "stream-preview": [0, 0, 8, 16],
-  "chat-feed": [8, 0, 4, 16],
+  // Stream + chat fill the viewport by default (the clean stock layout) —
+  // theater proportions: big stream (~75%), slim chat rail (~25%).
+  "stream-preview": [0, 0, 9, 16],
+  "chat-feed": [9, 0, 3, 16],
   stats: [0, 16, 4, 5],
   "top-chatters": [4, 16, 4, 7],
   polymarket: [8, 16, 4, 8],
@@ -130,7 +131,7 @@ export function SimpleApp() {
 
       <main className="relative z-10 min-h-0 flex-1 overflow-y-auto px-3 pb-6">
         <Suspense fallback={null}>
-          <PageGrid pageKey="simple-v1" items={items} editMode={edit} titles={TITLES} defaultHidden={DEFAULT_HIDDEN} />
+          <PageGrid pageKey="simple-v2" items={items} editMode={edit} titles={TITLES} defaultHidden={DEFAULT_HIDDEN} />
         </Suspense>
       </main>
 

@@ -13,7 +13,9 @@ import { bindHub } from "./sockets/hub.ts";
 import { StatsAggregator } from "./stats/aggregator.ts";
 import { HistoryStore } from "./history/store.ts";
 import { twitchViewers, kickChannel, youtubeViewers, twitchFollowers } from "./stats/viewers.ts";
-import { mountAuth, getAccounts, getToken, refreshToken } from "./auth.ts";
+import { mountAuth, getAccounts, getToken, refreshToken, verifyChatToken } from "./auth.ts";
+import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
+import { dirname } from "node:path";
 import { getTwitchChannel } from "./twitchChannel.ts";
 import { getMarketData, getPriceHistory, getLeaderboards, getHlWallet, getEvmWallet, getNews, getVaults } from "./marketData.ts";
 import { resolveXVod, proxyHls } from "./xVod.ts";
@@ -283,6 +285,34 @@ async function main() {
 
   // Accounts restored from the 30-day auth store: start their chat readers now.
   syncAccountConnectors();
+
+  // ---- Tipping wallet registry ----------------------------------------------
+  // A signed-in viewer (Login with X) registers the EVM address they connected,
+  // authenticated by their HMAC chat token — so only the real @handle can set
+  // its own tip address. The map is broadcast to every client, which is what
+  // makes a name show the 💰 "tippable" icon in chat. Non-custodial: tips are
+  // direct wallet→wallet transfers; the server only stores public addresses.
+  const WALLETS_FILE = process.env.WALLETS_FILE ?? "data/wallets.json";
+  let wallets: Record<string, string> = {};
+  try { wallets = JSON.parse(readFileSync(WALLETS_FILE, "utf8")); } catch { /* first run */ }
+  const persistWallets = () => { try { mkdirSync(dirname(WALLETS_FILE), { recursive: true }); writeFileSync(WALLETS_FILE, JSON.stringify(wallets, null, 2)); } catch { /* best-effort */ } };
+
+  app.post("/api/wallet/register", (req, res) => {
+    const id = verifyChatToken(String(req.body?.token ?? ""));
+    if (!id) return res.status(401).json({ error: "sign in with X first" });
+    const handle = id.handle.replace(/^@/, "").toLowerCase();
+    const address = req.body?.address == null ? null : String(req.body.address);
+    if (address === null) {
+      delete wallets[handle]; // tips toggled off / wallet disconnected
+    } else {
+      if (!/^0x[a-fA-F0-9]{40}$/.test(address)) return res.status(400).json({ error: "invalid EVM address" });
+      wallets[handle] = address;
+    }
+    persistWallets();
+    io.emit("wallets", wallets);
+    res.json({ ok: true, tippable: address !== null });
+  });
+  io.on("connection", (s) => s.emit("wallets", wallets));
 
   // Save the current session into history (call when a stream ends).
   app.post("/api/session/save", (req, res) => {
