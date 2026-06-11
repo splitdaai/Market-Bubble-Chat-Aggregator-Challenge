@@ -257,27 +257,43 @@ export async function getLeaderboards() {
   if (lbCache && Date.now() < lbCache.exp) return lbCache.data;
   const data = { hyperliquid: [] as unknown[], polymarket: [] as unknown[], linked: [] as unknown[], updated: Date.now() };
 
-  // Hyperliquid — real top traders by 30d (month) PnL
+  // Hyperliquid — real top traders by 30d (month) PnL, restricted to wallets
+  // that are ACTUALLY active on perps right now. The leaderboard's accountValue
+  // counts vault/spot/staked funds, so a top-PnL wallet can show $800M there yet
+  // have an empty perp account (withdrawn / vault shell) — which opens to a blank
+  // dashboard. So we probe each candidate's live clearinghouse and keep only
+  // those with real perp equity, using that as the displayed account value.
   try {
+    const post = (body: unknown) => jget("https://api.hyperliquid.xyz/info", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
     const hl = await jget("https://stats-data.hyperliquid.xyz/Mainnet/leaderboard");
     const rows: Array<{ ethAddress: string; displayName?: string; accountValue: string; windowPerformances: [string, { pnl: string; roi: string; vlm: string }][] }> = hl.leaderboardRows ?? [];
     const perf = (r: typeof rows[number], w: string) => { const e = r.windowPerformances.find((p) => p[0] === w); return e ? { pnl: +e[1].pnl, roi: +e[1].roi } : { pnl: 0, roi: 0 }; };
-    data.hyperliquid = rows
-      .map((r) => ({ r, m: perf(r, "month") }))
-      // Only ACTIVE, funded accounts — many top-PnL wallets have withdrawn or are
-      // vault shells (accountValue 0) and would open to an empty dashboard. A
-      // funded account reliably shows live positions / fills / portfolio.
-      .filter(({ r, m }) => +r.accountValue >= 50_000 && m.pnl > 0)
-      .sort((a, b) => b.m.pnl - a.m.pnl)
-      .slice(0, 50)
-      .map(({ r, m }) => ({
-        name: shortIfAddr(r.displayName || r.ethAddress),
-        addr: r.ethAddress,
-        pnl: m.pnl,
-        roi: m.roi * 100,
-        value: +r.accountValue,
-        trend: [perf(r, "day").roi, perf(r, "week").roi, m.roi, perf(r, "allTime").roi].map((x) => x * 100),
-      }));
+    const ranked = rows.map((r) => ({ r, m: perf(r, "month") })).filter(({ m }) => m.pnl > 0).sort((a, b) => b.m.pnl - a.m.pnl);
+
+    // Probe the top candidates' live perp account (batched to be gentle on the API).
+    const candidates = ranked.slice(0, 120);
+    const probed: Array<{ r: typeof rows[number]; m: { pnl: number; roi: number }; perpValue: number; hasPositions: boolean }> = [];
+    for (let i = 0; i < candidates.length; i += 20) {
+      const batch = candidates.slice(i, i + 20);
+      const states = await Promise.all(batch.map(({ r }) => post({ type: "clearinghouseState", user: r.ethAddress }).catch(() => null)));
+      batch.forEach(({ r, m }, k) => {
+        const cs = states[k] as { marginSummary?: { accountValue?: string }; assetPositions?: unknown[] } | null;
+        const perpValue = +(cs?.marginSummary?.accountValue ?? 0);
+        probed.push({ r, m, perpValue, hasPositions: (cs?.assetPositions?.length ?? 0) > 0 });
+      });
+      if (probed.filter((p) => p.perpValue >= 10_000).length >= 50) break; // enough active wallets
+    }
+    const active = probed.filter((p) => p.perpValue >= 10_000).sort((a, b) => b.m.pnl - a.m.pnl).slice(0, 50);
+    // Fallback: if probing surfaced too few, top up with the raw PnL ranking.
+    const finalRows = active.length >= 20 ? active : ranked.slice(0, 50).map(({ r, m }) => ({ r, m, perpValue: +r.accountValue, hasPositions: false }));
+    data.hyperliquid = finalRows.map(({ r, m, perpValue }) => ({
+      name: shortIfAddr(r.displayName || r.ethAddress),
+      addr: r.ethAddress,
+      pnl: m.pnl,
+      roi: m.roi * 100,
+      value: perpValue || +r.accountValue,
+      trend: [perf(r, "day").roi, perf(r, "week").roi, m.roi, perf(r, "allTime").roi].map((x) => x * 100),
+    }));
   } catch { /* leave empty */ }
 
   // Polymarket — real top traders by 30d profit
