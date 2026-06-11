@@ -78,6 +78,8 @@ export function ConnectionsManager({ open, onClose }: { open: boolean; onClose: 
   const watchChannel = async (p: Platform) => {
     const ch = (watchInput[p] ?? "").trim().replace(/^[@#]/, "").toLowerCase();
     if (!/^[a-z0-9_]{2,30}$/.test(ch)) { push({ message: "Enter a valid channel name (letters, numbers, _)", tone: "error" }); return; }
+    // Demo always shows the canonical trio — watching extra channels is live-only.
+    if (demo) { push({ message: "Demo shows the Market Bubble trio — switch to LIVE to watch any channel", tone: "info" }); return; }
     addAccount(p, ch, ch);
     setWatchInput((s) => ({ ...s, [p]: "" }));
     if (!demo && BACKEND) {

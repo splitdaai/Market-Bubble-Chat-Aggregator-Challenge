@@ -35,11 +35,13 @@ export function useChatConnection() {
     useStatsStore.getState().reset();
     useChatStore.getState().clear();
 
-    // Self-heal: demo mode always needs its seed channels (Ansem/Banks/Market
-    // Bubble). If a prior live session left the account list empty, restore them
-    // so the dashboard never shows zero viewers / no channels in demo.
-    if (demo && useConnectionsStore.getState().accounts.length === 0) {
-      useConnectionsStore.getState().setAccounts(DEMO_ACCOUNTS);
+    // Demo mode is EXACTLY the canonical trio (Ansem / Banks / Market Bubble) —
+    // no extra channels ever (watch-any-channel is a Live-mode feature). Restore
+    // the seed if a live session or stray addition changed the list.
+    if (demo) {
+      const accs = useConnectionsStore.getState().accounts;
+      const exact = accs.length === DEMO_ACCOUNTS.length && accs.every((a) => DEMO_ACCOUNTS.some((d) => d.id === a.id));
+      if (!exact) useConnectionsStore.getState().setAccounts(DEMO_ACCOUNTS);
     }
 
     // Analytics history follows the mode: demo seeds rich mock history; live

@@ -208,29 +208,27 @@ export function StreamPreview() {
         </div>
         {/* per-streamer totals + aggregate, on the bar — hover a chip for the per-platform split */}
         {people.length > 0 && (
-          <div className="flex min-w-0 flex-wrap items-center gap-2">
-            {/* aggregate — glowing gold pill with a live pulse */}
-            <span
-              className="flex shrink-0 items-center gap-2 rounded-full border border-accent/40 px-3 py-1 text-[15px] font-black tabular-nums text-accent shadow-[0_0_16px_color-mix(in_srgb,var(--vc-accent)_28%,transparent)]"
-              style={{ background: "linear-gradient(135deg, color-mix(in srgb, var(--vc-accent) 22%, transparent), color-mix(in srgb, var(--vc-accent) 5%, transparent))" }}
-            >
-              <span className="relative flex h-2 w-2"><span className="absolute h-full w-full animate-ping rounded-full bg-accent/70" /><span className="relative h-2 w-2 rounded-full bg-accent" /></span>
-              {compact(people.reduce((s, p) => s + p.total, 0))}
-              <span className="text-[9px] font-bold uppercase tracking-[0.18em] opacity-80">live</span>
+          <div className="flex min-w-0 items-center gap-3 rounded-xl border border-white/8 bg-black/25 px-3 py-1.5">
+            {/* aggregate */}
+            <span className="flex shrink-0 items-baseline gap-1.5">
+              <span className="relative flex h-1.5 w-1.5 self-center"><span className="absolute h-full w-full animate-ping rounded-full bg-accent/70" /><span className="relative h-1.5 w-1.5 rounded-full bg-accent" /></span>
+              <span className="text-[17px] font-black tabular-nums leading-none text-accent">{compact(people.reduce((s, p) => s + p.total, 0))}</span>
+              <span className="text-[8.5px] font-bold uppercase tracking-[0.2em] text-accent/60">live</span>
             </span>
+            <span className="h-4 w-px shrink-0 bg-white/12" />
             {people.map((p, pi) => {
               const on = p.name === (focused?.meta?.displayName ?? "");
-              const hue = ["#f59e0b", "#22d3ee", "#a78bfa", "#34d399", "#f472b6", "#60a5fa"][pi % 6];
+              const hue = ["#f59e0b", "#22d3ee", "#a78bfa"][pi % 3];
               return (
                 <div key={p.name} className="group/p relative shrink-0">
                   <button
                     onClick={() => { setPick(p.top); selectBroadcast("live"); }}
-                    className={`flex items-center gap-2 rounded-full border py-1 pl-1 pr-3 transition hover:-translate-y-px ${on ? "border-accent/60 shadow-[0_0_14px_color-mix(in_srgb,var(--vc-accent)_30%,transparent)]" : "border-white/12 hover:border-white/25"}`}
-                    style={{ background: `linear-gradient(135deg, ${hue}1f, transparent 70%)` }}
+                    className="flex items-baseline gap-1.5 border-b-2 px-0.5 pb-1 pt-0.5 transition"
+                    style={{ borderColor: on ? hue : "transparent" }}
                   >
-                    <span className="grid h-6 w-6 place-items-center rounded-full text-[11px] font-black" style={{ background: `${hue}2e`, color: hue, boxShadow: `0 0 10px ${hue}40` }}>{p.name[0]}</span>
-                    <span className="text-[12px] font-bold text-ink/90">{p.name}</span>
-                    <span className="text-[14px] font-black tabular-nums" style={{ color: on ? "var(--vc-accent)" : "#fff" }}>{compact(p.total)}</span>
+                    <span className="h-1.5 w-1.5 self-center rounded-full" style={{ background: hue, boxShadow: `0 0 6px ${hue}AA` }} />
+                    <span className={`text-[12px] font-semibold leading-none transition ${on ? "text-ink" : "text-muted group-hover/p:text-ink"}`}>{p.name}</span>
+                    <span className="text-[15px] font-black tabular-nums leading-none text-ink">{compact(p.total)}</span>
                   </button>
                   <div className="pointer-events-none absolute left-0 top-full z-30 mt-1.5 hidden min-w-[150px] rounded-xl border border-white/10 bg-[#0b0b0b] p-1.5 shadow-xl group-hover/p:block">
                     <div className="mb-1 px-1 text-[9px] font-bold uppercase tracking-wider text-faint">{p.name} · live viewers</div>
