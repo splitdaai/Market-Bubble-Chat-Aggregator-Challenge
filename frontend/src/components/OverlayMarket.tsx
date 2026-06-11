@@ -44,7 +44,7 @@ export function OverlayMarket({ el }: { el: OverlayElement }) {
 
         {/* yes / no split bar — Market Bubble theme (gold Yes, neutral No) */}
         <div className="mt-0.5 flex h-2 w-full overflow-hidden rounded-full bg-white/10">
-          <div className="h-full rounded-full" style={{ width: `${yes}%`, background: "linear-gradient(90deg, color-mix(in srgb, var(--vc-accent) 55%, transparent), var(--vc-accent) 60%, color-mix(in srgb, var(--vc-accent) 30%, transparent))", boxShadow: "0 0 10px color-mix(in srgb, var(--vc-accent) 50%, transparent)" }} />
+          <div className="h-full rounded-full" style={{ width: `${yes}%`, background: "linear-gradient(90deg, color-mix(in srgb, var(--vc-accent) 80%, transparent), color-mix(in srgb, var(--vc-accent) 32%, transparent) 50%, transparent)", boxShadow: "0 0 8px color-mix(in srgb, var(--vc-accent) 28%, transparent)" }} />
           <div className="h-full bg-white/15" style={{ width: `${no}%` }} />
         </div>
         <div className="mt-1 flex items-center justify-between text-[13px] font-black tabular-nums">

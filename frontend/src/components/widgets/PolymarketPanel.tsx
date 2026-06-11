@@ -136,7 +136,7 @@ export function PolymarketPanel() {
                 </div>
                 {/* yes / no split bar — Market Bubble theme (gold Yes, neutral No) */}
                 <div className="flex h-2 w-full overflow-hidden rounded-full bg-white/8">
-                  <div className="h-full rounded-full" style={{ width: `${yes}%`, background: "linear-gradient(90deg, color-mix(in srgb, var(--vc-accent) 55%, transparent), var(--vc-accent) 60%, color-mix(in srgb, var(--vc-accent) 30%, transparent))", boxShadow: "0 0 8px color-mix(in srgb, var(--vc-accent) 40%, transparent)" }} />
+                  <div className="h-full rounded-full" style={{ width: `${yes}%`, background: "linear-gradient(90deg, color-mix(in srgb, var(--vc-accent) 80%, transparent), color-mix(in srgb, var(--vc-accent) 32%, transparent) 50%, transparent)", boxShadow: "0 0 6px color-mix(in srgb, var(--vc-accent) 22%, transparent)" }} />
                   <div className="h-full bg-white/12" style={{ width: `${no}%` }} />
                 </div>
                 <div className="flex items-center justify-between text-[11px] font-bold tabular-nums">
