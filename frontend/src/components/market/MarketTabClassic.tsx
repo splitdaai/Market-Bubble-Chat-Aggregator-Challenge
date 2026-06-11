@@ -52,28 +52,6 @@ const price = (n: number) => n >= 1000 ? "$" + n.toLocaleString(undefined, { max
 const pct = (n: number) => (n >= 0 ? "+" : "") + n.toFixed(2) + "%";
 
 /* 13F-style portfolios — no free real-time API for these specific funds (curated). */
-const PORTFOLIOS = [
-  { fund: "ARK Invest", top: "COIN", value: 1.2e9, chg: 8.4 },
-  { fund: "BlackRock 13F", top: "IBIT", value: 4.8e9, chg: 12.1 },
-  { fund: "a16z", top: "Solana", value: 2.1e9, chg: -3.2 },
-  { fund: "Pantera", top: "BTC", value: 0.9e9, chg: 5.6 },
-  { fund: "Galaxy Digital", top: "ETH", value: 1.4e9, chg: -1.8 },
-  { fund: "Grayscale", top: "GBTC", value: 3.6e9, chg: 4.2 },
-  { fund: "Paradigm", top: "Uniswap", value: 1.8e9, chg: 6.9 },
-  { fund: "Multicoin", top: "SOL", value: 1.1e9, chg: 9.1 },
-  { fund: "Jump Crypto", top: "BTC", value: 2.4e9, chg: -0.7 },
-  { fund: "Polychain", top: "ETH", value: 1.3e9, chg: 3.4 },
-  { fund: "Fidelity 13F", top: "FBTC", value: 2.9e9, chg: 5.1 },
-  { fund: "VanEck", top: "HODL", value: 0.7e9, chg: 2.3 },
-  { fund: "Pantera Cap II", top: "TIA", value: 1.05e9, chg: 7.7 },
-  { fund: "Dragonfly", top: "SOL", value: 0.95e9, chg: 4.8 },
-  { fund: "Coinbase Vent.", top: "BASE", value: 1.6e9, chg: 3.1 },
-  { fund: "Bitwise", top: "BITB", value: 1.25e9, chg: 5.4 },
-  { fund: "Franklin T.", top: "EZBC", value: 0.82e9, chg: 2.0 },
-  { fund: "Brevan Howard", top: "BTC", value: 2.2e9, chg: -1.1 },
-  { fund: "Tiger Global", top: "COIN", value: 1.45e9, chg: 6.2 },
-  { fund: "Polygon Vent.", top: "MATIC", value: 0.6e9, chg: -2.4 },
-];
 const LEADERBOARD_LIMIT = 20;
 const leaderboardShell = "grid min-h-0 flex-1 grid-rows-[auto_1fr] text-[12px] leading-none";
 const leaderboardHead = "grid items-center pb-1 text-[9px] uppercase tracking-wider text-faint";
@@ -135,11 +113,15 @@ export function MarketTabClassic() {
   const [tries, setTries] = useState(0);
   const [detail, setDetail] = useState<Detail | null>(null);
   const [lb, setLb] = useState<{ hyperliquid: HlRow[]; polymarket: PolyRow[]; linked?: LinkedRow[] } | null>(null);
+  const [vaults, setVaults] = useState<{ name: string; addr: string; tvl: number; apr: number }[] | null>(null);
   const setView = useViewStore((s) => s.setView);
   const editMode = useLayoutStore((s) => s.editMode);
   useEffect(() => {
     let on = true;
-    const load = () => fetch(`${BACKEND}/api/leaderboards?t=${Math.floor(Date.now() / 300000)}`).then((r) => r.json()).then((j) => { if (on && Array.isArray(j.hyperliquid)) setLb(j); }).catch(() => {});
+    const load = () => {
+      fetch(`${BACKEND}/api/leaderboards?t=${Math.floor(Date.now() / 300000)}`).then((r) => r.json()).then((j) => { if (on && Array.isArray(j.hyperliquid)) setLb(j); }).catch(() => {});
+      fetch(`${BACKEND}/api/vaults`).then((r) => r.json()).then((v) => { if (on && Array.isArray(v) && v.length) setVaults(v); }).catch(() => {});
+    };
     load();
     const iv = setInterval(load, 600_000);
     return () => { on = false; clearInterval(iv); };
@@ -213,21 +195,24 @@ export function MarketTabClassic() {
               </Panel>
             ) },
             { id: "portfolios", x: 4, y: 19, w: 4, h: 13, node: (
-              <Panel title="Influential Portfolios" icon={<Briefcase size={15} className="text-accent" />} right={<span className="text-[10px] uppercase tracking-wider text-faint">13F · demo</span>}>
+              <Panel title="Top Hyperliquid Vaults" icon={<Briefcase size={15} className="text-accent" />} right={<span className="text-[10px] uppercase tracking-wider text-up">● live · TVL</span>}>
                 <div className={leaderboardShell}>
-                  <div className={`${leaderboardHead} grid-cols-[2rem_minmax(0,1fr)_4.3rem_4.8rem_4rem]`}>
-                    <span>#</span><span>Fund</span><span>Top</span><span className="text-right">AUM</span><span className="text-right">24h</span>
+                  <div className={`${leaderboardHead} grid-cols-[2rem_minmax(0,1fr)_5rem_4rem]`}>
+                    <span>#</span><span>Vault</span><span className="text-right">TVL</span><span className="text-right">APR</span>
                   </div>
                   <div className={leaderboardBody} style={leaderboardRowsStyle}>
-                    {[...PORTFOLIOS].sort((a, b) => b.value - a.value).slice(0, LEADERBOARD_LIMIT).map((p, i) => (
-                      <div key={p.fund} role="button" tabIndex={0} onClick={() => setDetail({ kind: "portfolio", p })} onKeyDown={(e) => onRowKey(e, () => setDetail({ kind: "portfolio", p }))} className={`${leaderboardRow} grid-cols-[2rem_minmax(0,1fr)_4.3rem_4.8rem_4rem]`}>
-                        <span className="font-bold text-faint">{i + 1}</span>
-                        <span className="min-w-0 font-semibold"><span className="inline-flex min-w-0 items-center gap-1"><span className="truncate">{p.fund}</span><WatchStar item={{ key: `portfolio:${p.fund}`, type: "portfolio", label: p.fund }} size={11} /></span></span>
-                        <span className="truncate text-faint">{p.top}</span>
-                        <span className="text-right font-bold tabular-nums">${compact(p.value)}</span>
-                        <span className={`text-right font-bold tabular-nums ${p.chg >= 0 ? "text-up" : "text-down"}`}>{pct(p.chg)}</span>
-                      </div>
-                    ))}
+                    {(vaults ?? []).slice(0, LEADERBOARD_LIMIT).map((v, i) => {
+                      const open = () => window.open(`https://app.hyperliquid.xyz/vaults/${v.addr}`, "_blank", "noopener");
+                      return (
+                        <div key={v.addr} role="button" tabIndex={0} onClick={open} onKeyDown={(e) => onRowKey(e, open)} className={`${leaderboardRow} grid-cols-[2rem_minmax(0,1fr)_5rem_4rem]`}>
+                          <span className="font-bold text-faint">{i + 1}</span>
+                          <span className="min-w-0 font-semibold"><span className="inline-flex min-w-0 items-center gap-1"><span className="truncate">{v.name}</span><WatchStar item={{ key: `vault:${v.addr}`, type: "portfolio", label: v.name }} size={11} /></span></span>
+                          <span className="text-right font-bold tabular-nums">${compact(v.tvl)}</span>
+                          <span className={`text-right font-bold tabular-nums ${v.apr >= 0 ? "text-up" : "text-down"}`}>{pct(v.apr)}</span>
+                        </div>
+                      );
+                    })}
+                    {!vaults && <div className="py-6 text-center text-[11px] text-faint">Loading live Hyperliquid vaults…</div>}
                   </div>
                 </div>
               </Panel>
@@ -261,7 +246,7 @@ export function MarketTabClassic() {
           ]}
         />
 
-        <p className="mt-5 text-center text-[11px] text-faint">Classic reference layout · <span className="font-bold text-up">● Live</span> markets (CoinGecko · Yahoo · alternative.me · Polymarket). Hyperliquid traders &amp; 13F portfolios are demo.</p>
+        <p className="mt-5 text-center text-[11px] text-faint">Classic reference layout · <span className="font-bold text-up">● Live</span> markets (CoinGecko · Yahoo · alternative.me · Polymarket). Hyperliquid traders, vaults &amp; headlines are live.</p>
       </div>
       {detail?.kind === "asset" && <AssetModal label={detail.label} onClose={() => setDetail(null)} />}
       {detail?.kind === "hltrader" && <HlTraderModal trader={detail.t} color="#16e6a4" onClose={() => setDetail(null)} />}

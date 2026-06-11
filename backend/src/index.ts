@@ -15,7 +15,7 @@ import { HistoryStore } from "./history/store.ts";
 import { twitchViewers, kickChannel, youtubeViewers, twitchFollowers } from "./stats/viewers.ts";
 import { mountAuth, getAccounts, getToken, refreshToken } from "./auth.ts";
 import { getTwitchChannel } from "./twitchChannel.ts";
-import { getMarketData, getPriceHistory, getLeaderboards, getHlWallet, getEvmWallet } from "./marketData.ts";
+import { getMarketData, getPriceHistory, getLeaderboards, getHlWallet, getEvmWallet, getNews, getVaults } from "./marketData.ts";
 import { resolveXVod, proxyHls } from "./xVod.ts";
 
 const PORT = Number(process.env.PORT ?? 4000);
@@ -68,6 +68,28 @@ app.get("/api/x-hls", async (req, res) => {
     res.send(out.body);
   } catch {
     res.status(502).end();
+  }
+});
+
+// Real crypto headlines (CoinDesk/Cointelegraph/Decrypt/The Block RSS) — scored.
+app.get("/api/news", async (_req, res) => {
+  try {
+    const data = await getNews();
+    res.set("Cache-Control", "public, max-age=120");
+    res.json(data);
+  } catch {
+    res.status(502).json({ error: "news fetch failed" });
+  }
+});
+
+// Real Hyperliquid vaults (top TVL) — replaces the demo 13F portfolios.
+app.get("/api/vaults", async (_req, res) => {
+  try {
+    const data = await getVaults();
+    res.set("Cache-Control", "public, max-age=300");
+    res.json(data);
+  } catch {
+    res.status(502).json({ error: "vaults fetch failed" });
   }
 });
 

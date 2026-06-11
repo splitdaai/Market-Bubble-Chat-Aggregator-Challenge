@@ -342,3 +342,84 @@ export async function getHlWallet(addr: string) {
   hlWalletCache.set(key, { exp: Date.now() + 120_000, data: out });
   return out;
 }
+
+/* ------------------------- Real news (RSS, no keys) -------------------------- */
+
+export interface NewsItem { src: string; title: string; link: string; t: number; tone: "bull" | "bear" | "neutral"; impact: number; tickers: string[] }
+
+const FEEDS: [string, string][] = [
+  ["CoinDesk", "https://www.coindesk.com/arc/outboundfeeds/rss/"],
+  ["Cointelegraph", "https://cointelegraph.com/rss"],
+  ["Decrypt", "https://decrypt.co/feed"],
+  ["The Block", "https://www.theblock.co/rss.xml"],
+];
+const BULL_RE = /surge|rally|all-time|record|soar|jump|gain|approv|adopt|bullish|breakout|inflow|accumulat|partnership|launch|integrat|milestone|top[sp]?\b/i;
+const BEAR_RE = /fall|drop|crash|plunge|hack|exploit|lawsuit|sue[sd]?\b|ban\b|slump|liquidat|bankrupt|decline|fear|dump|outflow|warn|selloff|bearish|loss|record low/i;
+const TICKER_RES: [RegExp, string][] = [
+  [/bitcoin|\bbtc\b/i, "BTC"], [/ethereum|\beth\b/i, "ETH"], [/solana|\bsol\b/i, "SOL"],
+  [/\bxrp\b|ripple/i, "XRP"], [/dogecoin|\bdoge\b/i, "DOGE"], [/hyperliquid|\bhype\b/i, "HYPE"],
+  [/\bbnb\b/i, "BNB"], [/cardano|\bada\b/i, "ADA"], [/polymarket/i, "POLY"],
+];
+
+function decodeEntities(s: string): string {
+  return s.replace(/<!\[CDATA\[|\]\]>/g, "").replace(/&amp;/g, "&").replace(/&#0?39;|&apos;|&#8217;/g, "'").replace(/&quot;|&#8220;|&#8221;/g, '"').replace(/&lt;/g, "<").replace(/&gt;/g, ">").trim();
+}
+
+function parseRss(src: string, xml: string): NewsItem[] {
+  const items: NewsItem[] = [];
+  const re = /<item>([\s\S]*?)<\/item>/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(xml)) && items.length < 12) {
+    const block = m[1];
+    const pick = (tag: string) => { const r = new RegExp(`<${tag}[^>]*>([\\s\\S]*?)</${tag}>`).exec(block); return r ? decodeEntities(r[1]) : ""; };
+    const title = pick("title");
+    if (!title) continue;
+    const link = pick("link");
+    const t = Date.parse(pick("pubDate")) || Date.now();
+    const bull = BULL_RE.test(title);
+    const bear = BEAR_RE.test(title);
+    const tone: NewsItem["tone"] = bull && !bear ? "bull" : bear && !bull ? "bear" : "neutral";
+    const tickers = TICKER_RES.filter(([r2]) => r2.test(title)).map(([, s]) => s).slice(0, 2);
+    const ageH = Math.max(0, (Date.now() - t) / 3600_000);
+    const impact = Math.max(30, Math.min(95, Math.round(50 + (tone !== "neutral" ? 15 : 0) + (tickers.length ? 10 : 0) + Math.max(0, 20 - ageH * 2))));
+    items.push({ src, title, link, t, tone, impact, tickers });
+  }
+  return items;
+}
+
+let newsCache: { exp: number; data: NewsItem[] } | null = null;
+export async function getNews(): Promise<NewsItem[]> {
+  if (newsCache && Date.now() < newsCache.exp) return newsCache.data;
+  const settled = await Promise.allSettled(
+    FEEDS.map(async ([src, url]) => parseRss(src, await (await fetch(url, { headers: { "User-Agent": "Mozilla/5.0 (MarketBubble)" } })).text())),
+  );
+  const all = settled.flatMap((s) => (s.status === "fulfilled" ? s.value : []));
+  if (all.length) {
+    const data = all.sort((a, b) => b.t - a.t).slice(0, 18);
+    newsCache = { exp: Date.now() + 5 * 60_000, data };
+    return data;
+  }
+  return newsCache?.data ?? [];
+}
+
+/* --------------------- Real Hyperliquid vaults (top TVL) ---------------------- */
+
+export interface VaultRow { name: string; addr: string; leader: string; tvl: number; apr: number }
+let vaultsCache: { exp: number; data: VaultRow[] } | null = null;
+
+export async function getVaults(): Promise<VaultRow[]> {
+  if (vaultsCache && Date.now() < vaultsCache.exp) return vaultsCache.data;
+  try {
+    const v = (await jget("https://stats-data.hyperliquid.xyz/Mainnet/vaults")) as Array<{ apr: number; summary?: { name?: string; vaultAddress?: string; leader?: string; tvl?: string; isClosed?: boolean } }>;
+    const data = v
+      .filter((x) => !x.summary?.isClosed)
+      .map((x) => ({ name: x.summary?.name ?? "", addr: x.summary?.vaultAddress ?? "", leader: x.summary?.leader ?? "", tvl: +(x.summary?.tvl ?? 0), apr: +(x.apr ?? 0) * 100 }))
+      .filter((x) => x.name && x.tvl > 0)
+      .sort((a, b) => b.tvl - a.tvl)
+      .slice(0, 20);
+    if (data.length) vaultsCache = { exp: Date.now() + 10 * 60_000, data };
+    return data;
+  } catch {
+    return vaultsCache?.data ?? [];
+  }
+}
