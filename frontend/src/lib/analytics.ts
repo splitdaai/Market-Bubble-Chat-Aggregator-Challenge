@@ -37,6 +37,8 @@ export function buildLiveSession(snap: StatsSnapshot, projected = true): StreamS
       donated: Math.round(snap.totalDonated * share * f),
       subs: Math.round(v.subs * f), // real per-platform sub count from the live dashboard
       followersGained: Math.round(v.followsGained * f),
+      adsShown: Math.round(v.adsShown * f),
+      adImpressions: Math.round(v.adImpressions * f),
     };
   });
 
@@ -61,6 +63,8 @@ export function buildLiveSession(snap: StatsSnapshot, projected = true): StreamS
       donated: Math.round(a.donated * f),
       subs: Math.round(a.subs * f),
       followersGained: Math.round(pp.followersGained * share),
+      adsShown: Math.round(pp.adsShown * share),
+      adImpressions: Math.round(pp.adImpressions * share),
     };
   });
 
@@ -78,6 +82,8 @@ export function buildLiveSession(snap: StatsSnapshot, projected = true): StreamS
     donated: Math.round(snap.totalDonated * f),
     subs: Math.round(snap.totalSubs * f),
     followersGained: Math.round(PLATFORMS.reduce((s, p) => s + snap.perPlatform[p].followsGained, 0) * f),
+    adsShown: Math.round(snap.totals.adsShown * f),
+    adImpressions: Math.round(snap.totals.adImpressions * f),
     clipMoments: snap.clipMoments.length,
     perPlatform,
     perAccount,

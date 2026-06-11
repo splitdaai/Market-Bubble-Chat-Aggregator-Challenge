@@ -19,3 +19,24 @@ export const SUB_VALUE: Record<Platform, number> = {
 export function subRevenue(platform: Platform, count: number): number {
   return count * (SUB_VALUE[platform] ?? 0);
 }
+
+/**
+ * Net-to-creator ad CPM (USD per 1,000 ad impressions). No platform exposes a
+ * realtime ad-revenue API, so revenue is ESTIMATED from tracked ad breaks:
+ * every break counts the live viewers at that moment as impressions.
+ *   Twitch  ~$3.50 net CPM (the published Ads Incentive Program baseline)
+ *   YouTube ~$6.00 net (creator's 55% of a ~$10–12 gross live CPM)
+ *   Kick    $0 — no pre/mid-roll ad program (monetization is subs + Kicks)
+ *   X       ~$2.50 net (video ad-share estimate)
+ */
+export const AD_CPM: Record<Platform, number> = {
+  twitch: 3.5,
+  youtube: 6.0,
+  kick: 0,
+  x: 2.5,
+};
+
+/** Estimated ad revenue ($) from an impression base on a platform. */
+export function adRevenue(platform: Platform, impressions: number): number {
+  return (impressions / 1000) * (AD_CPM[platform] ?? 0);
+}

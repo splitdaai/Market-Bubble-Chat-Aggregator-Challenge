@@ -39,7 +39,7 @@ export const useAnalyticsStore = create<AnalyticsState>()(
       },
     }),
     {
-      name: "vibechat-analytics-v3",
+      name: "vibechat-analytics-v4",
       // Never persist real (live) history — it's re-sent by the backend on connect.
       partialize: (s) => ({ sessions: s.live ? [] : s.sessions }),
     },

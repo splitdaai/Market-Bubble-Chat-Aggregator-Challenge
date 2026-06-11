@@ -15,7 +15,13 @@ const API = "https://www.googleapis.com/youtube/v3";
 
 interface LiveChatItem {
   id: string;
-  snippet?: { displayMessage?: string; publishedAt?: string };
+  snippet?: {
+    displayMessage?: string;
+    publishedAt?: string;
+    type?: string; // textMessageEvent | superChatEvent | superStickerEvent | newSponsorEvent | memberMilestoneChatEvent
+    superChatDetails?: { amountMicros?: string; currency?: string; userComment?: string; tier?: number };
+    superStickerDetails?: { amountMicros?: string; currency?: string };
+  };
   authorDetails?: {
     displayName?: string;
     profileImageUrl?: string;
@@ -235,8 +241,21 @@ export class YouTubeConnector extends BaseConnector {
   }
 
   private normalize(it: LiveChatItem): ChatMessage | null {
-    const text = it.snippet?.displayMessage;
     const a = it.authorDetails;
+    const sn = it.snippet;
+    // Monetization events (Super Chat / Super Sticker / new memberships) carry
+    // real dollar amounts in amountMicros — feed them into the revenue engine.
+    let event: ChatMessage["event"];
+    let text = sn?.displayMessage;
+    const micros = +(sn?.superChatDetails?.amountMicros ?? sn?.superStickerDetails?.amountMicros ?? 0);
+    if (sn?.type === "superChatEvent" || sn?.type === "superStickerEvent") {
+      const usd = micros / 1e6; // assume USD-equivalent (currency conversion is out of scope)
+      event = { kind: "donation", amount: usd, label: `Super ${sn.type === "superStickerEvent" ? "Sticker" : "Chat"} ${usd.toFixed(2)}` };
+      text = text || sn.superChatDetails?.userComment || `sent a ${usd.toFixed(2)} Super Chat 💸`;
+    } else if (sn?.type === "newSponsorEvent" || sn?.type === "memberMilestoneChatEvent") {
+      event = { kind: "subscription", amount: 3.5, count: 1, label: "membership" };
+      text = text || "became a channel member! 🎉";
+    }
     if (!text || !a?.displayName) return null;
     const badges: Badge[] = [];
     if (a.isChatOwner) badges.push({ type: "broadcaster", label: "Owner" });
@@ -251,7 +270,8 @@ export class YouTubeConnector extends BaseConnector {
       message: text,
       timestamp: it.snippet?.publishedAt ? Date.parse(it.snippet.publishedAt) : Date.now(),
       badges,
-      hype: /member|gift|super\s?chat|sponsor/i.test(text),
+      hype: !!event || /member|gift|super\s?chat|sponsor/i.test(text),
+      event,
     };
   }
 

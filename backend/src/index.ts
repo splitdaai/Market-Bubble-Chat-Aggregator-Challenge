@@ -181,6 +181,9 @@ function buildConnectors(): Connector[] {
 // Follower totals per platform from the previous poll — new follows are the
 // positive delta between ticks (first tick just sets the baseline).
 const lastFollowers: Partial<Record<string, number>> = {};
+// Twitch ad-schedule polling state: account id → broadcaster id / last_ad_at.
+const twitchIds = new Map<string, string>();
+const lastAdAt = new Map<string, string>();
 function bumpFollows(p: "twitch" | "kick" | "youtube" | "x", total: number) {
   const prev = lastFollowers[p];
   if (prev != null && total > prev) aggregator.addFollows(p, total - prev);
@@ -203,6 +206,31 @@ function startViewerPollers() {
       let total = 0;
       for (const ch of tw) { const v = await twitchViewers(ch, TWITCH_CLIENT_ID, TWITCH_CLIENT_SECRET); if (v != null) total += v; }
       aggregator.setViewers("twitch", total);
+    }
+    // Twitch ad breaks: poll the Ad Schedule of each OAuth-connected broadcaster
+    // (their user token; needs the channel:read:ads scope — accounts connected
+    // before the scope was added just 401 silently). When last_ad_at advances,
+    // record an ad break with the current live viewers as impressions.
+    if (TWITCH_CLIENT_ID) {
+      for (const acc of connected.filter((a) => a.platform === "twitch")) {
+        const tok = getToken(acc.id);
+        if (!tok) continue;
+        try {
+          let bid = twitchIds.get(acc.id);
+          if (!bid) {
+            const u = await fetch("https://api.twitch.tv/helix/users", { headers: { "Client-Id": TWITCH_CLIENT_ID, Authorization: `Bearer ${tok}` } });
+            bid = ((await u.json()) as { data?: { id?: string }[] })?.data?.[0]?.id;
+            if (bid) twitchIds.set(acc.id, bid);
+          }
+          if (!bid) continue;
+          const r = await fetch(`https://api.twitch.tv/helix/channels/ads?broadcaster_id=${bid}`, { headers: { "Client-Id": TWITCH_CLIENT_ID, Authorization: `Bearer ${tok}` } });
+          if (!r.ok) continue; // 401 = token lacks channel:read:ads
+          const lastAd = ((await r.json()) as { data?: { last_ad_at?: string }[] })?.data?.[0]?.last_ad_at;
+          const prev = lastAdAt.get(acc.id);
+          if (lastAd && prev !== undefined && lastAd !== prev && lastAd !== "") aggregator.recordAdBreak("twitch");
+          if (lastAd !== undefined) lastAdAt.set(acc.id, lastAd);
+        } catch { /* best-effort */ }
+      }
     }
     // Kick: one call per channel gets viewers AND follower totals (curl-first —
     // Cloudflare blocks Node fetch's TLS fingerprint on kick.com).

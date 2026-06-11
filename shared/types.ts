@@ -111,6 +111,10 @@ export interface PlatformStats {
   watchTimeMinutes: number;
   /** [BACKEND] Followers/subscribers gained this session (momentum). */
   followsGained?: number;
+  /** [BACKEND] Ad breaks detected this session (Twitch ad-schedule poller etc). */
+  adsShown?: number;
+  /** [BACKEND] Σ viewers at each ad break — impression base for estimated ad revenue. */
+  adImpressions?: number;
   /** [DERIVED] Distinct users who have chatted this session. */
   uniqueChatters: number;
   /** [DERIVED] Chatters active in the last 5 minutes. */
@@ -149,6 +153,10 @@ export interface PlatformKPIs {
   donated: number;
   subs: number;
   followersGained: number;
+  /** Ad breaks run on this platform this session. */
+  adsShown: number;
+  /** Σ (viewers at each ad break) — the impression base ad revenue is estimated from. */
+  adImpressions: number;
 }
 
 /** Per-account KPI breakdown so analytics can filter by individual channel. */
@@ -174,6 +182,10 @@ export interface StreamSession {
   donated: number;
   subs: number;
   followersGained: number;
+  /** Ad breaks run this session (all platforms). */
+  adsShown: number;
+  /** Σ viewers at each ad break — the impression base for estimated ad revenue. */
+  adImpressions: number;
   clipMoments: number;
   perPlatform: PlatformKPIs[];
   /** Per-account breakdown (Ansem, Banks, …) for the analytics account filter. */

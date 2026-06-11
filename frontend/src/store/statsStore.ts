@@ -50,6 +50,10 @@ interface Accum {
   peakViewers: number;
   watchTimeMinutes: number;
   followsGained: number;
+  adsShown: number;
+  adImpressions: number;
+  /** Demo only: when the next simulated ad break fires. */
+  nextAdAt: number;
   backed: boolean; // true once real backend numbers have arrived
 }
 
@@ -105,6 +109,10 @@ export interface PlatformLive {
   messagesPerMin: number;
   /** Subs contributed on this platform this session (count). */
   subs: number;
+  /** Ad breaks run this session. */
+  adsShown: number;
+  /** Σ viewers at each ad break — basis for estimated ad revenue. */
+  adImpressions: number;
   /** Rolling viewer samples for the per-platform sparkline (oldest→newest). */
   history: number[];
 }
@@ -177,6 +185,9 @@ function blankAccum(): Accum {
     peakViewers: 0,
     watchTimeMinutes: 0,
     followsGained: 0,
+    adsShown: 0,
+    adImpressions: 0,
+    nextAdAt: 0,
     backed: false,
   };
 }
@@ -184,7 +195,7 @@ function blankAccum(): Accum {
 function blankLive(): PlatformLive {
   return {
     viewers: 0, peakViewers: 0, watchTimeMinutes: 0, followsGained: 0,
-    uniqueChatters: 0, activeChatters: 0, messages: 0, messagesPerMin: 0, subs: 0, history: [],
+    uniqueChatters: 0, activeChatters: 0, messages: 0, messagesPerMin: 0, subs: 0, adsShown: 0, adImpressions: 0, history: [],
   };
 }
 
@@ -252,6 +263,8 @@ export const useStatsStore = create<StatsState>((set, get) => ({
       a.peakViewers = Math.max(a.peakViewers, p.peakViewers, p.viewers);
       a.watchTimeMinutes = p.watchTimeMinutes;
       a.followsGained = p.followsGained ?? a.followsGained;
+      a.adsShown = p.adsShown ?? a.adsShown;
+      a.adImpressions = p.adImpressions ?? a.adImpressions;
       a.backed = true;
     }
     set({ isMock: false });
@@ -303,6 +316,12 @@ export const useStatsStore = create<StatsState>((set, get) => ({
       a.watchTimeMinutes = base * elapsedMin * 0.96; // avg ≈ base
       a.messages = Math.round(base * 1.4);
       a.followsGained = Math.round(base * 0.05);
+      // Mid-broadcast ad history: ~1 break / 22 min, impressions ≈ viewers each.
+      if (p !== "kick") {
+        a.adsShown = Math.max(2, Math.round(elapsedMin / 22));
+        a.adImpressions = Math.round(a.adsShown * base * 0.95);
+        a.nextAdAt = Date.now() + (4 + Math.random() * 6) * 60_000;
+      }
 
       // Seed a believable upward-drifting sparkline so trends read from frame one.
       viewersHist[p] = Array.from({ length: SPARK_SAMPLES }, (_, i) => {
@@ -367,6 +386,16 @@ export const useStatsStore = create<StatsState>((set, get) => ({
         a.peakViewers = Math.max(a.peakViewers, a.viewers);
         // occasional follow bump
         if (Math.random() < 0.12) a.followsGained += Math.floor(Math.random() * 3);
+        // ad breaks every ~6–10 min per platform (none on Kick — no ad program);
+        // each break books the current live viewers as impressions.
+        if (p !== "kick") {
+          if (!a.nextAdAt) a.nextAdAt = now + (2 + Math.random() * 5) * 60_000; // first break 2–7 min in
+          if (now >= a.nextAdAt) {
+            a.adsShown += 1;
+            a.adImpressions += a.viewers;
+            a.nextAdAt = now + (6 + Math.random() * 4) * 60_000;
+          }
+        }
       }
 
       // accrue watch time (viewer-minutes) regardless of source
@@ -398,6 +427,8 @@ export const useStatsStore = create<StatsState>((set, get) => ({
         messages: a.messages,
         messagesPerMin: mpm,
         subs: subsCount,
+        adsShown: a.adsShown,
+        adImpressions: a.adImpressions,
         history: [...viewersHist[p]],
       };
     }
@@ -477,6 +508,8 @@ export const useStatsStore = create<StatsState>((set, get) => ({
       acc.messages += v.messages;
       acc.messagesPerMin += v.messagesPerMin;
       acc.subs += v.subs;
+      acc.adsShown += v.adsShown;
+      acc.adImpressions += v.adImpressions;
       return acc;
     }, blankLive());
 

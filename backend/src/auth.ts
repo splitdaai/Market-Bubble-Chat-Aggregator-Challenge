@@ -40,7 +40,7 @@ const PROVIDERS: Partial<Record<Platform, Provider>> = {
   twitch: {
     authorizeUrl: "https://id.twitch.tv/oauth2/authorize",
     tokenUrl: "https://id.twitch.tv/oauth2/token",
-    scopes: "chat:read chat:edit channel:moderate moderator:manage:banned_users",
+    scopes: "chat:read chat:edit channel:moderate moderator:manage:banned_users channel:read:ads",
     authParams: { force_verify: "true" }, // re-prompt so a different account can be linked
     clientId: env.TWITCH_CLIENT_ID,
     clientSecret: env.TWITCH_CLIENT_SECRET,

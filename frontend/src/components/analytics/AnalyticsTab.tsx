@@ -1,8 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
-import {
-  Users, Eye, Clock, MessageSquare, DollarSign, Gift, TrendingUp, Radio, ArrowRight, RotateCcw, UserPlus,
-} from "lucide-react";
+import {Users, Eye, Clock, MessageSquare, DollarSign, Gift, TrendingUp, Radio, ArrowRight, RotateCcw, UserPlus, MonitorPlay, Megaphone } from "lucide-react";
 import type { StreamSession, Platform, KpiKey } from "@shared/types";
 import { useAnalyticsStore } from "@/store/analyticsStore";
 import { useStatsStore } from "@/store/statsStore";
@@ -14,7 +12,7 @@ import { TrendChart, Sparkline, DeltaBadge } from "./charts";
 import { SourceBadge, platformColor, platformLabel } from "../SourceBadge";
 import { useActivePlatforms } from "@/hooks/useActivePlatforms";
 import { elapsed } from "@/lib/format";
-import { subRevenue } from "@/lib/revenue";
+import { subRevenue, adRevenue } from "@/lib/revenue";
 
 const pk = (s: StreamSession, p: Platform) => s.perPlatform.find((x) => x.platform === p)!;
 
@@ -33,11 +31,11 @@ const RANGE_LABEL: Record<Range, string> = {
 function fv(s: StreamSession, field: KpiKey, plat: Plat, accountId?: string | null): number {
   if (accountId) {
     const a = s.perAccount?.find((x) => x.accountId === accountId);
-    return a ? a[field] : 0;
+    return (a ? a[field] : 0) ?? 0;
   }
-  if (plat === "all") return s[field];
+  if (plat === "all") return s[field] ?? 0; // old sessions may predate newer KPI fields
   const pp = s.perPlatform.find((x) => x.platform === plat);
-  return pp ? pp[field] : 0;
+  return (pp ? pp[field] : 0) ?? 0;
 }
 
 /** Sub revenue ($) — per-platform sub counts × each platform's payout rate. */
@@ -51,13 +49,26 @@ function subRev(s: StreamSession, plat: Plat, accountId?: string | null): number
   return pp ? subRevenue(pp.platform, pp.subs) : 0;
 }
 
+/** Estimated ad revenue ($) — per-platform ad impressions × that platform's net CPM. */
+function adRev(s: StreamSession, plat: Plat, accountId?: string | null): number {
+  if (accountId) {
+    const a = s.perAccount?.find((x) => x.accountId === accountId);
+    return a ? adRevenue(a.platform, a.adImpressions ?? 0) : 0;
+  }
+  if (plat === "all") return s.perPlatform.reduce((sum, pp) => sum + adRevenue(pp.platform, pp.adImpressions ?? 0), 0);
+  const pp = s.perPlatform.find((x) => x.platform === plat);
+  return pp ? adRevenue(pp.platform, pp.adImpressions ?? 0) : 0;
+}
+
 /** Value accessor that returns $ sub-revenue for the "subs" field, raw otherwise. */
 function valOf(s: StreamSession, field: KpiKey, plat: Plat, accountId?: string | null): number {
-  return field === "subs" ? subRev(s, plat, accountId) : fv(s, field, plat, accountId);
+  if (field === "subs") return subRev(s, plat, accountId);
+  if (field === "adImpressions") return adRev(s, plat, accountId); // "Ad Revenue" rides this field
+  return fv(s, field, plat, accountId);
 }
 /** Money formatter for the "subs" field, the given formatter otherwise. */
 function fmtOf(field: KpiKey, base: (n: number) => string): (n: number) => string {
-  return field === "subs" ? fmtMoney : base;
+  return field === "subs" || field === "adImpressions" ? fmtMoney : base;
 }
 
 /** The analytics tab: historical KPIs, trends, and current-vs-past growth. */
@@ -107,6 +118,8 @@ export function AnalyticsTab() {
     { label: "Donations", icon: <DollarSign size={14} />, field: "donated", fmt: fmtMoney },
     { label: "Sub Revenue", icon: <Gift size={14} />, field: "subs", fmt: fmtMoney },
     { label: "New Followers", icon: <UserPlus size={14} />, field: "followersGained", fmt: fmtInt },
+    { label: "Ad Revenue (est)", icon: <MonitorPlay size={14} />, field: "adImpressions", fmt: fmtMoney },
+    { label: "Ads Shown", icon: <Megaphone size={14} />, field: "adsShown", fmt: fmtInt },
   ];
 
   return (
@@ -259,6 +272,8 @@ function CurrentStreamCard({
   const STATS: { label: string; field: KpiKey; fmt: (n: number) => string }[] = [
     { label: "Avg Viewers", field: "avgViewers", fmt: fmtViewers },
     { label: "Peak", field: "peakViewers", fmt: fmtViewers },
+    { label: "Ad Rev (est)", field: "adImpressions", fmt: fmtMoney },
+    { label: "Ads Shown", field: "adsShown", fmt: fmtInt },
     { label: "Chatters", field: "uniqueChatters", fmt: fmtInt },
     { label: "Watch", field: "watchTimeMinutes", fmt: fmtHours },
     { label: "Revenue", field: "donated", fmt: fmtMoney },

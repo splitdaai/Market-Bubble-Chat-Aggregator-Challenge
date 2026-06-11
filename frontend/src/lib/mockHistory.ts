@@ -34,7 +34,7 @@ function jitter(spread = 0.18): number {
 }
 
 function buildPerPlatform(
-  totals: { avgViewers: number; peakViewers: number; uniqueChatters: number; messages: number; watchTimeMinutes: number; donated: number; subs: number; followersGained: number },
+  totals: { avgViewers: number; peakViewers: number; uniqueChatters: number; messages: number; watchTimeMinutes: number; donated: number; subs: number; followersGained: number; adsShown: number; adImpressions: number },
   shares: Record<Platform, number>,
 ): PlatformKPIs[] {
   return PLATFORMS.map((p) => {
@@ -49,6 +49,8 @@ function buildPerPlatform(
       donated: Math.round(totals.donated * s),
       subs: Math.round(totals.subs * s),
       followersGained: Math.round(totals.followersGained * s),
+      adsShown: p === "kick" ? 0 : Math.round(totals.adsShown * s),
+      adImpressions: p === "kick" ? 0 : Math.round(totals.adImpressions * s),
     };
   });
 }
@@ -82,7 +84,9 @@ export function generateHistory(count = 12): StreamSession[] {
     const twitchShare = Math.max(0.1, 1 - xShare - ytShare - kickShare);
     const shares: Record<Platform, number> = { twitch: twitchShare, kick: kickShare, x: xShare, youtube: ytShare };
 
-    const totals = { avgViewers, peakViewers, uniqueChatters, messages, watchTimeMinutes, donated, subs, followersGained };
+    const adsShown = Math.max(2, Math.round((durationMinutes / 22) * jitter(0.25)));
+    const adImpressions = Math.round(adsShown * avgViewers * jitter(0.2));
+    const totals = { avgViewers, peakViewers, uniqueChatters, messages, watchTimeMinutes, donated, subs, followersGained, adsShown, adImpressions };
     const perPlatform = buildPerPlatform(totals, shares);
 
     // per-account breakdown so analytics can filter by Ansem / Banks / Market Bubble
@@ -102,6 +106,8 @@ export function generateHistory(count = 12): StreamSession[] {
         donated: Math.round(k.donated * w),
         subs: Math.round(k.subs * w),
         followersGained: Math.round(k.followersGained * w),
+        adsShown: Math.round(k.adsShown * w),
+        adImpressions: Math.round(k.adImpressions * w),
       };
     });
 

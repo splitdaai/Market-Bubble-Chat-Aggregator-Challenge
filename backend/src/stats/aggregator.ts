@@ -14,10 +14,12 @@ interface PState {
   msgTimes: number[];
   donated: number;
   subs: number;
+  adsShown: number;
+  adImpressions: number;
 }
 
 function blank(): PState {
-  return { viewers: 0, peakViewers: 0, watchTimeMinutes: 0, followsGained: 0, chatters: new Map(), messages: 0, msgTimes: [], donated: 0, subs: 0 };
+  return { viewers: 0, peakViewers: 0, watchTimeMinutes: 0, followsGained: 0, chatters: new Map(), messages: 0, msgTimes: [], donated: 0, subs: 0, adsShown: 0, adImpressions: 0 };
 }
 
 /**
@@ -56,6 +58,13 @@ export class StatsAggregator {
     this.state[p].followsGained += n;
   }
 
+  /** An ad break ran on a platform — impressions = live viewers at that moment. */
+  recordAdBreak(p: Platform) {
+    const s = this.state[p];
+    s.adsShown += 1;
+    s.adImpressions += Math.max(0, Math.round(s.viewers));
+  }
+
   private accrueWatchTime() {
     const now = Date.now();
     const dt = now - this.last;
@@ -80,6 +89,8 @@ export class StatsAggregator {
         activeChatters: active,
         messages: s.messages,
         messagesPerMin: s.msgTimes.length,
+        adsShown: s.adsShown,
+        adImpressions: s.adImpressions,
       };
     });
   }
@@ -107,6 +118,8 @@ export class StatsAggregator {
       donated: PLATFORMS.reduce((a, p) => a + this.state[p].donated, 0),
       subs: PLATFORMS.reduce((a, p) => a + this.state[p].subs, 0),
       followersGained: sum((k) => k.followsGained ?? 0),
+      adsShown: sum((k) => k.adsShown ?? 0),
+      adImpressions: sum((k) => k.adImpressions ?? 0),
       clipMoments: 0,
       perPlatform: per.map((k) => ({
         platform: k.platform,
@@ -118,6 +131,8 @@ export class StatsAggregator {
         donated: this.state[k.platform].donated,
         subs: this.state[k.platform].subs,
         followersGained: k.followsGained ?? 0,
+        adsShown: k.adsShown ?? 0,
+        adImpressions: k.adImpressions ?? 0,
       })),
     };
   }

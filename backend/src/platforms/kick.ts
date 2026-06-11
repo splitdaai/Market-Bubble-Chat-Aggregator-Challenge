@@ -100,6 +100,41 @@ export class KickConnector extends BaseConnector {
           console.log(`✓ kick:${this.slug} subscribed to chatrooms.${this.chatroomId}.v2 — receiving chat`);
         } else if (frame.event === "App\\Events\\ChatMessageEvent") {
           this.messageCb(this.normalize(JSON.parse(frame.data)));
+        } else if (/subscription|gifted/i.test(frame.event)) {
+          // Monetization frames ride the SAME public chatroom socket — no extra
+          // auth. SubscriptionEvent = sub/resub; GiftedSubscriptionsEvent =
+          // someone gifting N subs. Kick's 95/5 split → ~$4.74/sub to creator.
+          const d = JSON.parse(frame.data) as { username?: string; gifter_username?: string; months?: number; gifted_usernames?: string[] };
+          const count = d.gifted_usernames?.length ?? 1;
+          const gift = (d.gifted_usernames?.length ?? 0) > 0;
+          this.messageCb({
+            id: `kick:evt-${Date.now()}-${Math.floor(Math.random() * 1e6)}`,
+            nativeId: `evt-${Date.now()}`,
+            platform: "kick",
+            username: d.gifter_username ?? d.username ?? "kick viewer",
+            message: gift ? `gifted ${count} sub${count > 1 ? "s" : ""} 🎁` : `subscribed${d.months ? ` for ${d.months} months` : ""}! 💚`,
+            timestamp: Date.now(),
+            badges: [],
+            hype: true,
+            event: { kind: gift ? "gift" : "subscription", amount: count * 4.74, count, label: gift ? `${count}× gifted` : "sub" },
+          });
+        } else if (/kicks|reward/i.test(frame.event)) {
+          // Kicks (Kick's bits-equivalent): 1 Kick ≈ $0.01 to the creator.
+          const d = JSON.parse(frame.data) as { sender?: { username?: string }; username?: string; amount?: number; kicks?: number };
+          const kicks = d.kicks ?? d.amount ?? 0;
+          if (kicks > 0) {
+            this.messageCb({
+              id: `kick:kicks-${Date.now()}-${Math.floor(Math.random() * 1e6)}`,
+              nativeId: `kicks-${Date.now()}`,
+              platform: "kick",
+              username: d.sender?.username ?? d.username ?? "kick viewer",
+              message: `sent ${kicks} Kicks ⚡`,
+              timestamp: Date.now(),
+              badges: [],
+              hype: kicks >= 100,
+              event: { kind: "bits", amount: kicks * 0.01, count: kicks, label: `${kicks} Kicks` },
+            });
+          }
         }
       } catch {
         /* ignore malformed frames */
