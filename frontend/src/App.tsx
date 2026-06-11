@@ -7,6 +7,7 @@ import { useViewStore } from "./store/viewStore";
 import { useThemeStore } from "./store/themeStore";
 import { useChatConnection } from "./hooks/useChatConnection";
 import { useWalletStore } from "./store/walletStore";
+import { JudgeTour, useTourStore } from "./components/JudgeTour";
 import { useIsMobile } from "./hooks/useIsMobile";
 import { useUiModeStore } from "./store/uiModeStore";
 
@@ -45,6 +46,15 @@ export default function App() {
     open: false,
     editing: null,
   });
+
+  // `?tour` deep link (used in the README) — land in Pro and start the
+  // 60-second Judge Tour automatically.
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).has("tour")) {
+      useUiModeStore.getState().setMode("pro");
+      useTourStore.getState().start();
+    }
+  }, []);
 
   // Standalone OBS routes: floating viewer overlay (browser source) or the
   // compact dock panel (Custom Browser Dock).
@@ -90,6 +100,7 @@ export default function App() {
       </main>
 
       <OverlayLayer />
+      <JudgeTour />
       <Suspense fallback={null}>
         <UserCard />
         {connOpen && <ConnectionsManager open={connOpen} onClose={() => setConnOpen(false)} />}

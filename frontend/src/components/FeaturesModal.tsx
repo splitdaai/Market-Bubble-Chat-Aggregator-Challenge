@@ -1,9 +1,8 @@
 import { motion, AnimatePresence, type Variants } from "framer-motion";
-import {
-  X, Sparkles, MessagesSquare, Activity, BarChart3, Trophy, Monitor, Flame,
+import { useTourStore } from "./JudgeTour";
+import {X, Sparkles, MessagesSquare, Activity, BarChart3, Trophy, Monitor, Flame,
   Wallet, Gift, Scissors, Film, ShieldCheck, Palette, LayoutGrid, Users,
-  Crosshair, LineChart, Star, Calculator, AtSign,
-} from "lucide-react";
+  Crosshair, LineChart, Star, Calculator, AtSign, Play } from "lucide-react";
 
 /** One feature card's data. `tint` drives the icon chip + hover glow color. */
 type Feature = { icon: typeof Sparkles; title: string; desc: string; tint: string };
@@ -81,9 +80,15 @@ export function FeaturesModal({ open, onClose }: { open: boolean; onClose: () =>
                 <X size={20} />
               </button>
             </div>
-            <p className="relative mb-5 text-xs text-muted">
+            <p className="relative mb-3 text-xs text-muted">
               One dashboard for every stream — chat, stats, money, and moments, aggregated live.
             </p>
+            <button
+              onClick={() => { onClose(); useTourStore.getState().start(); }}
+              className="relative mb-5 flex w-full items-center justify-center gap-2 rounded-xl border border-accent/40 bg-accent/12 px-3 py-2.5 text-[13px] font-bold text-accent transition hover:bg-accent/20"
+            >
+              <Play size={14} /> Take the 60-second tour — see it all live
+            </button>
 
             <motion.div
               className="relative grid grid-cols-1 gap-3 sm:grid-cols-2"

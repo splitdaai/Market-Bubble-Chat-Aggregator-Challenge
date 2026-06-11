@@ -1,15 +1,18 @@
 # 🫧 Market Bubble
 
-> One beautiful, real-time command center for **Twitch + Kick + X** — a unified
-> live-chat feed with source badges, deep cross-platform stats, live **Polymarket**
-> markets, **USDC/USDT viewer tipping**, past-broadcast playback, and OBS overlays,
-> all in a drag/drop/snap visual dashboard. Built for the **$10k Vibe Code Challenge**.
+> The real-time **broadcast command center** for Market Bubble — Twitch + Kick + X
+> + YouTube chat unified (with real emotes + cross-platform moderation), live
+> **Polymarket** odds, a **KOL smart-money tracker** on real Hyperliquid wallets,
+> full revenue analytics (subs · bits · Kicks · Super Chats · tips · **estimated ad
+> revenue**), X broadcast replays, OBS overlays, and **non-custodial crypto tipping**
+> — in a drag/drop visual dashboard. Built for the **$10k Vibe Code Challenge**.
 
 ![mode: demo + live](https://img.shields.io/badge/mode-demo%20%2B%20live-16e6a4)
 ![stack: React 18 · Vite · TS · Socket.io](https://img.shields.io/badge/stack-React%2018%20·%20Vite%20·%20Socket.io-34d6ff)
 
-**Live demo:** http://marketbubble-live-preview.s3-website-us-east-1.amazonaws.com
-&nbsp;·&nbsp; runs fully in **demo mode** — no API keys needed to explore everything.
+**Live demo:** https://marketbubble-khaki.vercel.app — runs fully in **demo mode**, no keys needed.
+**⚡ 60-second Judge Tour:** https://marketbubble-khaki.vercel.app/?tour — a guided pass over the working core.
+Mirror (S3): http://marketbubble-live-preview.s3-website-us-east-1.amazonaws.com
 
 ---
 
@@ -17,14 +20,21 @@
 
 | Area | What it does |
 |---|---|
-| **Unified feed** | Twitch + Kick + X (+ YouTube when connected) in one stream — newest at bottom, source badges, channel labels (Ansem / Banks / Market Bubble), per-platform filters. Stays pinned to live unless you scroll up. |
+| **Unified feed** | Twitch + Kick + X + YouTube in one stream — source badges, hover shows which streamer's chat, per-platform filters, search + Hosts/Mentions/Tickers quick filters. Stays pinned to live unless you scroll up. |
+| **Real emotes** | 7TV / BTTV / FFZ (global **and** per-channel) + classic Twitch emotes render inline — channel sets auto-resolve for every connected Twitch channel. |
+| **Auto-mod** | Leetspeak-tolerant banned-word engine: slurs dropped before render, profanity masked — keeps chat and hosts safe in real time. |
+| **Watch any channel** | Type any Twitch/Kick channel in Connections → its real chat streams into the feed (anonymous read, no OAuth needed). |
+| **KOL tracker** | Real Hyperliquid leaderboard (probed for live perp activity), real vaults by TVL, verified KOL wallets — click any trader for live account-value chart, open positions, and fills with realized PnL. |
+| **Intelligence Feed** | Real headlines (CoinDesk · Cointelegraph · Decrypt · The Block), sentiment-scored with impact + ticker tags, refreshed every 5 min. |
+| **Episode replays** | Full past X broadcasts play in-app via guest HLS (no login, zero account risk) — most recent autoplays when nothing is live. |
+| **Producer Brief** | A live host rundown derived from chat: topics, tickers in play, room mood, a suggested host question, the last clip-worthy spike, and Polymarket chatter. |
 | **Emoji composer** | Send a host message into the feed with a built-in emoji picker. |
 | **Live Stats** | Combined viewers + a per-platform → per-channel breakdown with trend sparklines (toggleable), unique/active chatters, watch hours, msg/min and engagement. |
 | **Polymarket panel** | Live markets from Polymarket's public API — Trending / Breaking + every category, Yes/No odds (green/red), 24h volume. Click to open the real market, or pin it to your OBS overlay. |
 | **Viewer tipping** | Non-custodial **USDC / USDT** tips to wallet-connected viewers (Ethereum, Base, Arbitrum, Optimism, Polygon) — auto-switches the wallet to a supported chain. |
 | **Stream preview** | Center-stage player with play/pause, a seek scrubber, per-channel switcher, and a live clip button. |
 | **Past broadcasts** | A VOD library with real frame-preview thumbnails — click one to play it in the preview. |
-| **Analytics** | Historical KPIs, current-stream snapshot, trend chart, A/B compare, and a streams table — with **sub-revenue in $ per platform**, platform/account filters, and day/week/month/year ranges. |
+| **Analytics** | Historical KPIs, live snapshot, trends, A/B compare — every revenue stream connected: **bits, subs, Kicks, Super Chats, memberships, tips**, plus **estimated ad revenue tied to ads actually shown** (tracked breaks × live impressions × net CPM; Twitch ad breaks polled via the Ads API). New-follower tracking included. |
 | **Leaderboards** | Top Chatters + Subs ($ value per platform), filterable by Day / Week / Month / All-time. |
 | **User list** | Searchable cross-platform viewer list — sort by messages / $ spent / name / recency, filter by channel, default-filtered to wallet-connected (tippable) viewers. Click a name for a Twitch-style profile + message history + moderation. |
 | **Moderation** | Cross-platform timeout (stackable 1m/5m/15m/1h/1d, reduce/remove) + ban, from chat or the user card. |
@@ -87,6 +97,20 @@ cd frontend && npm test
 ```
 
 ---
+
+## 🏆 Why this wins
+
+1. **It's real.** Market data, leaderboards, vaults, headlines, wallets, episode
+   replays, chat connectors — live APIs with graceful failover, not mockups. The
+   one estimated number (ad revenue) is labeled as an estimate.
+2. **It's the whole job, not just a chat merger.** Aggregation is table stakes —
+   this adds moderation, monetization, market intelligence, production tooling
+   (OBS overlay + dock + Producer Brief + Clip Radar), and analytics in one place.
+3. **It's honest.** Demo and Live are a single explicit switch; demo never
+   pretends to be live data, and the README never claims wiring that isn't there.
+4. **It fits the show.** Polymarket odds in the brand theme, KOL wallets the
+   hosts actually talk about, X broadcast replays, crypto tipping — built for
+   Market Bubble's broadcast, not a generic dashboard.
 
 ## 🧰 Tech stack
 
