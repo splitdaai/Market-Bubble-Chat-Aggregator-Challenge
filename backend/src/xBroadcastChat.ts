@@ -72,15 +72,17 @@ export async function broadcastChatBatch(id: string): Promise<{ title: string; m
   if (hit && Date.now() < hit.exp) return { title: "", messages: hit.msgs };
   const access = await resolveBroadcastChat(id);
   if (!access) return { title: "", messages: [] };
-  const out: { username: string; displayName: string; text: string; t: number }[] = [];
+  // Replay chat is heartbeat-heavy and sparse, so walk deep (cached 30 min, so
+  // only the first request pays the cost) and dedup real text messages.
+  const dedup = new Map<string, { username: string; displayName: string; text: string; t: number }>();
   let cursor = "";
-  // Walk a handful of pages and collect real text messages (chat is sparse early).
-  for (let i = 0; i < 12 && out.length < 120; i++) {
+  for (let i = 0; i < 60 && dedup.size < 150; i++) {
     const page = await replayChatPage(access, cursor);
-    out.push(...page.messages);
+    for (const m of page.messages) dedup.set(`${m.username}:${m.text}`, m);
     if (!page.cursor || page.cursor === cursor) break;
     cursor = page.cursor;
   }
+  const out = [...dedup.values()].sort((a, b) => a.t - b.t);
   restCache.set(id, { exp: Date.now() + 30 * 60_000, msgs: out });
   return { title: access.title, messages: out };
 }
