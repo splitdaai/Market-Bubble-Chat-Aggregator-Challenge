@@ -9,6 +9,7 @@ import { useChatConnection } from "./hooks/useChatConnection";
 import { useWalletStore } from "./store/walletStore";
 import { JudgeTour, useTourStore } from "./components/JudgeTour";
 import { useXBroadcastChat } from "./hooks/useXBroadcastChat";
+import { ScheduleBanner } from "./components/widgets/ShowSchedule";
 import { useIsMobile } from "./hooks/useIsMobile";
 import { useUiModeStore } from "./store/uiModeStore";
 
@@ -96,7 +97,10 @@ export default function App() {
           ) : view === "kol" ? (
             <KolTab />
           ) : (
-            <EditorCanvas onEditButton={(b) => setBtnEditor({ open: true, editing: b ?? null })} />
+            <>
+              <ScheduleBanner />
+              <EditorCanvas onEditButton={(b) => setBtnEditor({ open: true, editing: b ?? null })} />
+            </>
           )}
         </Suspense>
       </main>

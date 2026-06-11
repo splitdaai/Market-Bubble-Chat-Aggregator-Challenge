@@ -24,6 +24,38 @@ function nextAiring(now: Date): { date: Date; live: boolean } {
   return { date, live };
 }
 
+/**
+ * Slim banner shown ABOVE the stream when the show isn't live — collapses to
+ * nothing during the live window so it never competes with the broadcast.
+ */
+export function ScheduleBanner() {
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => { const iv = setInterval(() => setNow(new Date()), 1000); return () => clearInterval(iv); }, []);
+  const { date, live } = nextAiring(now);
+  if (live) return null;
+  const ms = Math.max(0, date.getTime() - now.getTime());
+  const d = Math.floor(ms / 86400000);
+  const h = Math.floor((ms % 86400000) / 3600000);
+  const m = Math.floor((ms % 3600000) / 60000);
+  const s = Math.floor((ms % 60000) / 1000);
+  const cd = `${d > 0 ? d + "d " : ""}${h}h ${m}m ${s}s`;
+  return (
+    <div
+      className="mb-3 flex flex-wrap items-center justify-center gap-x-4 gap-y-1 rounded-xl border border-accent/25 px-4 py-2 text-center"
+      style={{ background: "linear-gradient(135deg, color-mix(in srgb, var(--vc-accent) 12%, transparent), transparent 70%)" }}
+    >
+      <span className="flex items-center gap-2 text-[12px] font-bold uppercase tracking-[0.14em] text-accent">
+        <CalendarClock size={15} /> Next show
+      </span>
+      <span className="serif text-[15px] font-bold text-ink">
+        <span className="text-accent">Thursday</span> · 1:00 PM ET
+      </span>
+      <span className="rounded-full bg-white/[0.06] px-2.5 py-0.5 text-[12px] font-black tabular-nums text-ink">in {cd}</span>
+      <span className="text-[11px] text-muted">10AM PT · 1PM ET · 6PM UK</span>
+    </div>
+  );
+}
+
 export function ShowSchedule() {
   const [now, setNow] = useState(() => new Date());
   useEffect(() => { const iv = setInterval(() => setNow(new Date()), 1000); return () => clearInterval(iv); }, []);

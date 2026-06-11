@@ -7,6 +7,7 @@ import { useWalletStore } from "@/store/walletStore";
 import { useModeStore } from "@/store/modeStore";
 import { useUiModeStore } from "@/store/uiModeStore";
 import { renderWidget, WIDGET_META } from "./EditorCanvas";
+import { ScheduleBanner } from "./widgets/ShowSchedule";
 import { PageGrid } from "./PageGrid";
 import { AccountModal } from "./AccountModal";
 
@@ -17,8 +18,9 @@ const UserCard = lazy(() => import("./UserCard").then((m) => ({ default: m.UserC
 // Default placement + size for each addable widget on the Simple canvas.
 const GEO: Record<string, [number, number, number, number]> = {
   // Stream + chat fill the viewport by default (the clean stock layout) —
-  // theater proportions: big stream (~75%), slim chat rail (~25%), taller so it
-  // eats the dead space; the show schedule sits centered just beneath.
+  // theater proportions: big stream (~75%), slim chat rail (~25%). The show
+  // schedule rides as a slim banner above the stream (see ScheduleBanner), not
+  // a grid tile, so it's always visible without scrolling.
   "stream-preview": [0, 0, 9, 20],
   "chat-feed": [9, 0, 3, 20],
   schedule: [3, 20, 6, 5],
@@ -37,8 +39,8 @@ const GEO: Record<string, [number, number, number, number]> = {
 };
 
 const ALL = Object.keys(WIDGET_META) as WidgetKind[];
-// Stock layout: stream + chat + the show-schedule card show by default.
-const DEFAULT_HIDDEN = ALL.filter((k) => !["stream-preview", "chat-feed", "schedule"].includes(k));
+// Stock layout: just stream + chat by default (schedule is the banner above).
+const DEFAULT_HIDDEN = ALL.filter((k) => !["stream-preview", "chat-feed"].includes(k));
 const TITLES = Object.fromEntries(ALL.map((k) => [k, WIDGET_META[k].label]));
 
 /** Icon button with a springy label that pops out on hover. */
@@ -132,8 +134,9 @@ export function SimpleApp() {
       </header>
 
       <main className="relative z-10 min-h-0 flex-1 overflow-y-auto px-3 pb-6">
+        <div className="px-1"><ScheduleBanner /></div>
         <Suspense fallback={null}>
-          <PageGrid pageKey="simple-v3" items={items} editMode={edit} titles={TITLES} defaultHidden={DEFAULT_HIDDEN} />
+          <PageGrid pageKey="simple-v4" items={items} editMode={edit} titles={TITLES} defaultHidden={DEFAULT_HIDDEN} />
         </Suspense>
       </main>
 
