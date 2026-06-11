@@ -10,9 +10,10 @@ export const LATEST_EPISODE_BID = "1dxYllbQZELJX";
  * Plays an X broadcast replay (full episode) via the guest HLS proxy — hls.js in
  * Chrome/Firefox, native HLS in Safari. Falls back to a "Watch on X" link.
  */
-export function XVodPlayer({ id, autoPlay, className = "aspect-video w-full rounded-xl border border-white/10 bg-black" }: { id: string; autoPlay?: boolean; className?: string }) {
+export function XVodPlayer({ id, autoPlay, onError, className = "aspect-video w-full rounded-xl border border-white/10 bg-black" }: { id: string; autoPlay?: boolean; onError?: () => void; className?: string }) {
   const ref = useRef<HTMLVideoElement>(null);
   const [err, setErr] = useState(false);
+  const fail = () => { setErr(true); onError?.(); };
   useEffect(() => {
     setErr(false);
     let hls: Hls | null = null;
@@ -34,14 +35,14 @@ export function XVodPlayer({ id, autoPlay, className = "aspect-video w-full roun
           v.src = url;
         } else if (Hls.isSupported()) {
           hls = new Hls({ enableWorker: true });
-          hls.on(Hls.Events.ERROR, (_e, d) => { if (d.fatal) setErr(true); });
+          hls.on(Hls.Events.ERROR, (_e, d) => { if (d.fatal) fail(); });
           hls.on(Hls.Events.MANIFEST_PARSED, kick);
           hls.loadSource(url);
           hls.attachMedia(v);
         } else {
-          setErr(true);
+          fail();
         }
-      } catch { setErr(true); }
+      } catch { fail(); }
     })();
     return () => { dead = true; hls?.destroy(); };
   }, [id, autoPlay]);

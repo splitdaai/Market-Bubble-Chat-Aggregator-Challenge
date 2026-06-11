@@ -150,7 +150,11 @@ export function StreamPreview() {
   // on the "live" entry with no active stream — the most recent episode. EP1 has
   // no replay (bid null) so it falls through to its local highlight clip.
   const playEpisodeId = broadcast.live ? LATEST_EPISODE_BID : (broadcast.bid || null);
-  const showEpisode = !!playEpisodeId && !embedUrl;
+  // If the X replay fails (expired HLS segments / blocked), fall through to the
+  // per-episode local clip so a click ALWAYS visibly switches the preview.
+  const [epFailed, setEpFailed] = useState(false);
+  useEffect(() => setEpFailed(false), [playEpisodeId]);
+  const showEpisode = !!playEpisodeId && !embedUrl && !epFailed;
   const previewSrc = shownBroadcast.src;
 
   // Seek to the start frame + (re)start playback whenever the source (VOD or
@@ -298,7 +302,7 @@ export function StreamPreview() {
           />
         ) : showEpisode ? (
           /* No live stream active → play the most recent full episode replay. */
-          <XVodPlayer key={playEpisodeId ?? ""} id={playEpisodeId ?? LATEST_EPISODE_BID} autoPlay className="absolute inset-0 h-full w-full object-contain" />
+          <XVodPlayer key={playEpisodeId ?? ""} id={playEpisodeId ?? LATEST_EPISODE_BID} autoPlay onError={() => setEpFailed(true)} className="absolute inset-0 h-full w-full object-contain" />
         ) : (
           <video
             ref={videoRef}
@@ -347,8 +351,8 @@ export function StreamPreview() {
 
         {showEpisode ? (
           <span className="absolute left-2 top-2 z-[5] flex items-center gap-1.5 rounded-md bg-black/55 px-1.5 py-0.5 text-[10px] font-black uppercase tracking-wider text-accent backdrop-blur">
-            <span className="rounded bg-accent/20 px-1">Last episode</span>
-            <span className="normal-case text-white/90">Market Bubble · from X</span>
+            <span className="rounded bg-accent/20 px-1">{broadcast.live ? "Last episode" : "Replay"}</span>
+            <span className="max-w-[260px] truncate normal-case text-white/90">{broadcast.live ? "Market Bubble · from X" : shownBroadcast.title}</span>
           </span>
         ) : shownBroadcast.live ? (
           <span className="absolute left-2 top-2 flex items-center gap-1.5 rounded-md bg-black/55 px-1.5 py-0.5 text-[10px] font-black uppercase tracking-wider text-red-400 backdrop-blur">

@@ -13,13 +13,13 @@
  */
 
 // Public x.com web-app bearer (anonymous; same token the logged-out site uses).
-const BEARER = "AAAAAAAAAAAAAAAAAAAAANRILgAAAAAAnNwIzUejRCOuH5E6I8xnZz4puTs%3D1Zv7ttfk8LF81IUq16cHjhLTvJu4FA33AGWWjCpTnA";
-const UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36";
+export const X_BEARER = "AAAAAAAAAAAAAAAAAAAAANRILgAAAAAAnNwIzUejRCOuH5E6I8xnZz4puTs%3D1Zv7ttfk8LF81IUq16cHjhLTvJu4FA33AGWWjCpTnA";
+export const X_UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36";
 
 let guest: { token: string; exp: number } | null = null;
-async function guestToken(): Promise<string> {
+export async function guestToken(): Promise<string> {
   if (guest && Date.now() < guest.exp) return guest.token;
-  const r = await fetch("https://api.twitter.com/1.1/guest/activate.json", { method: "POST", headers: { authorization: `Bearer ${BEARER}`, "User-Agent": UA } });
+  const r = await fetch("https://api.twitter.com/1.1/guest/activate.json", { method: "POST", headers: { authorization: `Bearer ${X_BEARER}`, "User-Agent": X_UA } });
   const j = (await r.json()) as { guest_token?: string };
   if (!j.guest_token) throw new Error("no guest token");
   guest = { token: j.guest_token, exp: Date.now() + 2.5 * 3600_000 };
@@ -36,7 +36,7 @@ export async function resolveXVod(id: string): Promise<{ master: string; title: 
   if (hit && Date.now() < hit.exp) return hit.data;
   try {
     const gt = await guestToken();
-    const H = { authorization: `Bearer ${BEARER}`, "x-guest-token": gt, "User-Agent": UA };
+    const H = { authorization: `Bearer ${X_BEARER}`, "x-guest-token": gt, "User-Agent": X_UA };
     const show = (await (await fetch(`https://api.twitter.com/1.1/broadcasts/show.json?ids=${id}&include_events=true`, { headers: H })).json()) as { broadcasts?: Record<string, { media_key: string; status?: string; state?: string }> };
     const bc = show?.broadcasts?.[id];
     if (!bc) return null;
@@ -65,7 +65,7 @@ export function isPscpUrl(u: string): boolean {
  */
 export async function proxyHls(rawUrl: string): Promise<{ status: number; contentType: string; body: Buffer | string } | null> {
   if (!isPscpUrl(rawUrl)) return null;
-  const r = await fetch(rawUrl, { headers: { "User-Agent": UA, Referer: "https://x.com/", Origin: "https://x.com" } });
+  const r = await fetch(rawUrl, { headers: { "User-Agent": X_UA, Referer: "https://x.com/", Origin: "https://x.com" } });
   const ct = r.headers.get("content-type") ?? "";
   const isPlaylist = rawUrl.includes(".m3u8") || ct.includes("mpegurl");
   if (isPlaylist) {

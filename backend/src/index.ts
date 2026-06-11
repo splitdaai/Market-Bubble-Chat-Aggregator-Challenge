@@ -19,6 +19,7 @@ import { dirname } from "node:path";
 import { getTwitchChannel } from "./twitchChannel.ts";
 import { getMarketData, getPriceHistory, getLeaderboards, getHlWallet, getEvmWallet, getNews, getVaults } from "./marketData.ts";
 import { resolveXVod, proxyHls } from "./xVod.ts";
+import { broadcastChatBatch } from "./xBroadcastChat.ts";
 
 const PORT = Number(process.env.PORT ?? 4000);
 // Non-wildcard CORS allowlist in production (comma-separated origins); "*" only
@@ -70,6 +71,19 @@ app.get("/api/x-hls", async (req, res) => {
     res.send(out.body);
   } catch {
     res.status(502).end();
+  }
+});
+
+// Real GUEST X broadcast chat (no login, zero ban risk) — returns real public
+// chat messages from an X broadcast so the frontend can show real X chat in the
+// unified feed even in demo mode.
+app.get("/api/x-broadcast-chat/:id", async (req, res) => {
+  try {
+    const data = await broadcastChatBatch(req.params.id);
+    res.set("Cache-Control", "public, max-age=300");
+    res.json(data);
+  } catch {
+    res.status(502).json({ error: "x chat fetch failed" });
   }
 });
 
