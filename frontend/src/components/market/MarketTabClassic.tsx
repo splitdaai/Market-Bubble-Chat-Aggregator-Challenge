@@ -6,18 +6,19 @@ import { useLayoutStore } from "../../store/layoutStore";
 import { useViewStore } from "../../store/viewStore";
 import { PolymarketMark } from "../Brand";
 import { TradingViewTechnicals, MiniChart, TechWidget, tvSymbolFor } from "./TradingViewTechnicals";
-import { HlTraderModal, PortfolioModal, PolyTraderModal } from "./Dashboards";
+import { PortfolioModal, PolyTraderModal } from "./Dashboards";
+import { HlWalletModal } from "../kol/KolTab";
 import { WatchStar } from "../WatchStar";
 import { IntelFeed } from "./IntelFeed";
 import { compact } from "../../lib/format";
 
-interface HlRow { name: string; addr?: string; pnl: number; roi?: number; trend?: number[] }
+interface HlRow { name: string; addr?: string; pnl: number; roi?: number; value?: number; trend?: number[] }
 interface LinkedRow { name: string; xHandle: string; addr: string; chain: "hl" | "evm"; value: number; pnl: number; top?: string }
 interface PolyRow { name: string; addr?: string; pnl: number }
 
 type Detail =
   | { kind: "asset"; label: string }
-  | { kind: "hltrader"; t: { name: string; addr?: string; pnl: number; win: number; trend: number[] } }
+  | { kind: "hltrader"; t: { name: string; addr: string; pnl: number; roi?: number; value: number } }
   | { kind: "polytrader"; t: { name: string; addr?: string; pnl: number; win: number; trend: number[] } }
   | { kind: "portfolio"; p: { fund: string; top: string; value: number; chg: number } };
 
@@ -179,7 +180,7 @@ export function MarketTabClassic() {
                   </div>
                   <div className={leaderboardBody} style={leaderboardRowsStyle}>
                     {(lb?.hyperliquid ?? []).slice(0, LEADERBOARD_LIMIT).map((t, i) => {
-                      const open = () => setDetail({ kind: "hltrader", t: { name: t.name, addr: t.addr, pnl: t.pnl, win: Math.round(t.roi ?? 0), trend: t.trend ?? [] } });
+                      const open = () => { if (!t.addr) return; setDetail({ kind: "hltrader", t: { name: t.name, addr: t.addr, pnl: t.pnl, roi: t.roi, value: t.value ?? 0 } }); };
                       return (
                       <div key={t.addr ?? t.name} role="button" tabIndex={0} onClick={open} onKeyDown={(e) => onRowKey(e, open)} className={`${leaderboardRow} grid-cols-[2rem_minmax(0,1fr)_4.7rem_3rem_4.3rem]`}>
                         <span className="font-bold text-faint">{i + 1}</span>
@@ -249,7 +250,7 @@ export function MarketTabClassic() {
         <p className="mt-5 text-center text-[11px] text-faint">Classic reference layout · <span className="font-bold text-up">● Live</span> markets (CoinGecko · Yahoo · alternative.me · Polymarket). Hyperliquid traders, vaults &amp; headlines are live.</p>
       </div>
       {detail?.kind === "asset" && <AssetModal label={detail.label} onClose={() => setDetail(null)} />}
-      {detail?.kind === "hltrader" && <HlTraderModal trader={detail.t} color="#16e6a4" onClose={() => setDetail(null)} />}
+      {detail?.kind === "hltrader" && <HlWalletModal trader={detail.t} onClose={() => setDetail(null)} />}
       {detail?.kind === "polytrader" && <PolyTraderModal trader={detail.t} color="#34d6ff" onClose={() => setDetail(null)} />}
       {detail?.kind === "portfolio" && <PortfolioModal portfolio={detail.p} color="#00d872" onClose={() => setDetail(null)} />}
     </div>

@@ -1,7 +1,9 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Radio, Film, TrendingUp, Play, BadgeCheck, MessageCircle, Repeat2, Heart, BarChart3 } from "lucide-react";
 import { compact } from "../../lib/format";
 import { BubbleScroll } from "../BubbleScroll";
+import { PageGrid } from "../PageGrid";
+import { useLayoutStore } from "@/store/layoutStore";
 import { XVodPlayer } from "../XVodPlayer";
 
 
@@ -56,21 +58,64 @@ const FEED_ACCOUNTS = [
   { name: "Banks", handle: "Banks" },
   { name: "Market Bubble", handle: "marketbubble" },
 ];
+/** Real X timeline (official embed) with auto-fallback to the native cards
+ *  when the widget can't load (adblock / script blocked). */
+function XLiveTimeline({ handle, fallback }: { handle: string; fallback: React.ReactNode }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [failed, setFailed] = useState(false);
+  useEffect(() => {
+    setFailed(false);
+    const el = ref.current;
+    if (!el) return;
+    el.innerHTML = `<a class="twitter-timeline" data-theme="dark" data-chrome="noheader nofooter noborders transparent" data-tweet-limit="10" href="https://twitter.com/${handle}">Loading @${handle}…</a>`;
+    const w = window as unknown as { twttr?: { widgets: { load: (e?: HTMLElement) => void } } };
+    const tryLoad = () => w.twttr?.widgets?.load(el);
+    tryLoad();
+    const iv = setInterval(tryLoad, 500);
+    const to = setTimeout(() => { clearInterval(iv); if (!el.querySelector("iframe")) setFailed(true); }, 5000);
+    return () => { clearInterval(iv); clearTimeout(to); };
+  }, [handle]);
+  if (failed) return <>{fallback}</>;
+  return <div ref={ref} className="min-h-[300px] [&_iframe]:!w-full" />;
+}
+
 export function ContentTab() {
   const [feedHandle, setFeedHandle] = useState("all");
   const [vodId, setVodId] = useState<string>(EPISODES[0].bid!); // default = most recent full replay (EP5)
+  const editMode = useLayoutStore((s) => s.editMode);
   const topPosts = [...FEED].sort((a, b) => b.views - a.views).slice(0, 6);
   const feedTabs = [{ name: "All", handle: "all" }, ...FEED_ACCOUNTS];
 
-  return (
-    <div className="mb-tab">
-    <div className="mx-auto max-w-[1500px] px-4 py-6 sm:px-6">
-      <h1 className="serif text-3xl font-bold tracking-tight sm:text-4xl">Content Radar</h1>
-      <p className="mt-1 text-[13px] text-muted">Real-time X feed, trending tickers, the streams that are live, and the clips that pop — all in one place.</p>
+  const nativeCards = (
+    <div className="space-y-2">
+      {(feedHandle === "all" ? FEED : FEED.filter((f) => f.handle.replace(/^@/, "").toLowerCase() === feedHandle.toLowerCase())).map((p, i) => (
+        <a key={i} href={xUrl(p.handle)} target="_blank" rel="noreferrer" className="block rounded-2xl border border-white/10 bg-white/[0.02] p-3 transition hover:bg-white/[0.05]">
+          <div className="flex gap-2.5">
+            <XAvatar handle={p.handle} name={p.name} />
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-1 text-[13px]">
+                <span className="truncate font-bold text-ink">{p.name}</span>
+                <BadgeCheck size={14} className="shrink-0 text-[#1d9bf0]" />
+                <span className="truncate text-muted">{p.handle}</span>
+                <span className="shrink-0 text-muted">· {FEED_TIMES[i % FEED_TIMES.length]}</span>
+                <XLogo className="ml-auto h-3.5 w-3.5 shrink-0 text-muted" />
+              </div>
+              <p className="mt-0.5 whitespace-pre-wrap text-[14px] leading-snug text-ink">{p.text}</p>
+              <div className="mt-2.5 flex items-center justify-between pr-4 text-[12px] text-muted">
+                <span className="flex items-center gap-1.5 transition hover:text-[#1d9bf0]"><MessageCircle size={15} /> {compact(Math.round(p.reposts * 0.4))}</span>
+                <span className="flex items-center gap-1.5 transition hover:text-up"><Repeat2 size={16} /> {compact(p.reposts)}</span>
+                <span className="flex items-center gap-1.5 transition hover:text-down"><Heart size={15} /> {compact(p.likes)}</span>
+                <span className="flex items-center gap-1.5"><BarChart3 size={15} /> {compact(p.views)}</span>
+              </div>
+            </div>
+          </div>
+        </a>
+      ))}
+    </div>
+  );
 
-      <div className="mt-5 grid grid-cols-1 gap-4 lg:grid-cols-12">
-        {/* live feed — real X timeline (Ansem / Banks / Market Bubble) */}
-        <div className="vc-glass flex flex-col rounded-2xl p-3 lg:col-span-4" style={{ height: 920 }}>
+  const feedNode = (
+    <div className="vc-glass flex h-full flex-col rounded-2xl p-3">
           <div className="mb-2 flex items-center gap-2"><Radio size={14} className="text-down" /><span className="text-[12px] font-bold uppercase tracking-[0.12em] text-muted">Live Feed</span></div>
           <div className="mb-2 flex flex-wrap gap-1">
             {feedTabs.map((a) => (
@@ -84,38 +129,15 @@ export function ContentTab() {
             ))}
           </div>
           <BubbleScroll className="flex-1">
-            <div className="space-y-2">
-              {(feedHandle === "all" ? FEED : FEED.filter((f) => f.handle.replace(/^@/, "").toLowerCase() === feedHandle.toLowerCase())).map((p, i) => (
-                <a key={i} href={xUrl(p.handle)} target="_blank" rel="noreferrer" className="block rounded-2xl border border-white/10 bg-white/[0.02] p-3 transition hover:bg-white/[0.05]">
-                  <div className="flex gap-2.5">
-                    <XAvatar handle={p.handle} name={p.name} />
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-1 text-[13px]">
-                        <span className="truncate font-bold text-ink">{p.name}</span>
-                        <BadgeCheck size={14} className="shrink-0 text-[#1d9bf0]" />
-                        <span className="truncate text-muted">{p.handle}</span>
-                        <span className="shrink-0 text-muted">· {FEED_TIMES[i % FEED_TIMES.length]}</span>
-                        <XLogo className="ml-auto h-3.5 w-3.5 shrink-0 text-muted" />
-                      </div>
-                      <p className="mt-0.5 whitespace-pre-wrap text-[14px] leading-snug text-ink">{p.text}</p>
-                      {/* X action bar */}
-                      <div className="mt-2.5 flex items-center justify-between pr-4 text-[12px] text-muted">
-                        <span className="flex items-center gap-1.5 transition hover:text-[#1d9bf0]"><MessageCircle size={15} /> {compact(Math.round(p.reposts * 0.4))}</span>
-                        <span className="flex items-center gap-1.5 transition hover:text-up"><Repeat2 size={16} /> {compact(p.reposts)}</span>
-                        <span className="flex items-center gap-1.5 transition hover:text-down"><Heart size={15} /> {compact(p.likes)}</span>
-                        <span className="flex items-center gap-1.5"><BarChart3 size={15} /> {compact(p.views)}</span>
-                      </div>
-                    </div>
-                  </div>
-                </a>
-              ))}
-            </div>
+            {feedHandle === "all"
+              ? nativeCards
+              : <XLiveTimeline key={feedHandle} handle={feedHandle} fallback={nativeCards} />}
           </BubbleScroll>
-        </div>
+    </div>
+  );
 
-        {/* right column */}
-        <div className="space-y-4 lg:col-span-8">
-          <div className="vc-glass rounded-2xl p-4">
+  const episodesNode = (
+    <div className="vc-glass h-full overflow-y-auto rounded-2xl p-4">
             <div className="mb-3 flex items-center gap-2">
               <Film size={14} className="text-accent" />
               <span className="text-[12px] font-bold uppercase tracking-[0.12em] text-muted">Full Episodes</span>
@@ -148,9 +170,11 @@ export function ContentTab() {
                 );
               })}
             </div>
-          </div>
+    </div>
+  );
 
-          <div className="vc-glass rounded-2xl p-4">
+  const topPostsNode = (
+    <div className="vc-glass h-full overflow-y-auto rounded-2xl p-4">
             <div className="mb-3 flex items-center gap-2"><TrendingUp size={14} className="text-accent" /><span className="text-[12px] font-bold uppercase tracking-[0.12em] text-muted">Top Posts</span><span className={`ml-auto ${chip}`}>most viewed</span></div>
             <div className="space-y-1.5">
               {topPosts.map((p, i) => (
@@ -161,8 +185,26 @@ export function ContentTab() {
                 </a>
               ))}
             </div>
-          </div>
-        </div>
+    </div>
+  );
+
+  return (
+    <div className="mb-tab">
+    <div className="mx-auto max-w-[1500px] px-4 py-6 sm:px-6">
+      <h1 className="serif text-3xl font-bold tracking-tight sm:text-4xl">Content Radar</h1>
+      <p className="mt-1 text-[13px] text-muted">Real-time X feed, trending tickers, the streams that are live, and the clips that pop — all in one place.</p>
+
+      <div className="mt-5">
+        <PageGrid
+          pageKey="content-v1"
+          editMode={editMode}
+          titles={{ feed: "Live Feed", episodes: "Full Episodes", topposts: "Top Posts" }}
+          items={[
+            { id: "feed", x: 0, y: 0, w: 4, h: 17, node: feedNode },
+            { id: "episodes", x: 4, y: 0, w: 8, h: 14, node: episodesNode },
+            { id: "topposts", x: 4, y: 14, w: 8, h: 7, node: topPostsNode },
+          ]}
+        />
       </div>
       <p className="mt-5 text-center text-[11px] text-faint"><span className="font-bold text-up">● Live</span> — full episodes are the real X broadcast replays (guest stream, no login). Watch player &amp; clips are real Twitch; feed &amp; trending are demo until an X tracked-list key is added.</p>
     </div>

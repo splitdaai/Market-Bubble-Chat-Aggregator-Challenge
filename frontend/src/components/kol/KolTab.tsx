@@ -45,7 +45,7 @@ function XPosts({ handle }: { handle: string }) {
 }
 
 /* ---- Real Hyperliquid wallet profile (live positions + fills + value chart) ---- */
-function HlWalletModal({ trader, onClose }: { trader: HlTrader; onClose: () => void }) {
+export function HlWalletModal({ trader, onClose }: { trader: HlTrader; onClose: () => void }) {
   const [w, setW] = useState<WalletData | null>(null);
   const [range, setRange] = useState("month");
   useEffect(() => {
