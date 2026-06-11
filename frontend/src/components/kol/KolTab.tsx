@@ -114,16 +114,25 @@ function HlWalletModal({ trader, onClose }: { trader: HlTrader; onClose: () => v
           <div>
             <div className="mb-2 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-muted"><Activity size={12} className="text-up" /> Recent trades (live fills)</div>
             <div className="max-h-[340px] space-y-1 overflow-y-auto pr-1">
-              {(w?.fills ?? []).map((f, i) => (
-                <div key={i} className="flex items-center gap-2 rounded-lg bg-white/[0.02] px-2.5 py-1.5 text-[11.5px]">
-                  <span className={`flex items-center gap-0.5 font-bold ${f.buy ? "text-up" : "text-down"}`}>{f.buy ? <ArrowUpRight size={12} /> : <ArrowDownRight size={12} />}{f.buy ? "BUY" : "SELL"}</span>
-                  <span className="font-mono font-bold text-accent">{f.coin}</span>
-                  <span className="truncate text-faint">{f.dir}</span>
-                  <span className="ml-auto tabular-nums text-muted">{compact(f.sz)} @ ${compact(f.px)}</span>
-                  {f.closedPnl ? <span className={`tabular-nums font-bold ${f.closedPnl >= 0 ? "text-up" : "text-down"}`}>{f.closedPnl >= 0 ? "+" : ""}{usd(f.closedPnl)}</span> : null}
-                  <span className="w-10 text-right text-[9px] text-faint">{fmtTime(f.t)}</span>
-                </div>
-              ))}
+              {(w?.fills ?? []).map((f, i) => {
+                const closing = /close/i.test(f.dir);
+                const pnl = f.closedPnl ?? 0;
+                return (
+                  <div key={i} className="flex items-center gap-2 rounded-lg bg-white/[0.02] px-2.5 py-1.5 text-[11.5px]">
+                    <span className={`flex items-center gap-0.5 font-bold ${f.buy ? "text-up" : "text-down"}`}>{f.buy ? <ArrowUpRight size={12} /> : <ArrowDownRight size={12} />}{f.buy ? "BUY" : "SELL"}</span>
+                    <span className="font-mono font-bold text-accent">{f.coin}</span>
+                    <span className="truncate text-faint">{f.dir}</span>
+                    <span className="ml-auto tabular-nums text-muted">{compact(f.sz)} @ ${compact(f.px)}</span>
+                    {/* realized PnL chip — shown for every closing trade (green/red ±) */}
+                    {closing ? (
+                      <span className={`shrink-0 rounded px-1.5 py-0.5 text-[10.5px] font-bold tabular-nums ${pnl >= 0 ? "bg-up/15 text-up" : "bg-down/15 text-down"}`}>{pnl >= 0 ? "+" : "−"}{usd(Math.abs(pnl))}</span>
+                    ) : (
+                      <span className="shrink-0 rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-faint">open</span>
+                    )}
+                    <span className="w-10 text-right text-[9px] text-faint">{fmtTime(f.t)}</span>
+                  </div>
+                );
+              })}
               {w && w.fills.length === 0 && <div className="py-4 text-center text-[11px] text-faint">No recent fills.</div>}
               {!w && <div className="py-4 text-center text-[11px] text-faint">Loading…</div>}
             </div>
