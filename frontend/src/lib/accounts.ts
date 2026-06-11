@@ -15,7 +15,7 @@ export const DEMO_ACCOUNTS: Account[] = [
   { id: "x:ansem", platform: "x", handle: "@blknoiz06", displayName: "Ansem", connected: true },
   { id: "x:banks", platform: "x", handle: "@banks", displayName: "Banks", connected: true },
   { id: "twitch:marketbubble", platform: "twitch", handle: "marketbubble", displayName: "Market Bubble", connected: true },
-  { id: "x:marketbubble", platform: "x", handle: "@MarketBubbleLive", displayName: "Market Bubble", connected: true },
+  { id: "x:marketbubble", platform: "x", handle: "@MarketBubble", displayName: "Market Bubble", connected: true },
   { id: "youtube:marketbubble", platform: "youtube", handle: "@MarketBubble", displayName: "Market Bubble", connected: true },
 ];
 

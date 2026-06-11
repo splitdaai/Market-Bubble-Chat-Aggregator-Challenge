@@ -412,5 +412,5 @@ function XPfp({ name, hue }: { name: string; hue: string }) {
   if (!handle || err) {
     return <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full text-[13px] font-black" style={{ background: `${hue}2e`, color: hue, boxShadow: `0 0 12px ${hue}45` }}>{name[0]}</span>;
   }
-  return <img src={`https://unavatar.io/twitter/${handle}`} alt={name} onError={() => setErr(true)} className="h-8 w-8 shrink-0 rounded-full object-cover" style={{ boxShadow: `0 0 0 2px ${hue}66, 0 0 12px ${hue}45` }} />;
+  return <img src={`https://unavatar.io/twitter/${handle}?fallback=false`} alt={name} onError={() => setErr(true)} className="h-8 w-8 shrink-0 rounded-full object-cover" style={{ boxShadow: `0 0 0 2px ${hue}66, 0 0 12px ${hue}45` }} />;
 }

@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { useChatStore } from "@/store/chatStore";
+import { useModeStore } from "@/store/modeStore";
 import { LATEST_EPISODE_BID } from "@/components/XVodPlayer";
 
 const BACKEND = (import.meta.env.VITE_BACKEND_URL as string | undefined) ?? "https://3-213-104-77.nip.io";
@@ -15,8 +16,14 @@ interface XMsg { username: string; displayName: string; text: string; t: number 
  */
 export function useXBroadcastChat(broadcastId: string = LATEST_EPISODE_BID) {
   const addMessage = useChatStore((s) => s.addMessage);
+  const demo = useModeStore((s) => s.demo);
 
   useEffect(() => {
+    // Replay-drip is a DEMO showcase (real X messages from the last broadcast).
+    // In LIVE mode the feed shows only genuine live chat — the real-time X
+    // broadcast chat then comes from the backend connector when the show is
+    // actually on air, never a dripped replay.
+    if (!demo) return;
     let alive = true;
     let timer: number | undefined;
 
@@ -49,5 +56,5 @@ export function useXBroadcastChat(broadcastId: string = LATEST_EPISODE_BID) {
       .catch(() => {});
 
     return () => { alive = false; if (timer) window.clearTimeout(timer); };
-  }, [broadcastId, addMessage]);
+  }, [broadcastId, addMessage, demo]);
 }
