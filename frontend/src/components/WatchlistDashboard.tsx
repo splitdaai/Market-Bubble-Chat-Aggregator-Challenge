@@ -19,8 +19,10 @@ const priceAt = (pts: Pts, ts: number) => {
 export function WatchlistDashboard({ open, onClose }: { open: boolean; onClose: () => void }) {
   const owner = useOwnerId();
   const items = useWatchlistStore((s) => s.byOwner[owner] ?? []);
+  const removeWatch = useWatchlistStore((s) => s.remove);
   const assets = useMemo(() => items.filter((i) => i.type === "asset"), [items]);
   const others = useMemo(() => items.filter((i) => i.type !== "asset"), [items]);
+  const [tab, setTab] = useState<"tickers" | "traders">("tickers");
 
   const [hist, setHist] = useState<Record<string, Pts>>({});
   const [amounts, setAmounts] = useState<Record<string, number>>({});
@@ -77,15 +79,45 @@ export function WatchlistDashboard({ open, onClose }: { open: boolean; onClose: 
       {open && (
         <motion.div className="fixed inset-0 z-[60] flex items-start justify-center overflow-y-auto bg-black/75 p-4 backdrop-blur-sm" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose}>
           <motion.div className="mb-tab mt-6 w-full max-w-5xl rounded-2xl border border-white/10 bg-[#111]" initial={{ scale: 0.97, y: 10 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.97, opacity: 0 }} onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center gap-2 border-b border-white/8 p-4">
+            <div className="flex items-center gap-3 border-b border-white/8 p-4">
               <Star size={18} className="text-gold" />
-              <div className="serif text-xl font-bold">Watchlist Dashboard</div>
-              <span className="text-[11px] uppercase tracking-wider text-faint">{assets.length} assets</span>
+              <div className="serif text-xl font-bold">Watchlist</div>
+              {/* two views: tickers vs traders/KOL wallets */}
+              <div className="ml-1 flex gap-0.5 rounded-lg border border-white/10 bg-black/30 p-0.5">
+                <button onClick={() => setTab("tickers")} className={`rounded-md px-3 py-1 text-[11px] font-bold transition ${tab === "tickers" ? "bg-accent/20 text-accent" : "text-muted hover:text-ink"}`}>Tickers <span className="opacity-60">{assets.length}</span></button>
+                <button onClick={() => setTab("traders")} className={`rounded-md px-3 py-1 text-[11px] font-bold transition ${tab === "traders" ? "bg-accent/20 text-accent" : "text-muted hover:text-ink"}`}>Traders &amp; Wallets <span className="opacity-60">{others.length}</span></button>
+              </div>
               <button onClick={onClose} className="ml-auto rounded-lg p-1.5 text-muted hover:bg-white/10 hover:text-ink"><XIcon size={18} /></button>
             </div>
 
-            {assets.length === 0 ? (
-              <div className="p-10 text-center text-muted">Add assets to your watchlist (tap the ☆ on Global Markets) to model a portfolio here.</div>
+            {tab === "traders" ? (
+              <div className="p-4">
+                {others.length === 0 ? (
+                  <div className="p-10 text-center text-muted">No traders or wallets watched yet — tap the ☆ on any Hyperliquid / Polymarket trader, KOL, or vault to track them here.</div>
+                ) : (
+                  <div className="space-y-1.5">
+                    {others.map((o) => {
+                      const m = o.key.match(/0x[a-fA-F0-9]{40}/);
+                      const href = m ? `https://app.hyperliquid.xyz/explorer/address/${m[0]}` : o.type === "polytrader" ? "https://polymarket.com" : o.type === "kol" ? `https://x.com/${o.label.replace(/^@/, "")}` : undefined;
+                      return (
+                        <div key={o.key} className="flex items-center gap-3 rounded-xl border border-white/8 bg-white/[0.02] px-3 py-2.5">
+                          <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-accent/15 text-[12px] font-black text-accent">{o.label[0]?.toUpperCase()}</span>
+                          <div className="min-w-0">
+                            <div className="truncate text-[13px] font-bold text-ink">{o.label}</div>
+                            <div className="text-[10px] font-bold uppercase tracking-wider text-faint">{o.type === "polytrader" ? "Polymarket trader" : o.type === "kol" ? "KOL · X" : o.type === "portfolio" ? "Hyperliquid vault" : "Hyperliquid trader"}</div>
+                          </div>
+                          <div className="ml-auto flex items-center gap-1">
+                            {href && <a href={href} target="_blank" rel="noreferrer" className="rounded-lg border border-white/12 px-2 py-1 text-[11px] font-bold text-muted transition hover:border-accent/50 hover:text-accent">View ↗</a>}
+                            <button onClick={() => removeWatch(owner, o.key)} title="Remove from watchlist" className="rounded-lg p-1.5 text-gold hover:bg-white/10"><Star size={15} fill="currentColor" /></button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            ) : assets.length === 0 ? (
+              <div className="p-10 text-center text-muted">Add tickers to your watchlist (tap the ☆ on Global Markets) to model a portfolio here.</div>
             ) : (
               <div className="p-4">
                 {/* controls */}
@@ -146,14 +178,6 @@ export function WatchlistDashboard({ open, onClose }: { open: boolean; onClose: 
                   ))}
                 </div>
 
-                {others.length > 0 && (
-                  <div className="mt-3">
-                    <div className="mb-1.5 text-[10px] font-bold uppercase tracking-wider text-faint">Also watching</div>
-                    <div className="flex flex-wrap gap-1.5">
-                      {others.map((o) => <span key={o.key} className="flex items-center gap-1 rounded-full border border-white/10 bg-white/[0.02] px-2 py-1 text-[11px]"><span className="rounded bg-white/8 px-1 text-[8px] font-bold uppercase text-faint">{o.type}</span>{o.label}</span>)}
-                    </div>
-                  </div>
-                )}
                 <p className="mt-3 text-center text-[10px] text-faint">Live historical prices · CoinGecko (crypto) & Yahoo (indices/commodities). <ExternalLink size={9} className="inline" /> Educational, not financial advice.</p>
               </div>
             )}

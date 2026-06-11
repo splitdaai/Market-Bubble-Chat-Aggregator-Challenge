@@ -240,7 +240,7 @@ export function StreamPreview() {
               <span className="relative flex h-1.5 w-1.5"><span className="absolute h-full w-full animate-ping rounded-full bg-accent/70" /><span className="relative h-1.5 w-1.5 rounded-full bg-accent" /></span>
               Live
             </span>
-            <AnimNum value={people.reduce((s, p) => s + p.total, 0)} className="mt-0.5 text-[24px] font-black tabular-nums leading-none text-accent" />
+            <AnimNum value={totalViewers} className="mt-0.5 text-[24px] font-black tabular-nums leading-none text-accent" />
             <span className="mt-1 text-[8px] font-semibold uppercase tracking-[0.14em] text-faint">combined viewers</span>
           </div>
 

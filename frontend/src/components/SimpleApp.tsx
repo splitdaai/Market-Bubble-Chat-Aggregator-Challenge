@@ -17,26 +17,28 @@ const UserCard = lazy(() => import("./UserCard").then((m) => ({ default: m.UserC
 // Default placement + size for each addable widget on the Simple canvas.
 const GEO: Record<string, [number, number, number, number]> = {
   // Stream + chat fill the viewport by default (the clean stock layout) —
-  // theater proportions: big stream (~75%), slim chat rail (~25%).
-  "stream-preview": [0, 0, 9, 16],
-  "chat-feed": [9, 0, 3, 16],
-  stats: [0, 16, 4, 5],
-  "top-chatters": [4, 16, 4, 7],
-  polymarket: [8, 16, 4, 8],
-  "user-list": [0, 21, 4, 7],
-  clips: [4, 23, 4, 6],
-  giveaway: [8, 24, 4, 7],
-  "hype-meter": [0, 28, 4, 4],
-  "mood-meter": [4, 29, 4, 4],
-  "connection-status": [8, 31, 4, 4],
-  "clip-radar": [0, 32, 4, 5],
-  "button-deck": [4, 33, 4, 4],
-  ops: [0, 37, 6, 6],
+  // theater proportions: big stream (~75%), slim chat rail (~25%), taller so it
+  // eats the dead space; the show schedule sits centered just beneath.
+  "stream-preview": [0, 0, 9, 20],
+  "chat-feed": [9, 0, 3, 20],
+  schedule: [3, 20, 6, 5],
+  stats: [0, 25, 4, 5],
+  "top-chatters": [4, 25, 4, 7],
+  polymarket: [8, 25, 4, 8],
+  "user-list": [0, 30, 4, 7],
+  clips: [4, 32, 4, 6],
+  giveaway: [8, 33, 4, 7],
+  "hype-meter": [0, 37, 4, 4],
+  "mood-meter": [4, 38, 4, 4],
+  "connection-status": [8, 40, 4, 4],
+  "clip-radar": [0, 41, 4, 5],
+  "button-deck": [4, 42, 4, 4],
+  ops: [0, 46, 6, 6],
 };
 
 const ALL = Object.keys(WIDGET_META) as WidgetKind[];
-// Every Pro widget is available; only the stream + chat show by default.
-const DEFAULT_HIDDEN = ALL.filter((k) => k !== "stream-preview" && k !== "chat-feed");
+// Stock layout: stream + chat + the show-schedule card show by default.
+const DEFAULT_HIDDEN = ALL.filter((k) => !["stream-preview", "chat-feed", "schedule"].includes(k));
 const TITLES = Object.fromEntries(ALL.map((k) => [k, WIDGET_META[k].label]));
 
 /** Icon button with a springy label that pops out on hover. */
@@ -131,7 +133,7 @@ export function SimpleApp() {
 
       <main className="relative z-10 min-h-0 flex-1 overflow-y-auto px-3 pb-6">
         <Suspense fallback={null}>
-          <PageGrid pageKey="simple-v2" items={items} editMode={edit} titles={TITLES} defaultHidden={DEFAULT_HIDDEN} />
+          <PageGrid pageKey="simple-v3" items={items} editMode={edit} titles={TITLES} defaultHidden={DEFAULT_HIDDEN} />
         </Suspense>
       </main>
 

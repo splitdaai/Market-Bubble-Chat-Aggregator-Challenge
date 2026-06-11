@@ -258,7 +258,8 @@ export type WidgetKind =
   | "user-list"
   | "stream-preview"
   | "ops"
-  | "polymarket";
+  | "polymarket"
+  | "schedule";
 
 export interface Layout {
   version: 1;

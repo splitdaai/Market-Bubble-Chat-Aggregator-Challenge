@@ -110,6 +110,12 @@ export function AnalyticsTab() {
 
   const trendPoints = all.map((s) => ({ label: s.live ? "LIVE" : fmtDate(s.startedAt), value: valOf(s, metric.key, plat, account), live: s.live }));
 
+  // Mean of a KPI across the past streams in range (the "average per stream").
+  const avgVal = (field: KpiKey) => {
+    if (!pastInRange.length) return 0;
+    return pastInRange.reduce((sum, s) => sum + valOf(s, field, plat, account), 0) / pastInRange.length;
+  };
+
   const KPIS: { label: string; icon: React.ReactNode; field: KpiKey; fmt: (n: number) => string }[] = [
     { label: "Avg Viewers", icon: <Users size={14} />, field: "avgViewers", fmt: fmtViewers },
     { label: "Peak Viewers", icon: <Eye size={14} />, field: "peakViewers", fmt: fmtViewers },
@@ -209,19 +215,27 @@ export function AnalyticsTab() {
       {/* current / in-progress stream — live snapshot */}
       <CurrentStreamCard live={live} prev={prev} snap={snap} plat={plat} account={account} pace={pace} />
 
-      {/* KPI cards */}
+      {/* per-stream AVERAGE across history (NOT a copy of the current stream) —
+          the delta shows how the live stream compares to your norm. */}
+      <div className="mb-2 mt-5 flex items-baseline gap-2">
+        <h3 className="text-sm font-bold uppercase tracking-widest text-muted">Per-stream average</h3>
+        <span className="text-[11px] text-faint">{pastInRange.length} past stream{pastInRange.length === 1 ? "" : "s"} · Δ = current vs average</span>
+      </div>
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
-        {KPIS.map((k) => (
-          <KpiCard
-            key={k.label}
-            label={k.label}
-            icon={k.icon}
-            value={k.fmt(valOf(live, k.field, plat, account))}
-            curr={valOf(live, k.field, plat, account)}
-            prev={valOf(prev, k.field, plat, account)}
-            spark={all.map((s) => valOf(s, k.field, plat, account))}
-          />
-        ))}
+        {KPIS.map((k) => {
+          const avg = avgVal(k.field);
+          return (
+            <KpiCard
+              key={k.label}
+              label={k.label}
+              icon={k.icon}
+              value={k.fmt(avg)}
+              curr={valOf(live, k.field, plat, account)}
+              prev={avg}
+              spark={pastInRange.map((s) => valOf(s, k.field, plat, account))}
+            />
+          );
+        })}
       </div>
 
       {/* trend chart */}

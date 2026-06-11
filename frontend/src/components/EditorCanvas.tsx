@@ -1,7 +1,7 @@
 import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import GridLayout, { WidthProvider, type Layout as RGLLayout } from "react-grid-layout";
 import { useToastStore } from "@/store/toastStore";
-import { GripVertical, X, Plus, MessageSquare, Activity, BarChart3, Flame, Zap, Smile, Scissors, Trophy, Film, Users, Monitor, LayoutGrid, TrendingUp } from "lucide-react";
+import {GripVertical, X, Plus, MessageSquare, Activity, BarChart3, Flame, Zap, Smile, Scissors, Trophy, Film, Users, Monitor, LayoutGrid, TrendingUp, CalendarClock } from "lucide-react";
 import { useLayoutStore } from "@/store/layoutStore";
 import type { PanelLayout, WidgetKind, ActionButton } from "@shared/types";
 
@@ -20,6 +20,7 @@ const UserList = lazy(() => import("./widgets/UserList").then((m) => ({ default:
 const StreamPreview = lazy(() => import("./widgets/StreamPreview").then((m) => ({ default: m.StreamPreview })));
 const OpsPanel = lazy(() => import("./widgets/OpsPanel").then((m) => ({ default: m.OpsPanel })));
 const PolymarketPanel = lazy(() => import("./widgets/PolymarketPanel").then((m) => ({ default: m.PolymarketPanel })));
+const ShowSchedule = lazy(() => import("./widgets/ShowSchedule").then((m) => ({ default: m.ShowSchedule })));
 
 export const WIDGET_META: Record<WidgetKind, { label: string; icon: React.ReactNode }> = {
   "chat-feed": { label: "Chat Feed", icon: <MessageSquare size={15} /> },
@@ -36,6 +37,7 @@ export const WIDGET_META: Record<WidgetKind, { label: string; icon: React.ReactN
   "stream-preview": { label: "Stream Preview", icon: <Monitor size={15} /> },
   ops: { label: "Ops Panel", icon: <LayoutGrid size={15} /> },
   polymarket: { label: "Polymarket", icon: <TrendingUp size={15} /> },
+  schedule: { label: "Show Schedule", icon: <CalendarClock size={15} /> },
 };
 
 export function renderWidget(panel: PanelLayout, onEditButton: (b?: ActionButton) => void) {
@@ -54,6 +56,7 @@ export function renderWidget(panel: PanelLayout, onEditButton: (b?: ActionButton
     case "stream-preview": return <StreamPreview />;
     case "ops": return <OpsPanel />;
     case "polymarket": return <PolymarketPanel />;
+    case "schedule": return <ShowSchedule />;
   }
 }
 
