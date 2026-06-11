@@ -42,14 +42,14 @@ export function OverlayMarket({ el }: { el: OverlayElement }) {
 
         <div className="line-clamp-2 py-0.5 text-[14px] font-extrabold leading-tight text-white">{m.question}</div>
 
-        {/* yes / no split bar */}
+        {/* yes / no split bar — Market Bubble theme (gold Yes, neutral No) */}
         <div className="mt-0.5 flex h-2 w-full overflow-hidden rounded-full bg-white/10">
-          <div className="h-full bg-emerald-500" style={{ width: `${yes}%`, boxShadow: "0 0 8px rgba(16,185,129,0.7)" }} />
-          <div className="h-full bg-red-500" style={{ width: `${no}%` }} />
+          <div className="h-full" style={{ width: `${yes}%`, background: "var(--vc-accent)", boxShadow: "0 0 10px color-mix(in srgb, var(--vc-accent) 70%, transparent)" }} />
+          <div className="h-full bg-white/15" style={{ width: `${no}%` }} />
         </div>
         <div className="mt-1 flex items-center justify-between text-[13px] font-black tabular-nums">
-          <span className="text-emerald-400">Yes {yes}%</span>
-          <span className="text-red-400">No {no}%</span>
+          <span className="text-accent">Yes {yes}%</span>
+          <span className="text-white/60">No {no}%</span>
         </div>
 
         {!compact && (

@@ -134,14 +134,14 @@ export function PolymarketPanel() {
                   <span className="line-clamp-2 text-[13px] font-bold leading-tight text-ink">{m.question}</span>
                   <span className="shrink-0 truncate text-[11px] font-semibold text-ink/70" style={{ maxWidth: 90 }}>{m.outcome}</span>
                 </div>
-                {/* yes / no split bar (green / red, like Polymarket) */}
+                {/* yes / no split bar — Market Bubble theme (gold Yes, neutral No) */}
                 <div className="flex h-2 w-full overflow-hidden rounded-full bg-white/8">
-                  <div className="h-full bg-emerald-500" style={{ width: `${yes}%` }} />
-                  <div className="h-full bg-red-500" style={{ width: `${no}%` }} />
+                  <div className="h-full" style={{ width: `${yes}%`, background: "var(--vc-accent)", boxShadow: "0 0 8px color-mix(in srgb, var(--vc-accent) 55%, transparent)" }} />
+                  <div className="h-full bg-white/12" style={{ width: `${no}%` }} />
                 </div>
                 <div className="flex items-center justify-between text-[11px] font-bold tabular-nums">
-                  <span className="text-emerald-400">Yes {yes}%</span>
-                  <span className="text-red-400">No {no}%</span>
+                  <span className="text-accent">Yes {yes}%</span>
+                  <span className="text-muted">No {no}%</span>
                 </div>
                 <div className="flex items-center justify-between text-[10px] text-muted">
                   <span className="flex items-center gap-1.5">

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { AnimatePresence } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import type { Platform, ModerationAction, PanelLayout } from "@shared/types";
 import { useChatStore } from "@/store/chatStore";
 import { Message } from "./Message";
@@ -9,7 +9,7 @@ import { useToastStore } from "@/store/toastStore";
 import { burst } from "./Particles";
 import { accentColor } from "@/lib/theme";
 import { useActivePlatforms } from "@/hooks/useActivePlatforms";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, Search, X as XIcon } from "lucide-react";
 import { ChatComposer } from "./ChatComposer";
 
 /**
@@ -32,13 +32,24 @@ export function ChatFeed({ panel }: { panel: PanelLayout }) {
   // Panels can be scoped to specific platforms via props.platforms.
   const scoped = (panel.props?.platforms as Platform[] | undefined) ?? null;
 
-  const visible = useMemo(
-    () =>
-      messages.filter(
-        (m) => enabled[m.platform] && (!scoped || scoped.includes(m.platform)),
-      ),
-    [messages, enabled, scoped],
-  );
+  // Search / quick filters (collapsed behind the 🔍 in the header).
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const [chip, setChip] = useState<"all" | "hosts" | "mentions" | "tickers">("all");
+  const closeSearch = () => { setSearchOpen(false); setQuery(""); setChip("all"); };
+  const filtering = query.trim() !== "" || chip !== "all";
+
+  const visible = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return messages.filter((m) => {
+      if (!enabled[m.platform] || (scoped && !scoped.includes(m.platform))) return false;
+      if (chip === "hosts" && !m.badges?.some((b) => b.type === "broadcaster" || b.type === "moderator")) return false;
+      if (chip === "mentions" && !/@\w/.test(m.message)) return false;
+      if (chip === "tickers" && !/\$[A-Za-z]{2,6}\b/.test(m.message)) return false;
+      if (q && !m.message.toLowerCase().includes(q) && !m.username.toLowerCase().includes(q)) return false;
+      return true;
+    });
+  }, [messages, enabled, scoped, query, chip]);
 
   // Auto-scroll to bottom when pinned. Keyed on the newest message id (not
   // length) so it keeps following live once the buffer hits its cap — Twitch-
@@ -96,6 +107,13 @@ export function ChatFeed({ panel }: { panel: PanelLayout }) {
           </span>
         </div>
         <div className="flex items-center gap-1">
+          <button
+            onClick={() => (searchOpen ? closeSearch() : setSearchOpen(true))}
+            title="Search & filter messages"
+            className={`mr-0.5 grid h-6 w-6 place-items-center rounded-md transition ${searchOpen || filtering ? "bg-accent/20 text-accent" : "text-muted hover:text-ink"}`}
+          >
+            <Search size={13} />
+          </button>
           {(scoped ?? ALL).map((p) => (
             <button
               key={p}
@@ -108,6 +126,46 @@ export function ChatFeed({ panel }: { panel: PanelLayout }) {
           ))}
         </div>
       </div>
+
+      {/* search + quick filters — slim row that slides open under the header */}
+      <AnimatePresence initial={false}>
+        {searchOpen && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.18, ease: "easeOut" }}
+            className="overflow-hidden border-b border-white/10"
+          >
+            <div className="flex items-center gap-1.5 px-3 py-2">
+              <div className="flex min-w-0 flex-1 items-center gap-1.5 rounded-lg border border-white/12 bg-white/[0.03] px-2 py-1 focus-within:border-accent/50">
+                <Search size={12} className="shrink-0 text-faint" />
+                <input
+                  autoFocus
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Escape") closeSearch(); }}
+                  placeholder="Filter messages or users…"
+                  className="w-full bg-transparent text-[12px] text-ink outline-none placeholder:text-faint"
+                />
+                {query && <button onClick={() => setQuery("")} className="text-faint hover:text-ink"><XIcon size={12} /></button>}
+              </div>
+              {([["all", "All"], ["hosts", "Hosts"], ["mentions", "Mentions"], ["tickers", "Tickers"]] as const).map(([k, l]) => (
+                <button
+                  key={k}
+                  onClick={() => setChip(k)}
+                  className={`shrink-0 rounded-md px-2 py-1 text-[10px] font-bold transition ${chip === k ? "bg-accent/20 text-accent" : "text-muted hover:text-ink"}`}
+                >
+                  {l}
+                </button>
+              ))}
+            </div>
+            {filtering && (
+              <div className="px-3 pb-1.5 text-[10px] text-faint">{visible.length} match{visible.length === 1 ? "" : "es"} · live messages keep streaming in</div>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* messages */}
       <div ref={scrollRef} onScroll={onScroll} className="vc-scroll relative flex-1 overflow-y-auto px-1.5 py-2">
