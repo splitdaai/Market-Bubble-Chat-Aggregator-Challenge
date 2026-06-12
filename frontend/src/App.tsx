@@ -81,7 +81,8 @@ export default function App() {
     // ban / tip via TipModal inside UserCard) + toasts for mod confirmations.
     return (
       <Suspense fallback={null}>
-        <BroadcastView />
+        <BroadcastView onOpenConnections={() => setConnOpen(true)} />
+        {connOpen && <ConnectionsManager open={connOpen} onClose={() => setConnOpen(false)} />}
         {userCardOpen && <UserCard />}
         {hasToasts && <Toaster />}
       </Suspense>

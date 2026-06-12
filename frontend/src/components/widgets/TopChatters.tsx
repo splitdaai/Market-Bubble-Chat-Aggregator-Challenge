@@ -7,6 +7,7 @@ import { SourceBadge, platformColor } from "../SourceBadge";
 import { compact } from "@/lib/format";
 import { subRevenue } from "@/lib/revenue";
 import { bucksFor } from "@/lib/bucks";
+import { BucksIcon } from "../BucksIcon";
 import type { Platform } from "@shared/types";
 
 type Tab = "chatters" | "subs" | "bucks";
@@ -24,7 +25,7 @@ const RANGES: { key: RangeKey; label: string }[] = [
 const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
   { id: "chatters", label: "Chatters", icon: <MessageSquare size={12} /> },
   { id: "subs", label: "Subs", icon: <Gift size={12} /> },
-  { id: "bucks", label: "Bucks", icon: <span className="text-[12px] leading-none">🫧</span> },
+  { id: "bucks", label: "Bucks", icon: <BucksIcon size={13} /> },
 ];
 
 interface Row {
@@ -56,7 +57,7 @@ export function TopChatters() {
   const bucksRows: Row[] =
     tab === "bucks"
       ? listUsers()
-          .map((u) => ({ name: u.name, platform: u.platform, channel: u.channel, value: bucksFor(u) * f, display: `🫧 ${sc(bucksFor(u))}` }))
+          .map((u) => ({ name: u.name, platform: u.platform, channel: u.channel, value: bucksFor(u) * f, display: sc(bucksFor(u)) }))
           .sort((a, b) => b.value - a.value)
           .slice(0, 25)
       : [];
@@ -76,7 +77,7 @@ export function TopChatters() {
   const max = Math.max(1, rows[0]?.value ?? 1);
   const summary =
     tab === "subs" ? `$${sc(snap.totalSubRevenue)} from subs`
-    : tab === "bucks" ? `🫧 ${sc(listUsers().reduce((s, u) => s + bucksFor(u), 0))} issued`
+    : tab === "bucks" ? `${sc(listUsers().reduce((s, u) => s + bucksFor(u), 0))} BB issued`
     : `${sc(snap.totals.uniqueChatters)} chatters`;
 
   return (
@@ -145,6 +146,7 @@ export function TopChatters() {
             <span className="z-10 flex-1 truncate text-sm font-semibold text-ink">{r.name}</span>
             <span className={`z-10 flex items-baseline gap-1 text-xs font-bold tabular-nums ${tab === "chatters" ? "text-accent" : tab === "bucks" ? "text-amber-300" : "text-emerald-400"}`}>
               {tab === "subs" && r.subCount != null && <span className="text-[10px] font-semibold text-muted">{r.subCount} sub{r.subCount === 1 ? "" : "s"}</span>}
+              {tab === "bucks" && <BucksIcon size={12} />}
               {r.display}
             </span>
           </motion.div>

@@ -12,6 +12,7 @@ import { initEmotes } from "@/lib/emotes";
 import { setViewerWallet } from "@/lib/viewerWallets";
 import { useViewerStore } from "@/store/viewerStore";
 import { useWalletStore } from "@/store/walletStore";
+import type { ChatMessage } from "@shared/types";
 
 /**
  * Boots the transport (real Socket.io if VITE_BACKEND_URL is set, else the mock
@@ -20,7 +21,7 @@ import { useWalletStore } from "@/store/walletStore";
  * dashboard read-model. Mounted once.
  */
 export function useChatConnection() {
-  const addMessage = useChatStore((s) => s.addMessage);
+  const addMessages = useChatStore((s) => s.addMessages);
   const setStatuses = useChatStore((s) => s.setStatuses);
   const setMock = useChatStore((s) => s.setMock);
   const demo = useModeStore((s) => s.demo);
@@ -30,6 +31,37 @@ export function useChatConnection() {
     const tick = useStatsStore.getState().tick;
     const applyBackendStats = useStatsStore.getState().applyBackendStats;
     const giveawayIngest = useGiveawayStore.getState().ingest;
+    let queuedMessages: ChatMessage[] = [];
+    let rafId: number | null = null;
+    let timeoutId: number | null = null;
+
+    const flushMessages = () => {
+      rafId = null;
+      timeoutId = null;
+      if (queuedMessages.length === 0) return;
+
+      const batch = queuedMessages;
+      queuedMessages = [];
+      addMessages(batch);
+      for (const m of batch) {
+        ingest(m);
+        giveawayIngest(m);
+      }
+    };
+
+    const scheduleFlush = () => {
+      if (rafId !== null || timeoutId !== null) return;
+      if (document.visibilityState === "visible") {
+        rafId = window.requestAnimationFrame(flushMessages);
+      } else {
+        timeoutId = window.setTimeout(flushMessages, 16);
+      }
+    };
+
+    const queueMessage = (m: ChatMessage) => {
+      queuedMessages.push(m);
+      scheduleFlush();
+    };
 
     // Switching mode wipes any stale data so demo numbers never leak into live.
     useStatsStore.getState().reset();
@@ -70,11 +102,7 @@ export function useChatConnection() {
     })();
 
     const conn = connect({
-      onMessage: (m) => {
-        addMessage(m);
-        ingest(m);
-        giveawayIngest(m);
-      },
+      onMessage: queueMessage,
       onStatus: setStatuses,
     }, demo);
     setMock(conn.isMock);
@@ -113,6 +141,9 @@ export function useChatConnection() {
     return () => {
       conn.disconnect();
       window.clearInterval(ticker);
+      if (rafId !== null) window.cancelAnimationFrame(rafId);
+      if (timeoutId !== null) window.clearTimeout(timeoutId);
+      queuedMessages = [];
       cancelEmoteLoad();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps

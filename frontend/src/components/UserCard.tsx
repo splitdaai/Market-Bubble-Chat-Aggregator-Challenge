@@ -17,6 +17,7 @@ import { moderate } from "@/lib/api";
 import { compact } from "@/lib/format";
 import { bucksFor } from "@/lib/bucks";
 import { TipModal } from "./TipModal";
+import { BucksIcon } from "./BucksIcon";
 import type { Platform } from "@shared/types";
 
 function fmtTime(ts: number): string {
@@ -215,7 +216,7 @@ export function UserCard() {
           <Stat icon={<DollarSign size={13} />} label="tipped" value={`$${compact(row?.donated ?? 0)}`} />
           <Stat icon={<Gift size={13} />} label="subs" value={String(row?.subs ?? 0)} />
           <Stat
-            icon={<span className="text-[13px] leading-none">🫧</span>}
+            icon={<BucksIcon size={13} />}
             label="Bubble Bucks"
             value={compact(bucksFor({ count: Math.max(userMessages.length, row?.count ?? 0), donated: row?.donated ?? 0, subs: row?.subs ?? 0, first: row?.first, last: row?.last }))}
           />

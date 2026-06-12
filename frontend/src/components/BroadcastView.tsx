@@ -1,5 +1,6 @@
 import { memo, useCallback, useEffect, useRef, useState, useMemo } from "react";
 import { AnimatePresence, motion } from "framer-motion";
+import { Plug } from "lucide-react";
 import { useChatStore } from "@/store/chatStore";
 import { useStatsStore } from "@/store/statsStore";
 import { useModeStore } from "@/store/modeStore";
@@ -59,7 +60,7 @@ function StreamerChip({ name, viewers, breakdown }: { name: string; viewers: num
   );
 }
 
-export function BroadcastView() {
+export function BroadcastView({ onOpenConnections }: { onOpenConnections?: () => void }) {
   const messages = useChatStore((s) => s.messages);
   const enabled = useChatStore((s) => s.enabled);
   const deleted = useChatStore((s) => s.deleted);
@@ -241,7 +242,7 @@ export function BroadcastView() {
   // ── Plain mode (real OBS source): the panel fills the viewport ──
   if (!stage) return <div className="h-screen">{panel}</div>;
 
-  return <StageView panel={panel} />;
+  return <StageView panel={panel} onOpenConnections={onOpenConnections} />;
 }
 
 const BroadcastMessageRow = memo(function BroadcastMessageRow({ msg, deleted }: { msg: ChatMessage; deleted: boolean }) {
@@ -263,14 +264,13 @@ const BroadcastMessageRow = memo(function BroadcastMessageRow({ msg, deleted }: 
 // footage in a fixed 16:9 box, panel composited over the center capture
 // tile. Position is loaded from the saved operator-tuned placement.
 
-/** Operator-tuned to seat the chat panel cleanly inside the show's white
- *  tile border — thin white frame visible on all four sides, no video
- *  peeking through. Tuned off Eddie's reference screenshot: the broadcast
- *  frame's inner edges sit at roughly x 523→1397, y 55→679 on 1920×1080,
- *  and this default insets a touch so the white border frames the panel
- *  rather than getting covered. Percentages are relative to the letterboxed
- *  16:9 frame so the panel tracks the tile at every window size. */
-const DEFAULT_TILE = { left: 27.5, top: 6.0, width: 45.0, height: 59.5 };
+/** EDDIE'S hand-tuned placement (set on 2026-06-11) — seats the
+ *  chat panel inside the show's white tile border. DO NOT re-derive these
+ *  from pixel measurements; when the placement needs to change, bake the
+ *  tuned readout values here.
+ *  Percentages are relative to the letterboxed 16:9 frame so the panel
+ *  tracks the tile at every window size. */
+const DEFAULT_TILE = { left: 27.7, top: 5.9, width: 44.9, height: 59.4 };
 const TILE_KEY = "vibechat-broadcast-tile";
 
 interface Tile { left: number; top: number; width: number; height: number }
@@ -286,11 +286,48 @@ function loadTile(): Tile {
   return { ...DEFAULT_TILE };
 }
 
-function StageView({ panel }: { panel: React.ReactNode }) {
-  const [tile] = useState<Tile>(() => loadTile());
+function StageView({ panel, onOpenConnections }: { panel: React.ReactNode; onOpenConnections?: () => void }) {
+  const [tile, setTile] = useState<Tile>(() => loadTile());
+  const [edit, setEdit] = useState(false);
+  const demo = useModeStore((s) => s.demo);
+  const toggleDemo = useModeStore((s) => s.toggle);
   const frameRef = useRef<HTMLDivElement>(null);
 
-  // Preserve existing tuned positions, but keep the stage preview locked for demos.
+  // Pointer-driven drag + resize (frame-relative %, resolution independent).
+  const dragRef = useRef<{ mode: "move" | "resize"; sx: number; sy: number; t0: Tile; frameW: number; frameH: number } | null>(null);
+  const onPointerDown = (mode: "move" | "resize") => (e: React.PointerEvent) => {
+    if (!edit) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const frame = frameRef.current;
+    if (!frame) return;
+    const r = frame.getBoundingClientRect();
+    dragRef.current = { mode, sx: e.clientX, sy: e.clientY, t0: { ...tile }, frameW: r.width, frameH: r.height };
+    (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
+  };
+  useEffect(() => {
+    const onMove = (e: PointerEvent) => {
+      const d = dragRef.current;
+      if (!d) return;
+      const dx = ((e.clientX - d.sx) / d.frameW) * 100;
+      const dy = ((e.clientY - d.sy) / d.frameH) * 100;
+      if (d.mode === "move") {
+        setTile({ left: clamp(d.t0.left + dx, 0, 100 - d.t0.width), top: clamp(d.t0.top + dy, 0, 100 - d.t0.height), width: d.t0.width, height: d.t0.height });
+      } else {
+        setTile({ left: d.t0.left, top: d.t0.top, width: clamp(d.t0.width + dx, 12, 100 - d.t0.left), height: clamp(d.t0.height + dy, 10, 100 - d.t0.top) });
+      }
+    };
+    const onUp = () => { dragRef.current = null; };
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+    return () => { window.removeEventListener("pointermove", onMove); window.removeEventListener("pointerup", onUp); };
+  }, []);
+
+  const copyLayout = async () => {
+    try { await navigator.clipboard.writeText(JSON.stringify(tile)); } catch { /* ignore */ }
+  };
+
+  // Persist the operator-tuned placement (clears the key when it matches the default).
   useEffect(() => {
     try {
       const isDefault = tile.left === DEFAULT_TILE.left && tile.top === DEFAULT_TILE.top && tile.width === DEFAULT_TILE.width && tile.height === DEFAULT_TILE.height;
@@ -328,9 +365,29 @@ function StageView({ panel }: { panel: React.ReactNode }) {
           style={{
             ...tileStyle,
             contain: "layout paint style",
+            outline: edit ? "2px dashed #d9a547" : undefined,
+            outlineOffset: edit ? 2 : 0,
           }}
         >
           {panel}
+          {edit && (
+            <>
+              <div
+                onPointerDown={onPointerDown("move")}
+                title="Drag to reposition"
+                className="absolute -top-3 left-1/2 z-30 flex -translate-x-1/2 cursor-move items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-black uppercase tracking-[0.14em]"
+                style={{ background: "#d9a547", color: "#14100a", boxShadow: "0 4px 14px rgba(0,0,0,0.5)" }}
+              >
+                ⋮⋮ Drag
+              </div>
+              <div
+                onPointerDown={onPointerDown("resize")}
+                title="Drag to resize"
+                className="absolute -bottom-2 -right-2 z-30 h-6 w-6 cursor-nwse-resize rounded-md"
+                style={{ background: "#d9a547", border: "2px solid #14100a", boxShadow: "0 2px 8px rgba(0,0,0,0.5)" }}
+              />
+            </>
+          )}
         </div>
       </div>
 
@@ -344,6 +401,67 @@ function StageView({ panel }: { panel: React.ReactNode }) {
           ← Dashboard
         </a>
         <CopyObsUrlButton />
+      </div>
+
+      <div className="absolute right-4 top-4 z-20 flex items-center gap-2">
+        {edit && (
+          <>
+            <button
+              onClick={copyLayout}
+              title="Copy this layout as JSON — paste it to Claude to bake in as the default"
+              className="rounded-lg px-2.5 py-1 font-mono text-[11px] transition hover:brightness-125"
+              style={{ background: "rgba(8,7,6,0.82)", border: "1px solid rgba(217,165,71,0.25)", color: "#e8c987", backdropFilter: "blur(6px)" }}
+            >
+              ⧉ {tile.left.toFixed(1)},{tile.top.toFixed(1)} · {tile.width.toFixed(1)}×{tile.height.toFixed(1)}
+            </button>
+            <button
+              onClick={() => setTile({ ...DEFAULT_TILE })}
+              className="rounded-xl px-3 py-2 text-[13px] font-bold transition hover:brightness-125"
+              style={{ background: "rgba(8,7,6,0.82)", border: "1px solid rgba(217,165,71,0.4)", color: "#e8c987", backdropFilter: "blur(6px)" }}
+            >
+              ↻ Reset
+            </button>
+          </>
+        )}
+        <button
+          onClick={() => setEdit((v) => !v)}
+          title="Drag / resize the chat panel placement"
+          className="flex items-center gap-1.5 rounded-xl px-3 py-2 text-[13px] font-bold transition hover:brightness-125"
+          style={
+            edit
+              ? { background: "#d9a547", color: "#14100a", border: "1px solid #d9a547", boxShadow: "0 4px 14px rgba(217,165,71,0.35)" }
+              : { background: "rgba(8,7,6,0.82)", border: "1px solid rgba(217,165,71,0.4)", color: "#e8c987", backdropFilter: "blur(6px)" }
+          }
+        >
+          {edit ? "✓ Done" : "✎ Edit"}
+        </button>
+        {onOpenConnections && (
+          <button
+            onClick={onOpenConnections}
+            title="Open platform and OBS connections"
+            className="flex items-center gap-1.5 rounded-xl px-3 py-2 text-[13px] font-bold transition hover:brightness-125"
+            style={{ background: "rgba(8,7,6,0.82)", border: "1px solid rgba(217,165,71,0.4)", color: "#e8c987", backdropFilter: "blur(6px)" }}
+          >
+            <Plug size={14} />
+            Connections
+          </button>
+        )}
+        <button
+          onClick={toggleDemo}
+          title={demo ? "Switch Chat Only to live data" : "Switch Chat Only to demo data"}
+          className="flex items-center gap-1.5 rounded-xl px-3 py-2 text-[13px] font-black uppercase tracking-[0.12em] transition hover:brightness-125"
+          style={
+            demo
+              ? { background: "rgba(217,165,71,0.92)", border: "1px solid rgba(217,165,71,0.95)", color: "#14100a", boxShadow: "0 4px 14px rgba(217,165,71,0.35)" }
+              : { background: "rgba(22,230,164,0.18)", border: "1px solid rgba(22,230,164,0.55)", color: "#86ffd5", backdropFilter: "blur(6px)" }
+          }
+        >
+          <span
+            className="h-1.5 w-1.5 rounded-full"
+            style={{ background: demo ? "#14100a" : "#16e6a4" }}
+          />
+          {demo ? "Demo" : "Live"}
+        </button>
       </div>
 
     </div>

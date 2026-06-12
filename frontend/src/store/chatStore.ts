@@ -43,6 +43,7 @@ interface ChatState {
   isMock: boolean;
 
   addMessage: (m: ChatMessage) => void;
+  addMessages: (messages: ChatMessage[]) => void;
   setStatuses: (s: ConnectionStatus[]) => void;
   togglePlatform: (p: Platform) => void;
   markDeleted: (id: string) => void;
@@ -59,20 +60,10 @@ export const useChatStore = create<ChatState>((set) => ({
   isMock: true,
 
   addMessage: (rawMsg) =>
-    set((s) => {
-      // Auto-mod: drop hard slurs entirely, censor profanity in everything else.
-      const mod = moderate(rawMsg.message);
-      if (mod.blocked) return s;
-      const m = mod.text === rawMsg.message ? rawMsg : { ...rawMsg, message: mod.text };
-      const next = s.messages.length >= MAX_MESSAGES
-        ? [...s.messages.slice(s.messages.length - MAX_MESSAGES + 1), m]
-        : [...s.messages, m];
-      // Append to the user's own history (capped per user).
-      const key = userKey(m.platform, m.username);
-      const prev = s.history[key] ?? [];
-      const userHist = prev.length >= MAX_PER_USER ? [...prev.slice(prev.length - MAX_PER_USER + 1), m] : [...prev, m];
-      return { messages: next, history: trimHistoryUsers({ ...s.history, [key]: userHist }) };
-    }),
+    set((s) => appendMessages(s, [rawMsg])),
+
+  addMessages: (rawMessages) =>
+    set((s) => appendMessages(s, rawMessages)),
 
   setStatuses: (statuses) => set({ statuses }),
 
@@ -89,3 +80,34 @@ export const useChatStore = create<ChatState>((set) => ({
   setMock: (isMock) => set({ isMock }),
   clear: () => set({ messages: [], history: {} }),
 }));
+
+function appendMessages(s: ChatState, rawMessages: ChatMessage[]): Partial<ChatState> | ChatState {
+  if (rawMessages.length === 0) return s;
+
+  const accepted: ChatMessage[] = [];
+  const nextHistory: Record<string, ChatMessage[]> = { ...s.history };
+
+  for (const rawMsg of rawMessages) {
+    // Auto-mod: drop hard slurs entirely, censor profanity in everything else.
+    const mod = moderate(rawMsg.message);
+    if (mod.blocked) continue;
+
+    const m = mod.text === rawMsg.message ? rawMsg : { ...rawMsg, message: mod.text };
+    accepted.push(m);
+
+    // Append to the user's own history (capped per user).
+    const key = userKey(m.platform, m.username);
+    const prev = nextHistory[key] ?? [];
+    nextHistory[key] = prev.length >= MAX_PER_USER
+      ? [...prev.slice(prev.length - MAX_PER_USER + 1), m]
+      : [...prev, m];
+  }
+
+  if (accepted.length === 0) return s;
+
+  const combined = s.messages.length + accepted.length > MAX_MESSAGES
+    ? [...s.messages, ...accepted].slice(-MAX_MESSAGES)
+    : [...s.messages, ...accepted];
+
+  return { messages: combined, history: trimHistoryUsers(nextHistory) };
+}

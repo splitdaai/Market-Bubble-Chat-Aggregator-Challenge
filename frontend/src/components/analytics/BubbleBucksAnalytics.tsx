@@ -4,13 +4,14 @@ import { useUserCardStore } from "@/store/userCardStore";
 import { bucksFor, balanceFor } from "@/lib/bucks";
 import { SourceBadge, platformColor } from "../SourceBadge";
 import { compact } from "@/lib/format";
+import { BucksIcon } from "../BucksIcon";
 
 type Lens = "earned" | "spent" | "balance";
 
 const LENSES: { id: Lens; label: string; desc: string; color: string }[] = [
-  { id: "earned",  label: "Top Earners",   desc: "Lifetime 🫧 earned · watch + chat + subs + support", color: "#d9a547" },
-  { id: "spent",   label: "Top Spenders",  desc: "Lifetime 🫧 spent · engagement, perks, viewer actions", color: "#f97316" },
-  { id: "balance", label: "Top Balances",  desc: "Current available 🫧 · earned minus spent",           color: "#16e6a4" },
+  { id: "earned",  label: "Top Earners",   desc: "Lifetime BB earned · watch + chat + subs + support", color: "#d9a547" },
+  { id: "spent",   label: "Top Spenders",  desc: "Lifetime BB spent · engagement, perks, viewer actions", color: "#f97316" },
+  { id: "balance", label: "Top Balances",  desc: "Current available BB · earned minus spent",           color: "#16e6a4" },
 ];
 
 /**
@@ -56,7 +57,7 @@ export function BubbleBucksAnalytics() {
     <section className="mt-5 rounded-2xl border border-white/8 bg-white/[0.02] p-4">
       <div className="mb-3 flex flex-wrap items-baseline gap-x-3 gap-y-1">
         <h3 className="flex items-center gap-1.5 text-sm font-bold uppercase tracking-widest text-muted">
-          <span aria-hidden>🫧</span> Bubble Bucks
+          <BucksIcon size={15} /> Bubble Bucks
         </h3>
         <span className="text-[11px] text-faint">
           {compact(totalEarned)} issued · {compact(totalSpent)} spent · {compact(Math.max(0, totalEarned - totalSpent))} circulating
@@ -111,7 +112,7 @@ export function BubbleBucksAnalytics() {
               {u.channel && <span className="z-10 shrink-0 text-[10px] font-semibold text-muted/80">{u.channel}</span>}
               <span className="z-10 flex-1 truncate text-sm font-semibold text-ink">{u.name}</span>
               <span className="z-10 flex shrink-0 items-baseline gap-0.5 text-[12px] font-extrabold tabular-nums" style={{ color: LENSES.find((l) => l.id === lens)!.color }}>
-                <span className="opacity-70">🫧</span>{compact(value)}
+                <BucksIcon size={12} className="opacity-90" />{compact(value)}
               </span>
             </button>
           );
