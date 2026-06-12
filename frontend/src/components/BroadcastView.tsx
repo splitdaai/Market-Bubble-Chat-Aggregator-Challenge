@@ -297,9 +297,22 @@ function loadTile(): Tile {
 function StageView({ panel, onOpenConnections }: { panel: React.ReactNode; onOpenConnections?: () => void }) {
   const [tile, setTile] = useState<Tile>(() => loadTile());
   const [edit, setEdit] = useState(false);
+  const [savedFlash, setSavedFlash] = useState(false);
   const demo = useModeStore((s) => s.demo);
   const toggleDemo = useModeStore((s) => s.toggle);
   const frameRef = useRef<HTMLDivElement>(null);
+
+  // Edit/Done toggle. Clicking "Done" explicitly persists the current
+  // placement and flashes "Saved" so the operator knows it stuck (the
+  // reactive effect below also keeps it saved live as they drag).
+  const toggleEdit = () => {
+    if (edit) {
+      try { localStorage.setItem(TILE_KEY, JSON.stringify(tile)); } catch { /* ignore */ }
+      setSavedFlash(true);
+      window.setTimeout(() => setSavedFlash(false), 1600);
+    }
+    setEdit((v) => !v);
+  };
 
   // Pointer-driven drag + resize (frame-relative %, resolution independent).
   const dragRef = useRef<{ mode: "move" | "resize"; sx: number; sy: number; t0: Tile; frameW: number; frameH: number } | null>(null);
@@ -432,16 +445,18 @@ function StageView({ panel, onOpenConnections }: { panel: React.ReactNode; onOpe
           </>
         )}
         <button
-          onClick={() => setEdit((v) => !v)}
-          title="Drag / resize the chat panel placement"
+          onClick={toggleEdit}
+          title="Drag / resize the chat panel placement — Done saves it"
           className="flex items-center gap-1.5 rounded-xl px-3 py-2 text-[13px] font-bold transition hover:brightness-125"
           style={
-            edit
+            savedFlash
+              ? { background: "#16e6a4", color: "#04140d", border: "1px solid #16e6a4", boxShadow: "0 4px 14px rgba(22,230,164,0.4)" }
+              : edit
               ? { background: "#d9a547", color: "#14100a", border: "1px solid #d9a547", boxShadow: "0 4px 14px rgba(217,165,71,0.35)" }
               : { background: "rgba(8,7,6,0.82)", border: "1px solid rgba(217,165,71,0.4)", color: "#e8c987", backdropFilter: "blur(6px)" }
           }
         >
-          {edit ? "✓ Done" : "✎ Edit"}
+          {savedFlash ? "✓ Saved" : edit ? "✓ Done" : "✎ Edit"}
         </button>
         {onOpenConnections && (
           <button
