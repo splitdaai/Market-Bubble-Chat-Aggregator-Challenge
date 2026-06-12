@@ -429,7 +429,7 @@ function ChargingBull({ event }: { event: OverlayEngagementEvent }) {
           key={`${event.id}-speed-${i}`}
           initial={{ x: "-30vw", opacity: 0, scaleX: 0.25 }}
           animate={{ x: "124vw", opacity: [0, 0.9, 0], scaleX: [0.25, 1.45, 0.4] }}
-          transition={{ duration: 0.78 + (i % 5) * 0.08, delay: i * 0.026, ease: IMPACT_EASE }}
+          transition={{ duration: 1.18 + (i % 5) * 0.1, delay: i * 0.035, ease: IMPACT_EASE }}
           className="absolute h-[3px] rounded-full bg-[linear-gradient(90deg,transparent,#d7fff2,#16e6a4,transparent)] blur-[0.5px]"
           style={{ top: `${18 + ((i * 11) % 64)}%`, left: "-18%", width: `${18 + (i % 4) * 8}%` }}
         />
@@ -448,19 +448,20 @@ function ChargingBull({ event }: { event: OverlayEngagementEvent }) {
         draggable={false}
         initial={{ x: "-78vw", y: "28vh", opacity: 0, scale: 0.72, rotate: -3, filter: "blur(5px) contrast(1.15) saturate(1.2) drop-shadow(0 0 0 rgba(22,230,164,0))" }}
         animate={{
-          x: ["-78vw", "-18vw", "26vw", "118vw"],
-          y: ["30vh", "22vh", "17vh", "24vh"],
-          opacity: [0, 1, 1, 0],
-          scale: [0.72, 1.04, 1.18, 1.04],
-          rotate: [-3, 1.5, -1, 0],
+          x: ["-78vw", "-18vw", "14vw", "42vw", "118vw"],
+          y: ["30vh", "22vh", "17vh", "18vh", "24vh"],
+          opacity: [0, 1, 1, 1, 0],
+          scale: [0.72, 1.04, 1.18, 1.16, 1.04],
+          rotate: [-3, 1.5, -1, 0.6, 0],
           filter: [
             "blur(5px) contrast(1.18) saturate(1.22) drop-shadow(0 0 0 rgba(22,230,164,0))",
             "blur(0px) contrast(1.12) saturate(1.18) drop-shadow(0 0 34px rgba(22,230,164,0.52))",
             "blur(0px) contrast(1.12) saturate(1.2) drop-shadow(0 0 42px rgba(22,230,164,0.62))",
+            "blur(0px) contrast(1.12) saturate(1.18) drop-shadow(0 0 36px rgba(22,230,164,0.52))",
             "blur(2px) contrast(1.08) saturate(1.12) drop-shadow(0 0 18px rgba(22,230,164,0.32))",
           ],
         }}
-        transition={{ duration: 2.85, times: [0, 0.26, 0.62, 1], ease: IMPACT_EASE }}
+        transition={{ duration: 4.35, times: [0, 0.25, 0.5, 0.74, 1], ease: IMPACT_EASE }}
         className="absolute left-0 h-[min(44vh,430px)] max-h-[430px] min-h-[210px] w-auto select-none drop-shadow-[0_24px_38px_rgba(0,0,0,0.62)]"
         style={{ willChange: "transform, opacity, filter" }}
       />
@@ -497,7 +498,7 @@ function BearSlash({ event }: { event: OverlayEngagementEvent }) {
           key={`${event.id}-claw-${i}`}
           initial={{ scaleX: 0, opacity: 0, x: "34vw", filter: "blur(5px)" }}
           animate={{ scaleX: [0, 1.08, 0.96], opacity: [0, 1, 0], x: "-26vw", filter: ["blur(5px)", "blur(0px)", "blur(2px)"] }}
-          transition={{ duration: 0.74, delay: 0.36 + i * 0.05, ease: IMPACT_EASE }}
+          transition={{ duration: 1.05, delay: 0.52 + i * 0.08, ease: IMPACT_EASE }}
           className="absolute left-[10%] h-[11px] w-[84%] origin-right rotate-[-17deg] rounded-full bg-[linear-gradient(90deg,transparent,#fff,#ff5c7a,#7d1025,transparent)] shadow-[0_0_34px_rgba(255,92,122,0.84)]"
           style={{ top: `${34 + i * 6}%` }}
         />
@@ -508,19 +509,20 @@ function BearSlash({ event }: { event: OverlayEngagementEvent }) {
         draggable={false}
         initial={{ x: "82vw", y: "18vh", opacity: 0, scale: 0.76, rotate: 4, filter: "blur(6px) contrast(1.16) saturate(1.2) drop-shadow(0 0 0 rgba(255,92,122,0))" }}
         animate={{
-          x: ["82vw", "18vw", "-18vw", "-116vw"],
-          y: ["21vh", "15vh", "17vh", "25vh"],
-          opacity: [0, 1, 1, 0],
-          scale: [0.76, 1.08, 1.18, 1.02],
-          rotate: [4, -2, 1, -5],
+          x: ["82vw", "24vw", "0vw", "-28vw", "-116vw"],
+          y: ["21vh", "15vh", "16vh", "18vh", "25vh"],
+          opacity: [0, 1, 1, 1, 0],
+          scale: [0.76, 1.08, 1.18, 1.14, 1.02],
+          rotate: [4, -2, 1, -1, -5],
           filter: [
             "blur(6px) contrast(1.18) saturate(1.2) drop-shadow(0 0 0 rgba(255,92,122,0))",
             "blur(0px) contrast(1.12) saturate(1.18) drop-shadow(0 0 34px rgba(255,92,122,0.56))",
             "blur(0px) contrast(1.12) saturate(1.2) drop-shadow(0 0 42px rgba(255,92,122,0.66))",
+            "blur(0px) contrast(1.12) saturate(1.18) drop-shadow(0 0 36px rgba(255,92,122,0.54))",
             "blur(2px) contrast(1.08) saturate(1.12) drop-shadow(0 0 18px rgba(255,92,122,0.34))",
           ],
         }}
-        transition={{ duration: 2.65, times: [0, 0.25, 0.58, 1], ease: IMPACT_EASE }}
+        transition={{ duration: 4.15, times: [0, 0.24, 0.5, 0.73, 1], ease: IMPACT_EASE }}
         className="absolute right-0 h-[min(48vh,460px)] max-h-[460px] min-h-[220px] w-auto select-none drop-shadow-[0_24px_38px_rgba(0,0,0,0.66)]"
         style={{ willChange: "transform, opacity, filter" }}
       />
