@@ -4,9 +4,6 @@ import { engageUrl, qrImageUrl, subscribeOverlayEvents, type OverlayEngagementEv
 import { compact } from "@/lib/format";
 
 const TTL = 9000;
-
-// shouldRenderEvent / eventCount live at the bottom of this file — Codex's
-// overlay-effect-pack supplies the real implementations.
 const METER_IDLE_MS = 5000;
 const EVENT_FLUSH_MS = 80;
 const MAX_EVENT_HISTORY = 16;
@@ -488,7 +485,7 @@ function eventTicker(event: OverlayEngagementEvent): string {
 
 function eventCount(event: OverlayEngagementEvent): number {
   const count = event.payload?.count;
-  return Number.isFinite(count) ? Math.max(1, Math.min(10_000, Math.round(count!))) : 1;
+  return typeof count === "number" && Number.isFinite(count) ? Math.max(1, Math.min(10_000, Math.round(count))) : 1;
 }
 
 function shouldRenderEvent(event: OverlayEngagementEvent, now: number, lastVisualAt: Map<string, number>): boolean {
