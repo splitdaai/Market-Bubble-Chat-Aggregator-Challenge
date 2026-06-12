@@ -248,11 +248,13 @@ export function BroadcastView() {
 // holds across reloads.
 
 /** Pixel-measured off the show frame: the panel covers the center capture
- *  tile exactly, leaving only its white border visible (inside edges:
- *  x 523→1397, y 55→679 at 1920×1080). Percentages are relative to the
- *  letterboxed 16:9 frame, so this tracks the video tile at every window
+ *  tile exactly, with a small bleed past the inside edge of the white border
+ *  so the slightly-rounded inner corners of the tile can't let video peek
+ *  through. Inside edges of the white border live at x 523→1397, y 55→679
+ *  on 1920×1080; we extend ~4px past each one. Percentages are relative to
+ *  the letterboxed 16:9 frame, so this tracks the tile at every window
  *  size. */
-const DEFAULT_TILE = { left: 27.24, top: 5.09, width: 45.52, height: 57.78 };
+const DEFAULT_TILE = { left: 27.05, top: 4.7, width: 45.9, height: 58.5 };
 const TILE_KEY = "vibechat-broadcast-tile";
 
 interface Tile { left: number; top: number; width: number; height: number }
