@@ -82,6 +82,7 @@ export function AnalyticsTab() {
   useEffect(() => { ensureSeeded(); }, [ensureSeeded]);
 
   const [pace, setPace] = useState(true); // true = "on pace" projection, false = "so far"
+  const [view, setView] = useState<"overview" | "bucks">("overview"); // analytics sub-tab
   const [range, setRange] = useState<Range>("all"); // time window
   const live = useMemo(() => buildLiveSession(snap, pace), [snap, pace]);
   const past = useMemo(() => [...sessions].sort((a, b) => a.startedAt - b.startedAt), [sessions]);
@@ -213,11 +214,28 @@ export function AnalyticsTab() {
         </div>
       </div>
 
+      {/* sub-tabs: Overview vs Bubble Bucks (each gets its own page so the BB
+          leaderboards never sit on top of the stream metrics) */}
+      <div className="mb-4 inline-flex gap-1 rounded-xl border border-accent/25 bg-accent/[0.06] p-1">
+        {([["overview", "Overview"], ["bucks", "Bubble Bucks"]] as const).map(([id, label]) => (
+          <button
+            key={id}
+            onClick={() => setView(id)}
+            className={`rounded-lg px-4 py-1.5 text-[13px] font-bold transition ${
+              view === id ? "bg-accent/25 text-accent shadow-neon" : "text-muted hover:text-ink"
+            }`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {view === "bucks" && <BubbleBucksAnalytics />}
+
+      {view === "overview" && (
+      <>
       {/* current / in-progress stream — live snapshot */}
       <CurrentStreamCard live={live} prev={prev} snap={snap} plat={plat} account={account} pace={pace} />
-
-      {/* Bubble Bucks leaderboards: earners / spenders / current balances */}
-      <BubbleBucksAnalytics />
 
       {/* per-stream AVERAGE across history (NOT a copy of the current stream) —
           the delta shows how the live stream compares to your norm. */}
@@ -275,6 +293,8 @@ export function AnalyticsTab() {
 
       {/* streams table */}
       <StreamsTable all={all} focusId={focusId} setFocusId={setFocusId} plat={plat} account={account} />
+      </>
+      )}
     </div>
   );
 }

@@ -54,7 +54,7 @@ export function BubbleBucksAnalytics() {
   const valOf = (u: (typeof rows)[number]): number => (lens === "earned" ? u.earned : lens === "spent" ? u.spent : u.balance);
 
   return (
-    <section className="mt-5 rounded-2xl border border-white/8 bg-white/[0.02] p-4">
+    <section className="vc-glass mt-1 rounded-2xl p-4">
       <div className="mb-3 flex flex-wrap items-baseline gap-x-3 gap-y-1">
         <h3 className="flex items-center gap-1.5 text-sm font-bold uppercase tracking-widest text-muted">
           <BucksIcon size={15} /> Bubble Bucks
@@ -65,7 +65,7 @@ export function BubbleBucksAnalytics() {
       </div>
 
       {/* Lens tabs */}
-      <div className="mb-3 flex gap-1 rounded-lg bg-white/[0.03] p-1">
+      <div className="mb-3 flex gap-1 rounded-lg border border-accent/15 bg-black/25 p-1">
         {LENSES.map((l) => (
           <button
             key={l.id}
@@ -98,7 +98,7 @@ export function BubbleBucksAnalytics() {
             <button
               key={`${u.platform}:${u.name}`}
               onClick={() => showUser(u.name, u.platform)}
-              className="group relative flex items-center gap-2.5 overflow-hidden rounded-lg border border-white/8 px-2.5 py-2 text-left transition hover:border-accent/40"
+              className="group relative flex items-center gap-2.5 overflow-hidden rounded-lg border border-accent/15 bg-[#1c1610]/40 px-2.5 py-2 text-left transition hover:border-accent/45 hover:bg-[#1c1610]/75"
               title={`Open ${u.name}'s profile`}
             >
               <span
