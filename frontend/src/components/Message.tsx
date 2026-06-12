@@ -1,4 +1,5 @@
 import { memo, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { getEmoteUrl, useEmoteStore } from "@/lib/emotes";
 import type { ChatMessage, ModerationAction } from "@shared/types";
 import { SourceBadge, platformColor } from "./SourceBadge";
@@ -33,6 +34,9 @@ interface Props {
 
 function MessageInner({ msg, deleted, onModerate }: Props) {
   const [menuAt, setMenuAt] = useState<{ x: number; y: number } | null>(null);
+  // Portal-positioned hover tooltip (escapes the feed's overflow clipping so the
+  // viewer can always see which platform + stream a chatter is from).
+  const [tip, setTip] = useState<{ x: number; y: number } | null>(null);
   const showUser = useUserCardStore((s) => s.show);
   const demo = useModeStore((s) => s.demo);
   // Banned / timed-out viewers (modded from the card) get their messages struck
@@ -43,18 +47,20 @@ function MessageInner({ msg, deleted, onModerate }: Props) {
   const color = msg.color ?? platformColor(msg.platform);
   const hasWallet = !!viewerWallet(msg.username, demo);
 
-  // Render 7TV/BTTV/FFZ/Twitch emotes as inline images. Tokenized once per
-  // message (re-runs when new emote sets finish loading).
+  // Render resolved platform emotes plus 7TV/BTTV/FFZ/Twitch emotes as inline
+  // images. Tokenized once per message (re-runs when new emote sets land).
   const emoteVersion = useEmoteStore((s) => s.version);
   const parts = useMemo(() => {
     void emoteVersion;
+    const messageEmotes = new Map((msg.emotes ?? []).map((emote) => [emote.code, emote.url]));
+    const resolve = (token: string) => messageEmotes.get(token) ?? messageEmotes.get(stripColons(token)) ?? getEmoteUrl(token);
     const tokens = msg.message.split(/(\s+)/);
-    if (!tokens.some((t) => getEmoteUrl(t))) return null; // fast path: plain text
+    if (!tokens.some((t) => resolve(t))) return null; // fast path: plain text
     return tokens.map((t, i) => {
-      const url = getEmoteUrl(t);
+      const url = resolve(t);
       return url ? <img key={i} src={url} alt={t} title={t} loading="lazy" className="-my-1 inline-block h-[24px] w-auto align-middle" /> : t;
     });
-  }, [msg.message, emoteVersion]);
+  }, [msg.emotes, msg.message, emoteVersion]);
 
   return (
     <>
@@ -90,26 +96,41 @@ function MessageInner({ msg, deleted, onModerate }: Props) {
               {badgeIcon[b.type]}
             </span>
           ))}
-          <span className="group/u relative inline-flex">
+          <span className="relative inline-flex">
             <button
               className="font-bold hover:underline"
               style={{ color }}
               onClick={() => showUser(msg.username, msg.platform)}
-              title={`${msg.platform}${msg.channel ? ` · via ${msg.channel}` : ""} — click for profile`}
+              onMouseEnter={(e) => { const r = e.currentTarget.getBoundingClientRect(); setTip({ x: Math.round(r.left), y: Math.round(r.top) }); }}
+              onMouseLeave={() => setTip(null)}
+              title={`${msg.platform}${msg.channel ? ` · ${msg.channel}` : ""} — click for profile`}
             >
               {msg.username}
             </button>
             <BucksRankBadge platform={msg.platform} username={msg.username} />
-            {/* hover → where this viewer is coming from (platform + which streamer's chat) */}
-            <span className="pointer-events-none absolute bottom-full left-0 z-40 mb-1 hidden whitespace-nowrap rounded-lg border border-white/10 bg-[#0b0b0b] px-2 py-1 text-[10px] leading-tight shadow-xl group-hover/u:block">
-              <span className="flex items-center gap-1">
+          </span>
+          {/* hover → which platform + which stream (Ansem / Banks / Market Bubble)
+              this viewer is from. Portal'd to <body> so the feed's overflow
+              never clips it. */}
+          {tip && createPortal(
+            <div
+              className="pointer-events-none fixed z-[200] -translate-y-full whitespace-nowrap rounded-lg border border-accent/35 bg-[#0b0b0b] px-2.5 py-1.5 text-[11px] leading-tight shadow-[0_12px_30px_rgba(0,0,0,0.65)]"
+              style={{ left: tip.x, top: tip.y - 8 }}
+            >
+              <span className="flex items-center gap-1.5">
                 <SourceBadge platform={msg.platform} compact />
                 <span className="font-semibold capitalize text-ink">{msg.platform}</span>
-                {msg.channel && <span className="text-muted">· via {msg.channel}</span>}
               </span>
+              {msg.channel && (
+                <span className="mt-1 block">
+                  <span className="text-[9px] uppercase tracking-[0.12em] text-faint">stream&nbsp;</span>
+                  <span className="font-extrabold text-accent">{msg.channel}</span>
+                </span>
+              )}
               <span className="mt-0.5 block text-[9px] text-faint">click for full profile</span>
-            </span>
-          </span>
+            </div>,
+            document.body,
+          )}
           {hasWallet && (
             <Wallet size={11} className="text-emerald-400" aria-label="Wallet-connected — can receive tips" />
           )}
@@ -147,6 +168,10 @@ function MessageInner({ msg, deleted, onModerate }: Props) {
       )}
     </>
   );
+}
+
+function stripColons(token: string): string {
+  return token.length > 2 && token.startsWith(":") && token.endsWith(":") ? token.slice(1, -1) : token;
 }
 
 export const Message = memo(MessageInner);
