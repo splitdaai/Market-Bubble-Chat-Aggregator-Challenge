@@ -10,6 +10,8 @@ import { platformIcon, platformLabel, platformColor, CHAT_PLATFORMS } from "./So
 import { compact } from "@/lib/format";
 import { moderate } from "@/lib/api";
 import { LiveTimer } from "./LiveTimer";
+import { EngagementQr, OverlayEngagementLayer } from "./OverlayEngagementLayer";
+import { ENGAGE_ROOM } from "@/lib/overlayEngagement";
 import type { Platform } from "@shared/types";
 
 /**
@@ -70,6 +72,8 @@ export function BroadcastView() {
   const params = useMemo(() => new URLSearchParams(window.location.search), []);
   const stage = params.has("stage");
   const transparent = !stage && params.get("bg") === "transparent";
+  const room = params.get("room") || ENGAGE_ROOM;
+  const showQr = params.get("qr") !== "0";
   const fontPx = parseInt(params.get("fontsize") ?? "15", 10) || 15;
   const platformFilter = useMemo<Platform[] | null>(() => {
     const raw = params.get("platform");
@@ -232,6 +236,9 @@ export function BroadcastView() {
           </motion.button>
         )}
       </AnimatePresence>
+
+      <OverlayEngagementLayer room={room} />
+      {showQr && <EngagementQr room={room} />}
     </div>
   );
 

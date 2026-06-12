@@ -23,6 +23,7 @@ const ButtonEditor = lazy(() => import("./components/ButtonEditor").then((m) => 
 const OverlayPage = lazy(() => import("./components/OverlayPage").then((m) => ({ default: m.OverlayPage })));
 const DockView = lazy(() => import("./components/DockView").then((m) => ({ default: m.DockView })));
 const BroadcastView = lazy(() => import("./components/BroadcastView").then((m) => ({ default: m.BroadcastView })));
+const EngagePage = lazy(() => import("./components/EngagePage").then((m) => ({ default: m.EngagePage })));
 const AnalyticsTab = lazy(() => import("./components/analytics/AnalyticsTab").then((m) => ({ default: m.AnalyticsTab })));
 const ConnectionsManager = lazy(() => import("./components/ConnectionsManager").then((m) => ({ default: m.ConnectionsManager })));
 const MobileApp = lazy(() => import("./components/mobile/MobileApp").then((m) => ({ default: m.MobileApp })));
@@ -65,6 +66,7 @@ export default function App() {
   const params = new URLSearchParams(window.location.search);
   if (params.has("overlay")) return <Suspense fallback={null}><OverlayPage /></Suspense>;
   if (params.has("dock")) return <Suspense fallback={null}><DockView /></Suspense>;
+  if (params.has("engage")) return <Suspense fallback={null}><EngagePage /></Suspense>;
   if (params.has("broadcast")) {
     // Full chat toolkit rides along: click-a-user card (history / timeout /
     // ban / tip via TipModal inside UserCard) + toasts for mod confirmations.
