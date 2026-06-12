@@ -36,6 +36,8 @@ export interface ChatMessage {
   channel?: string;
   /** Display name as shown in the source chat. */
   username: string;
+  /** Native platform user id, kept for moderation calls where usernames are insufficient. */
+  nativeUserId?: string;
   /** Raw message text (emotes still as :codes: — frontend resolves them). */
   message: string;
   /** Unix epoch ms. */
@@ -211,10 +213,16 @@ export type ModerationAction =
 
 export interface ModerationRequest {
   platform: ExtPlatform;
-  /** The message being acted on (for delete/timeout context). */
+  /** App-local message id, used to remove it from every unified-feed client. */
+  localMessageId?: string;
+  /** Native platform message id, used for platform API moderation. */
   messageId?: string;
+  /** Source channel/handle so multi-account moderation routes to the right connector. */
+  channel?: string;
   /** Target username (for ban/timeout). */
   username?: string;
+  /** Native target user id, required by some platform moderation APIs. */
+  userId?: string;
   action: ModerationAction;
 }
 
@@ -447,6 +455,7 @@ export interface ActionButton {
 
 export interface ServerToClientEvents {
   message: (msg: ChatMessage) => void;
+  "message:deleted": (messageId: string) => void;
   status: (statuses: ConnectionStatus[]) => void;
   /** [BACKEND] Periodic stats snapshot (~2s cadence). See AggregateStats. */
   stats: (stats: AggregateStats) => void;

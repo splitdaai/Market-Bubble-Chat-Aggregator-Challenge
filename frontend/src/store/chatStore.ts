@@ -41,7 +41,7 @@ interface ChatState {
   statuses: ConnectionStatus[];
   /** Per-platform visibility toggles for the feed. */
   enabled: Record<Platform, boolean>;
-  /** Ids the moderator deleted locally (hidden + struck). */
+  /** Ids the moderator deleted locally or through the backend. */
   deleted: Set<string>;
   isMock: boolean;
   cacheMode: "live" | null;
@@ -80,7 +80,10 @@ export const useChatStore = create<ChatState>((set) => ({
     set((s) => {
       const deleted = new Set(s.deleted);
       deleted.add(id);
-      return { deleted };
+      const messages = s.messages.filter((m) => m.id !== id);
+      const history = removeFromHistory(s.history, id);
+      if (s.cacheMode === "live") writeLiveCache(messages);
+      return { deleted, messages, history };
     }),
 
   setMock: (isMock) => set({ isMock }),
@@ -109,6 +112,7 @@ function appendMessages(s: ChatState, rawMessages: ChatMessage[]): Partial<ChatS
 
   for (const rawMsg of rawMessages) {
     if (seen.has(rawMsg.id)) continue;
+    if (s.deleted.has(rawMsg.id)) continue;
     seen.add(rawMsg.id);
 
     // Auto-mod: drop hard slurs entirely, censor profanity in everything else.
@@ -157,6 +161,17 @@ function buildHistory(messages: ChatMessage[]): Record<string, ChatMessage[]> {
     history[key] = mergeHistory(history[key] ?? [], m);
   }
   return trimHistoryUsers(history);
+}
+
+function removeFromHistory(history: Record<string, ChatMessage[]>, id: string): Record<string, ChatMessage[]> {
+  let changed = false;
+  const next: Record<string, ChatMessage[]> = {};
+  for (const [key, messages] of Object.entries(history)) {
+    const filtered = messages.filter((m) => m.id !== id);
+    if (filtered.length !== messages.length) changed = true;
+    if (filtered.length > 0) next[key] = filtered;
+  }
+  return changed ? next : history;
 }
 
 function readLiveCache(): ChatMessage[] {

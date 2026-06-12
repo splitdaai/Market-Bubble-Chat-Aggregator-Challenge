@@ -122,6 +122,7 @@ export function useChatConnection() {
 
     // Native platform clips finish cutting server-side → attach their URL.
     conn.raw?.on("clip:created", (clipId, url) => useClipsStore.getState().setExternalUrl(clipId, url));
+    conn.raw?.on("message:deleted", (messageId) => useChatStore.getState().markDeleted(messageId));
 
     // Past streams for the analytics tab arrive from the backend on connect.
     conn.raw?.on("history", (sessions) => useAnalyticsStore.getState().setSessions(sessions));

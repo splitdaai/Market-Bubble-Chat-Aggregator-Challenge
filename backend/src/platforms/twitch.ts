@@ -91,6 +91,8 @@ export class TwitchConnector extends BaseConnector {
       id: `twitch:${tags.id ?? Date.now()}`,
       nativeId: tags.id,
       platform: "twitch",
+      accountId: `twitch:${this.channel}`,
+      channel: this.channel,
       username: tags["display-name"] ?? tags.username ?? "anon",
       color: tags.color ?? undefined,
       message,

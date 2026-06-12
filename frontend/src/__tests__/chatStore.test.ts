@@ -66,4 +66,20 @@ describe("chat store refresh cache", () => {
 
     expect(useChatStore.getState().messages.map((m) => m.id)).toEqual(["t1", "k1", "x1", "t2"]);
   });
+
+  it("removes deleted messages from the feed, history, and live refresh cache", () => {
+    useChatStore.getState().resetForMode(false);
+    useChatStore.getState().addMessages([
+      msg("t1", "twitch", 1000),
+      msg("k1", "kick", 1001),
+    ]);
+
+    useChatStore.getState().markDeleted("k1");
+    useChatStore.getState().addMessage(msg("k1", "kick", 1002));
+    expect(useChatStore.getState().messages.map((m) => m.id)).toEqual(["t1"]);
+    expect(useChatStore.getState().history["kick:kick-user"]).toBeUndefined();
+
+    useChatStore.getState().resetForMode(false);
+    expect(useChatStore.getState().messages.map((m) => m.id)).toEqual(["t1"]);
+  });
 });

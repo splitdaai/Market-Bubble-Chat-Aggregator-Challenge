@@ -54,6 +54,13 @@ export function bindHub(
   const overlayVoteBuckets = new Map<string, { bull: number; bear: number; timer: ReturnType<typeof setTimeout> | null }>();
 
   const broadcastStatus = () => io.emit("status", [...statuses.values()]);
+  const removeBufferedMessage = (messageId: unknown): string | null => {
+    if (typeof messageId !== "string" || !messageId) return null;
+    const index = messageBuffer.findIndex((m) => m.id === messageId);
+    if (index >= 0) messageBuffer.splice(index, 1);
+    io.emit("message:deleted", messageId);
+    return messageId;
+  };
 
   // Subscribe a connector's message/status streams into the hub.
   const wire = (connector: Connector) => {
@@ -215,6 +222,9 @@ export function bindHub(
 
     socket.on("moderate", async (req) => {
       const result = await moderate(req);
+      if (req.action?.kind === "delete") {
+        removeBufferedMessage(req.localMessageId ?? req.messageId);
+      }
       socket.emit("moderation:result", result);
     });
 

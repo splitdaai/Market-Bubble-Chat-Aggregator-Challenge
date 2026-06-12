@@ -8,12 +8,23 @@ import type { ModerationRequest, ModerationResult } from "../../shared/types.ts"
  */
 export function makeModerationRouter(connectors: Map<string, Connector>) {
   return async function moderate(req: ModerationRequest): Promise<ModerationResult> {
-    // The registry is keyed by platform:channel (multi-account), so find the
-    // first connector matching the request's platform.
-    const connector = [...connectors.values()].find((c) => c.platform === req.platform);
+    // The registry is keyed by platform:channel (multi-account). Prefer the
+    // connector for the message's source channel, then fall back to platform.
+    const requestedChannel = normalizeChannel(req.channel);
+    const connector = [...connectors.values()].find((c) =>
+      c.platform === req.platform &&
+      requestedChannel &&
+      normalizeChannel(c.status().channel) === requestedChannel,
+    ) ?? [...connectors.values()].find((c) => c.platform === req.platform);
     if (!connector) {
       return { ok: false, request: req, error: `no_connector_for_${req.platform}` };
     }
     return connector.moderate(req);
   };
+}
+
+function normalizeChannel(channel: unknown): string | null {
+  if (typeof channel !== "string") return null;
+  const clean = channel.trim().replace(/^[@#]/, "").toLowerCase();
+  return clean || null;
 }

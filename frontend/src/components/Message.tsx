@@ -52,14 +52,34 @@ function MessageInner({ msg, deleted, onModerate }: Props) {
   const emoteVersion = useEmoteStore((s) => s.version);
   const parts = useMemo(() => {
     void emoteVersion;
-    const messageEmotes = new Map((msg.emotes ?? []).map((emote) => [emote.code, emote.url]));
+    const messageEmotes = new Map((msg.emotes ?? []).map((emote) => [stripColons(emote.code), emote.url]));
     const resolve = (token: string) => messageEmotes.get(token) ?? messageEmotes.get(stripColons(token)) ?? getEmoteUrl(token);
+    const inlineCodes = [...messageEmotes.keys()]
+      .filter((code) => code.length >= 3)
+      .sort((a, b) => b.length - a.length);
     const tokens = msg.message.split(/(\s+)/);
-    if (!tokens.some((t) => resolve(t))) return null; // fast path: plain text
-    return tokens.map((t, i) => {
-      const url = resolve(t);
-      return url ? <img key={i} src={url} alt={t} title={t} loading="lazy" className="-my-1 inline-block h-[24px] w-auto align-middle" /> : t;
-    });
+    const rendered: React.ReactNode[] = [];
+    let found = false;
+    for (const [i, token] of tokens.entries()) {
+      const url = resolve(token);
+      if (url) {
+        found = true;
+        rendered.push(emoteImage(`e-${i}`, url, token));
+        continue;
+      }
+      const split = splitKnownEmoteRun(token, inlineCodes);
+      if (split) {
+        found = true;
+        rendered.push(...split.map((part, j) => {
+          if (part.kind === "text") return part.text;
+          const partUrl = resolve(part.code);
+          return partUrl ? emoteImage(`e-${i}-${j}`, partUrl, part.code) : part.code;
+        }));
+        continue;
+      }
+      rendered.push(token);
+    }
+    return found ? rendered : null;
   }, [msg.emotes, msg.message, emoteVersion]);
 
   return (
@@ -172,6 +192,34 @@ function MessageInner({ msg, deleted, onModerate }: Props) {
 
 function stripColons(token: string): string {
   return token.length > 2 && token.startsWith(":") && token.endsWith(":") ? token.slice(1, -1) : token;
+}
+
+function emoteImage(key: string, url: string, alt: string) {
+  return <img key={key} src={url} alt={alt} title={alt} loading="lazy" className="-my-1 inline-block h-[24px] w-auto align-middle" />;
+}
+
+function splitKnownEmoteRun(token: string, codes: string[]): Array<{ kind: "text"; text: string } | { kind: "emote"; code: string }> | null {
+  if (!token || codes.length === 0) return null;
+  const parts: Array<{ kind: "text"; text: string } | { kind: "emote"; code: string }> = [];
+  let text = "";
+  let found = false;
+  for (let i = 0; i < token.length;) {
+    const match = codes.find((code) => token.startsWith(code, i) || token.startsWith(`:${code}:`, i));
+    if (!match) {
+      text += token[i];
+      i += 1;
+      continue;
+    }
+    if (text) {
+      parts.push({ kind: "text", text });
+      text = "";
+    }
+    parts.push({ kind: "emote", code: match });
+    i += token.startsWith(`:${match}:`, i) ? match.length + 2 : match.length;
+    found = true;
+  }
+  if (text) parts.push({ kind: "text", text });
+  return found ? parts : null;
 }
 
 export const Message = memo(MessageInner);

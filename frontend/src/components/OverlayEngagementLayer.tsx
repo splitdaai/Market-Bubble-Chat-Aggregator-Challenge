@@ -505,27 +505,35 @@ function TickerTape({ events }: { events: OverlayEngagementEvent[] }) {
 }
 
 function EmoteBurst({ event }: { event: OverlayEngagementEvent }) {
-  const emote = event.payload?.emote ?? "🚀";
+  const emote = event.payload?.emote ?? "RKT";
   const asset = brandedEmoteAsset(event.actionId);
-  const count = event.actionId === "whale-storm" ? 34 : asset ? 22 : 18;
+  const pattern = emotePatternFor(event, asset, emote);
   return (
     <>
-      {Array.from({ length: count }, (_, i) => {
+      <EmotePatternBackdrop event={event} pattern={pattern} />
+      {Array.from({ length: pattern.count }, (_, i) => {
         const seed = hash(`${event.id}-${i}`);
-        const left = 8 + (seed % 84);
-        const delay = (seed % 9) * 0.035;
-        const size = asset ? 42 + (seed % 22) : 19 + (seed % 19);
+        const motionPreset = emoteParticleMotion(event.actionId, seed, i, pattern.count);
+        const delay = motionPreset.delay ?? (seed % 9) * 0.035;
+        const size = pattern.sizeMin + (seed % pattern.sizeRange);
         return (
           <motion.span
             key={`${event.id}-${i}`}
-            initial={{ y: "105vh", x: 0, opacity: 0, rotate: -18 }}
-            animate={{ y: "-16vh", x: ((seed % 40) - 20), opacity: [0, 1, 1, 0], rotate: 22 }}
+            initial={motionPreset.initial}
+            animate={motionPreset.animate}
             exit={{ opacity: 0 }}
-            transition={{ duration: 3.2 + (seed % 7) * 0.18, delay, ease: "easeOut" }}
+            transition={{ duration: motionPreset.duration, delay, ease: motionPreset.ease ?? "easeOut" }}
             className="absolute font-black"
-            style={{ left: `${left}%`, fontSize: size, filter: asset ? `drop-shadow(0 8px 16px rgba(0,0,0,0.58)) drop-shadow(0 0 12px ${asset.glow})` : "drop-shadow(0 3px 10px rgba(0,0,0,0.65))" }}
+            style={{
+              ...motionPreset.style,
+              fontSize: size,
+              color: pattern.accent,
+              textShadow: asset ? undefined : `0 0 14px ${pattern.glow}, 0 4px 12px rgba(0,0,0,0.7)`,
+              filter: asset ? `drop-shadow(0 8px 16px rgba(0,0,0,0.58)) drop-shadow(0 0 12px ${pattern.glow})` : "drop-shadow(0 3px 10px rgba(0,0,0,0.65))",
+              willChange: "transform, opacity",
+            }}
           >
-            {asset ? <ImageEmote asset={asset} seed={seed} size={size} /> : emote}
+            {asset ? <ImageEmote asset={asset} seed={seed} size={size} patternId={pattern.id} /> : <TextEmote pattern={pattern} seed={seed} size={size} />}
           </motion.span>
         );
       })}
@@ -534,6 +542,316 @@ function EmoteBurst({ event }: { event: OverlayEngagementEvent }) {
 }
 
 type EmoteAsset = { src: string; alt: string; glow: string; aspect?: string };
+type EmotePattern = {
+  id: string;
+  symbol: string;
+  accent: string;
+  glow: string;
+  count: number;
+  sizeMin: number;
+  sizeRange: number;
+  chip?: boolean;
+  backdrop?: "burst" | "scan" | "laser" | "moon" | "whale" | "rain" | "drop";
+};
+
+function emotePatternFor(event: OverlayEngagementEvent, asset: EmoteAsset | null, fallback: string): EmotePattern {
+  switch (event.actionId) {
+    case "ansem-emote":
+      return { id: "ansem", symbol: "ANSEM", accent: "#f59e0b", glow: "rgba(245,158,11,0.7)", count: 24, sizeMin: 42, sizeRange: 22, backdrop: "burst" };
+    case "banks-emote":
+      return { id: "banks", symbol: "BANKS", accent: "#38bdf8", glow: "rgba(56,189,248,0.72)", count: 24, sizeMin: 42, sizeRange: 22, backdrop: "scan" };
+    case "nelk-emote":
+      return { id: "nelk", symbol: "NELK", accent: "#f8fafc", glow: "rgba(248,250,252,0.6)", count: 20, sizeMin: 42, sizeRange: 18, backdrop: "drop" };
+    case "happy-dad-emote":
+      return { id: "happy", symbol: "HAPPY DAD", accent: "#facc15", glow: "rgba(250,204,21,0.62)", count: 24, sizeMin: 36, sizeRange: 18, backdrop: "burst" };
+    case "polymarket-emote":
+      return { id: "poly", symbol: "POLY", accent: "#34d6ff", glow: "rgba(52,214,255,0.68)", count: 26, sizeMin: 34, sizeRange: 18, backdrop: "scan" };
+    case "wagmi-meme":
+      return { id: "wagmi", symbol: "WAGMI", accent: "#16e6a4", glow: "rgba(22,230,164,0.72)", count: 24, sizeMin: 20, sizeRange: 16, chip: true, backdrop: "burst" };
+    case "ngmi-meme":
+      return { id: "ngmi", symbol: "NGMI", accent: "#ff5c7a", glow: "rgba(255,92,122,0.72)", count: 22, sizeMin: 20, sizeRange: 16, chip: true, backdrop: "drop" };
+    case "cope-meme":
+      return { id: "cope", symbol: "COPE", accent: "#a78bfa", glow: "rgba(167,139,250,0.7)", count: 23, sizeMin: 20, sizeRange: 15, chip: true, backdrop: "burst" };
+    case "send-it-meme":
+      return { id: "send", symbol: "SEND IT", accent: "#f97316", glow: "rgba(249,115,22,0.72)", count: 26, sizeMin: 20, sizeRange: 16, chip: true, backdrop: "scan" };
+    case "diamond-hands-meme":
+      return { id: "diamond", symbol: "DIAMOND HANDS", accent: "#34d6ff", glow: "rgba(52,214,255,0.72)", count: 28, sizeMin: 18, sizeRange: 16, chip: true, backdrop: "rain" };
+    case "laser-eyes-meme":
+      return { id: "laser", symbol: "LASER EYES", accent: "#ef4444", glow: "rgba(239,68,68,0.72)", count: 18, sizeMin: 19, sizeRange: 14, chip: true, backdrop: "laser" };
+    case "moon-meme":
+      return { id: "moon", symbol: "TO THE MOON", accent: "#facc15", glow: "rgba(250,204,21,0.72)", count: 24, sizeMin: 18, sizeRange: 16, chip: true, backdrop: "moon" };
+    case "dogecoin-meme":
+      return { id: "doge", symbol: "DOGE", accent: "#d9a547", glow: "rgba(217,165,71,0.72)", count: 28, sizeMin: 18, sizeRange: 15, chip: true, backdrop: "rain" };
+    case "whale-storm":
+      return { id: "whale", symbol: "WHALE", accent: "#67e8f9", glow: "rgba(103,232,249,0.76)", count: 34, sizeMin: 22, sizeRange: 20, chip: true, backdrop: "whale" };
+    default:
+      return {
+        id: asset ? "brand" : "burst",
+        symbol: fallback,
+        accent: asset ? "#ffffff" : "#facc15",
+        glow: asset?.glow ?? "rgba(250,204,21,0.68)",
+        count: asset ? 22 : 20,
+        sizeMin: asset ? 42 : 20,
+        sizeRange: asset ? 22 : 16,
+        chip: !asset,
+        backdrop: "burst",
+      };
+  }
+}
+
+function EmotePatternBackdrop({ event, pattern }: { event: OverlayEngagementEvent; pattern: EmotePattern }) {
+  if (!pattern.backdrop) return null;
+
+  if (pattern.backdrop === "laser") {
+    return (
+      <motion.div key={`${event.id}-laser-backdrop`} className="absolute inset-0">
+        {[32, 44, 56].map((top, i) => (
+          <motion.span
+            key={`${event.id}-laser-${i}`}
+            initial={{ opacity: 0, scaleX: 0, x: "-12vw" }}
+            animate={{ opacity: [0, 1, 0], scaleX: [0, 1, 0.65], x: "38vw" }}
+            transition={{ duration: 0.72, delay: i * 0.07, ease: "easeOut" }}
+            className="absolute left-[12%] h-[5px] w-[76%] origin-left rounded-full bg-[linear-gradient(90deg,transparent,#fff,#ef4444,transparent)] shadow-[0_0_30px_rgba(239,68,68,0.78)]"
+            style={{ top: `${top}%`, rotate: `${-5 + i * 5}deg` }}
+          />
+        ))}
+      </motion.div>
+    );
+  }
+
+  const origin = pattern.backdrop === "drop" ? "50% 20%" : pattern.backdrop === "moon" ? "50% 78%" : "50% 50%";
+  const scale = pattern.backdrop === "whale" ? 1.8 : pattern.backdrop === "scan" ? 1.35 : 1.55;
+  return (
+    <motion.div
+      key={`${event.id}-emote-backdrop`}
+      initial={{ opacity: 0, scale: 0.64 }}
+      animate={{ opacity: [0, 0.34, 0], scale }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: pattern.backdrop === "whale" ? 2.8 : 1.7, ease: "easeOut" }}
+      className="absolute inset-[-18%] rounded-full blur-2xl"
+      style={{ background: `radial-gradient(circle at ${origin}, ${pattern.accent}88, transparent 58%)` }}
+    />
+  );
+}
+
+function emoteParticleMotion(actionId: string, seed: number, index: number, count: number) {
+  const left = 8 + (seed % 84);
+  const top = 12 + (seed % 72);
+  const spread = (seed % 42) - 21;
+  const longSpread = (seed % 96) - 48;
+  const lane = index / Math.max(1, count - 1);
+  const ease = [0.16, 1, 0.3, 1] as const;
+
+  switch (actionId) {
+    case "ansem-emote":
+      return {
+        initial: { left: "50%", top: "50%", x: 0, y: 0, opacity: 0, scale: 0.2, rotate: -18 },
+        animate: { x: [0, Math.cos(lane * Math.PI * 2) * 90, longSpread * 4], y: [0, Math.sin(lane * Math.PI * 2) * 55 - 50, -180 - (seed % 130)], opacity: [0, 1, 1, 0], scale: [0.2, 1.2, 1], rotate: [-18, 10 + spread, 38] },
+        duration: 2.6 + (seed % 5) * 0.12,
+        delay: index * 0.018,
+        ease,
+        style: {},
+      };
+    case "banks-emote":
+      return {
+        initial: { x: "112vw", y: 0, opacity: 0, scale: 0.75, rotate: 10 },
+        animate: { x: "-18vw", y: [0, -18, 14, -8], opacity: [0, 1, 1, 0], scale: [0.75, 1.08, 0.95], rotate: [10, -8, 4] },
+        duration: 2.1 + (seed % 5) * 0.13,
+        delay: index * 0.018,
+        ease,
+        style: { left: "-8%", top: `${16 + ((index * 11 + seed) % 68)}%` },
+      };
+    case "nelk-emote":
+      return {
+        initial: { y: "-18vh", opacity: 0, scale: 1.35, rotate: -28 },
+        animate: { y: ["-18vh", `${16 + (seed % 46)}vh`, `${12 + (seed % 42)}vh`, "108vh"], x: [0, spread, -spread, spread * 0.4], opacity: [0, 1, 1, 0], scale: [1.35, 0.98, 1.08, 0.72], rotate: [-28, 8, -5, 18] },
+        duration: 2.65 + (seed % 4) * 0.14,
+        delay: index * 0.02,
+        ease,
+        style: { left: `${left}%`, top: "0%" },
+      };
+    case "happy-dad-emote":
+      return {
+        initial: { y: "104vh", opacity: 0, scale: 0.45, rotate: -12 },
+        animate: { y: ["104vh", `${72 - (seed % 34)}vh`, "-12vh"], x: [0, spread * 1.4, -spread * 0.8, spread], opacity: [0, 1, 1, 0], scale: [0.45, 1.12, 0.92], rotate: [-12, 12, -8, 18] },
+        duration: 3.1 + (seed % 7) * 0.1,
+        delay: (seed % 8) * 0.035,
+        ease,
+        style: { left: `${left}%` },
+      };
+    case "polymarket-emote":
+      return {
+        initial: { x: "-18vw", y: "82vh", opacity: 0, scale: 0.72, rotate: -10 },
+        animate: { x: "112vw", y: "-12vh", opacity: [0, 1, 1, 0], scale: [0.72, 1.04, 0.9], rotate: [-10, 0, 12] },
+        duration: 2.3 + (seed % 5) * 0.12,
+        delay: index * 0.015,
+        ease,
+        style: { left: `${-8 + (index % 5) * 6}%`, top: `${70 - lane * 58}%` },
+      };
+    case "wagmi-meme":
+      return diagonalRiseMotion(left, seed, index);
+    case "ngmi-meme":
+      return dropMotion(left, seed, index);
+    case "cope-meme":
+      return wobbleMotion(left, top, seed, index);
+    case "send-it-meme":
+      return sendMotion(seed, index);
+    case "diamond-hands-meme":
+      return rainMotion(left, seed, index, "diamond");
+    case "laser-eyes-meme":
+      return laserMotion(top, seed, index);
+    case "moon-meme":
+      return moonMotion(seed, index, lane);
+    case "dogecoin-meme":
+      return coinMotion(left, seed, index);
+    case "whale-storm":
+      return whaleMotion(seed, index, lane);
+    default:
+      return {
+        initial: { y: "105vh", x: 0, opacity: 0, rotate: -18, scale: 0.8 },
+        animate: { y: "-16vh", x: spread, opacity: [0, 1, 1, 0], rotate: 22, scale: [0.8, 1.08, 0.92] },
+        duration: 3.2 + (seed % 7) * 0.18,
+        delay: (seed % 9) * 0.035,
+        ease: "easeOut",
+        style: { left: `${left}%` },
+      };
+  }
+}
+
+function diagonalRiseMotion(left: number, seed: number, index: number) {
+  const spread = (seed % 52) - 26;
+  return {
+    initial: { y: "104vh", x: -40, opacity: 0, rotate: -10, scale: 0.72 },
+    animate: { y: "-14vh", x: 90 + spread, opacity: [0, 1, 1, 0], rotate: [-10, 4, 16], scale: [0.72, 1.1, 0.96] },
+    duration: 2.45 + (seed % 6) * 0.12,
+    delay: index * 0.018,
+    ease: [0.16, 1, 0.3, 1] as const,
+    style: { left: `${left}%` },
+  };
+}
+
+function dropMotion(left: number, seed: number, index: number) {
+  return {
+    initial: { y: "-16vh", x: 0, opacity: 0, rotate: 12, scale: 1.05 },
+    animate: { y: "112vh", x: [(seed % 38) - 19, (seed % 70) - 35, (seed % 44) - 22], opacity: [0, 1, 1, 0], rotate: [12, -18, 24], scale: [1.05, 0.95, 0.82] },
+    duration: 2.55 + (seed % 5) * 0.15,
+    delay: index * 0.018,
+    ease: "easeIn",
+    style: { left: `${left}%` },
+  };
+}
+
+function wobbleMotion(left: number, top: number, seed: number, index: number) {
+  const sway = 28 + (seed % 32);
+  return {
+    initial: { opacity: 0, scale: 0.4, rotate: -12 },
+    animate: { opacity: [0, 1, 1, 0], x: [0, sway, -sway, sway * 0.55], y: [16, -20, 12, -54], scale: [0.4, 1.08, 0.92], rotate: [-12, 14, -18, 8] },
+    duration: 2.35 + (seed % 5) * 0.16,
+    delay: index * 0.022,
+    ease: "easeOut",
+    style: { left: `${left}%`, top: `${top}%` },
+  };
+}
+
+function sendMotion(seed: number, index: number) {
+  return {
+    initial: { x: "-24vw", opacity: 0, scaleX: 0.78, rotate: -7 },
+    animate: { x: "116vw", opacity: [0, 1, 0], scaleX: [0.78, 1.18, 0.86], rotate: [-7, 1, 7] },
+    duration: 1.42 + (seed % 4) * 0.1,
+    delay: index * 0.012,
+    ease: [0.12, 0.8, 0.18, 1] as const,
+    style: { left: "-12%", top: `${12 + ((index * 9 + seed) % 74)}%` },
+  };
+}
+
+function rainMotion(left: number, seed: number, index: number, mode: "diamond" | "coin") {
+  return {
+    initial: { y: "-18vh", opacity: 0, rotateY: 0, rotate: -8, scale: 0.78 },
+    animate: { y: "112vh", x: [(seed % 30) - 15, (seed % 52) - 26], opacity: [0, 1, 1, 0], rotateY: [0, 180, 360], rotate: [-8, 8, -4], scale: mode === "diamond" ? [0.78, 1.12, 0.9] : [0.84, 1.18, 0.88] },
+    duration: 2.7 + (seed % 6) * 0.12,
+    delay: index * 0.014,
+    ease: "easeIn",
+    style: { left: `${left}%`, transformStyle: "preserve-3d" as const },
+  };
+}
+
+function laserMotion(top: number, seed: number, index: number) {
+  return {
+    initial: { x: "-18vw", opacity: 0, scale: 0.78, rotate: -4 },
+    animate: { x: "112vw", opacity: [0, 1, 0], scale: [0.78, 1.06, 0.9], rotate: [-4, 0, 4] },
+    duration: 1.2 + (seed % 4) * 0.08,
+    delay: index * 0.018,
+    ease: "easeOut",
+    style: { left: "-12%", top: `${top}%` },
+  };
+}
+
+function moonMotion(seed: number, index: number, lane: number) {
+  const arc = -220 - (seed % 160);
+  return {
+    initial: { left: `${12 + lane * 76}%`, top: "92%", x: 0, y: 0, opacity: 0, scale: 0.55, rotate: -24 },
+    animate: { x: [(seed % 48) - 24, (seed % 90) - 45], y: [0, arc * 0.45, arc], opacity: [0, 1, 1, 0], scale: [0.55, 1.15, 0.88], rotate: [-24, 12, 42] },
+    duration: 2.5 + (seed % 6) * 0.13,
+    delay: index * 0.016,
+    ease: [0.16, 1, 0.3, 1] as const,
+    style: {},
+  };
+}
+
+function coinMotion(left: number, seed: number, index: number) {
+  const base = rainMotion(left, seed, index, "coin");
+  return { ...base, duration: 2.45 + (seed % 6) * 0.12 };
+}
+
+function whaleMotion(seed: number, index: number, lane: number) {
+  return {
+    initial: { x: "-26vw", y: `${74 - lane * 50}vh`, opacity: 0, scale: 0.62, rotate: -5 },
+    animate: { x: "116vw", y: [`${74 - lane * 50}vh`, `${68 - lane * 48}vh`, `${72 - lane * 54}vh`], opacity: [0, 1, 1, 0], scale: [0.62, 1.14, 0.9], rotate: [-5, 4, -2] },
+    duration: 2.7 + (seed % 5) * 0.16,
+    delay: index * 0.018,
+    ease: [0.12, 0.8, 0.18, 1] as const,
+    style: { left: "-10%", top: "0%" },
+  };
+}
+
+function TextEmote({ pattern, seed, size }: { pattern: EmotePattern; seed: number; size: number }) {
+  const twist = (seed % 16) - 8;
+  const text = decorateEmoteText(pattern, seed);
+  if (!pattern.chip) {
+    return <span style={{ transform: `rotate(${twist}deg)`, display: "inline-block" }}>{text}</span>;
+  }
+  return (
+    <span
+      className="inline-flex items-center rounded-full border px-3 py-1 uppercase tracking-[0.08em]"
+      style={{
+        minHeight: Math.max(28, size * 1.4),
+        borderColor: `${pattern.accent}88`,
+        background: `linear-gradient(135deg, ${pattern.accent}24, rgba(0,0,0,0.62))`,
+        boxShadow: `0 0 22px ${pattern.glow}, inset 0 0 14px rgba(255,255,255,0.08)`,
+        transform: `rotate(${twist}deg)`,
+      }}
+    >
+      {text}
+    </span>
+  );
+}
+
+function decorateEmoteText(pattern: EmotePattern, seed: number): string {
+  switch (pattern.id) {
+    case "diamond":
+      return seed % 2 ? "DIAMOND" : "HANDS";
+    case "laser":
+      return seed % 2 ? "LASER" : "EYES";
+    case "moon":
+      return seed % 3 === 0 ? "MOON" : seed % 3 === 1 ? "LAUNCH" : "UP ONLY";
+    case "doge":
+      return seed % 2 ? "DOGE" : "WOW";
+    case "whale":
+      return seed % 2 ? "WHALE" : "SIZE";
+    default:
+      return pattern.symbol;
+  }
+}
 
 function brandedEmoteAsset(actionId: string): EmoteAsset | null {
   switch (actionId) {
@@ -552,16 +870,17 @@ function brandedEmoteAsset(actionId: string): EmoteAsset | null {
   }
 }
 
-function ImageEmote({ asset, seed, size }: { asset: EmoteAsset; seed: number; size: number }) {
+function ImageEmote({ asset, seed, size, patternId }: { asset: EmoteAsset; seed: number; size: number; patternId: string }) {
   const tilt = (seed % 18) - 9;
   const width = asset.aspect === "wide" ? size * 1.72 : asset.aspect === "auto" ? size * 1.18 : size;
+  const radius = patternId === "nelk" || patternId === "happy" || patternId === "poly" ? "10px" : "999px";
   return (
     <img
       src={asset.src}
       alt={asset.alt}
       draggable={false}
       className="block select-none object-contain"
-      style={{ width, height: size, transform: `rotate(${tilt}deg)` }}
+      style={{ width, height: size, borderRadius: radius, transform: `rotate(${tilt}deg)` }}
     />
   );
 }

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { Platform, ModerationAction, PanelLayout } from "@shared/types";
+import type { ChatMessage, Platform, ModerationAction, PanelLayout } from "@shared/types";
 import { useChatStore } from "@/store/chatStore";
 import { Message } from "./Message";
 import { SourceBadge } from "./SourceBadge";
@@ -42,13 +42,14 @@ export function ChatFeed({ panel }: { panel: PanelLayout }) {
     const q = query.trim().toLowerCase();
     return messages.filter((m) => {
       if (!enabled[m.platform] || (scoped && !scoped.includes(m.platform))) return false;
+      if (deleted.has(m.id)) return false;
       if (chip === "hosts" && !m.badges?.some((b) => b.type === "broadcaster" || b.type === "moderator")) return false;
       if (chip === "mentions" && !/@\w/.test(m.message)) return false;
       if (chip === "tickers" && !/\$[A-Za-z]{2,6}\b/.test(m.message)) return false;
       if (q && !m.message.toLowerCase().includes(q) && !m.username.toLowerCase().includes(q)) return false;
       return true;
     });
-  }, [messages, enabled, scoped, query, chip]);
+  }, [messages, enabled, scoped, query, chip, deleted]);
 
   // Auto-scroll to bottom when pinned. Keyed on the newest message id (not
   // length) so it keeps following live once the buffer hits its cap — Twitch-
@@ -80,18 +81,31 @@ export function ChatFeed({ panel }: { panel: PanelLayout }) {
     setPinned(atBottom);
   };
 
-  const handleModerate = async (id: string, username: string, platform: Platform, action: ModerationAction) => {
-    if (action.kind === "delete") markDeleted(id);
-    const res = await moderate({ platform, messageId: id, username, action });
+  const handleModerate = async (msg: ChatMessage, action: ModerationAction) => {
+    if (action.kind === "delete") markDeleted(msg.id);
+    const res = await moderate({
+      platform: msg.platform,
+      localMessageId: msg.id,
+      messageId: msg.nativeId ?? msg.id,
+      channel: msg.channel ?? msg.accountId?.split(":").slice(1).join(":"),
+      username: msg.username,
+      userId: msg.nativeUserId,
+      action,
+    });
     const verb =
       action.kind === "delete" ? "Deleted message"
-      : action.kind === "timeout" ? `Timed out ${username} (${action.seconds}s)`
-      : action.kind === "ban" ? `Banned ${username}`
-      : action.kind === "unban" ? `Unbanned ${username}`
+      : action.kind === "timeout" ? `Timed out ${msg.username} (${action.seconds}s)`
+      : action.kind === "ban" ? `Banned ${msg.username}`
+      : action.kind === "unban" ? `Unbanned ${msg.username}`
       : `Slow mode ${action.seconds}s`;
+    const failedDelete = action.kind === "delete" && !res.ok;
     push({
-      message: res.ok ? `${verb} · ${platform}` : `Failed: ${res.error}`,
-      tone: res.ok ? "ok" : "error",
+      message: res.ok
+        ? `${verb} · ${msg.platform}`
+        : failedDelete
+          ? `Hidden locally · ${msg.platform} platform delete failed: ${res.error}`
+          : `Failed: ${res.error}`,
+      tone: res.ok ? "ok" : failedDelete ? "info" : "error",
       onUndo: res.undoToken ? () => push({ message: "Undone", tone: "info" }) : undefined,
     });
   };
@@ -166,7 +180,7 @@ export function ChatFeed({ panel }: { panel: PanelLayout }) {
               key={m.id}
               msg={m}
               deleted={deleted.has(m.id)}
-              onModerate={(a) => handleModerate(m.id, m.username, m.platform, a)}
+              onModerate={(a) => handleModerate(m, a)}
             />
           ))}
         </div>

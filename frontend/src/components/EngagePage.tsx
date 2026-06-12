@@ -332,10 +332,13 @@ function ActionVisual({ action, emote, color, enabled }: { action: OverlayAction
   const Icon = visual.icon;
   const tint = enabled ? action.accent : "rgba(255,255,255,0.42)";
   const dynamicText = action.id === "emote-burst" ? emote : visual.text;
+  const preview = actionVisualPreview(action.id, enabled);
 
   return (
-    <span
+    <motion.span
       className="grid h-9 w-9 shrink-0 place-items-center overflow-hidden rounded-lg border sm:h-12 sm:w-12 sm:rounded-xl"
+      animate={preview.container.animate}
+      transition={preview.container.transition}
       style={{
         borderColor: enabled ? `${action.accent}66` : "rgba(255,255,255,0.12)",
         background: action.id === "mood-wave"
@@ -345,21 +348,139 @@ function ActionVisual({ action, emote, color, enabled }: { action: OverlayAction
       }}
       aria-label={visual.alt}
     >
+      <ActionVisualAccent actionId={action.id} accent={action.accent} enabled={enabled} />
       {visual.image ? (
-        <img
+        <motion.img
           src={visual.image}
           alt=""
           draggable={false}
           className={`select-none object-contain ${visual.wide ? "h-6 w-8 sm:h-8 sm:w-11" : "h-8 w-8 sm:h-11 sm:w-11"}`}
+          animate={preview.content.animate}
+          transition={preview.content.transition}
         />
       ) : (
-        <span className="flex flex-col items-center justify-center leading-none">
+        <motion.span className="flex flex-col items-center justify-center leading-none" animate={preview.content.animate} transition={preview.content.transition}>
           {Icon ? <Icon size={dynamicText ? 15 : 20} className="sm:h-6 sm:w-6" style={{ color: tint }} /> : null}
           {dynamicText ? <span className="mt-0.5 max-w-[42px] truncate text-[7px] font-black tracking-normal sm:text-[8px]" style={{ color: tint }}>{dynamicText}</span> : null}
-        </span>
+        </motion.span>
       )}
-    </span>
+    </motion.span>
   );
+}
+
+function actionVisualPreview(actionId: string, enabled: boolean) {
+  if (!enabled) {
+    return {
+      container: { animate: { scale: 1 }, transition: { duration: 0.2 } },
+      content: { animate: { scale: 1, rotate: 0, x: 0, y: 0 }, transition: { duration: 0.2 } },
+    };
+  }
+
+  switch (actionId) {
+    case "charging-bull":
+    case "wagmi-meme":
+    case "chart-pump":
+      return {
+        container: { animate: { boxShadow: ["0 0 14px rgba(22,230,164,0.16)", "0 0 24px rgba(22,230,164,0.42)", "0 0 14px rgba(22,230,164,0.16)"] }, transition: { duration: 1.8, repeat: Infinity, ease: "easeInOut" } },
+        content: { animate: { y: [2, -3, 2], rotate: [-3, 4, -3], scale: [1, 1.06, 1] }, transition: { duration: 1.4, repeat: Infinity, ease: "easeInOut" } },
+      };
+    case "bear-slash":
+    case "ngmi-meme":
+    case "chart-dump":
+      return {
+        container: { animate: { x: [0, -1, 1, 0] }, transition: { duration: 1.5, repeat: Infinity, ease: "easeInOut" } },
+        content: { animate: { y: [-2, 3, -2], rotate: [4, -6, 4], scale: [1, 1.05, 1] }, transition: { duration: 1.35, repeat: Infinity, ease: "easeInOut" } },
+      };
+    case "ansem-emote":
+      return {
+        container: { animate: { scale: [1, 1.04, 1] }, transition: { duration: 1.6, repeat: Infinity, ease: "easeInOut" } },
+        content: { animate: { rotate: [-8, 8, -8], y: [1, -2, 1] }, transition: { duration: 1.7, repeat: Infinity, ease: "easeInOut" } },
+      };
+    case "banks-emote":
+    case "polymarket-emote":
+      return {
+        container: { animate: { x: [0, 1.5, 0] }, transition: { duration: 1.4, repeat: Infinity, ease: "easeInOut" } },
+        content: { animate: { x: [-2, 2, -2], rotate: [-4, 4, -4] }, transition: { duration: 1.5, repeat: Infinity, ease: "easeInOut" } },
+      };
+    case "nelk-emote":
+      return {
+        container: { animate: { y: [0, -1, 0] }, transition: { duration: 1.35, repeat: Infinity, ease: "easeInOut" } },
+        content: { animate: { scale: [1, 1.12, 0.98, 1], rotate: [-5, 5, -2, -5] }, transition: { duration: 1.8, repeat: Infinity, ease: "easeInOut" } },
+      };
+    case "happy-dad-emote":
+      return {
+        container: { animate: { scale: [1, 1.03, 1] }, transition: { duration: 1.25, repeat: Infinity, ease: "easeInOut" } },
+        content: { animate: { y: [2, -4, 2], rotate: [0, 8, 0] }, transition: { duration: 1.45, repeat: Infinity, ease: "easeInOut" } },
+      };
+    case "send-it-meme":
+    case "laser-eyes-meme":
+      return {
+        container: { animate: { x: [0, 2, 0] }, transition: { duration: 1.05, repeat: Infinity, ease: "easeInOut" } },
+        content: { animate: { x: [-3, 3, -3], scaleX: [1, 1.12, 1] }, transition: { duration: 1, repeat: Infinity, ease: "easeInOut" } },
+      };
+    case "diamond-hands-meme":
+    case "dogecoin-meme":
+    case "whale-storm":
+      return {
+        container: { animate: { rotateY: [0, 16, 0] }, transition: { duration: 1.8, repeat: Infinity, ease: "easeInOut" } },
+        content: { animate: { y: [-2, 2, -2], rotate: [-6, 6, -6] }, transition: { duration: 1.35, repeat: Infinity, ease: "easeInOut" } },
+      };
+    case "moon-meme":
+      return {
+        container: { animate: { y: [1, -2, 1] }, transition: { duration: 1.45, repeat: Infinity, ease: "easeInOut" } },
+        content: { animate: { x: [-2, 2, -2], y: [3, -4, 3], rotate: [-10, 10, -10] }, transition: { duration: 1.55, repeat: Infinity, ease: "easeInOut" } },
+      };
+    case "cope-meme":
+    case "emote-burst":
+      return {
+        container: { animate: { scale: [1, 1.03, 1] }, transition: { duration: 1.4, repeat: Infinity, ease: "easeInOut" } },
+        content: { animate: { rotate: [-7, 7, -7], scale: [1, 1.06, 1] }, transition: { duration: 1.45, repeat: Infinity, ease: "easeInOut" } },
+      };
+    default:
+      return {
+        container: { animate: { scale: [1, 1.02, 1] }, transition: { duration: 1.8, repeat: Infinity, ease: "easeInOut" } },
+        content: { animate: { scale: [1, 1.04, 1] }, transition: { duration: 1.6, repeat: Infinity, ease: "easeInOut" } },
+      };
+  }
+}
+
+function ActionVisualAccent({ actionId, accent, enabled }: { actionId: string; accent: string; enabled: boolean }) {
+  if (!enabled) return null;
+
+  if (actionId === "laser-eyes-meme" || actionId === "send-it-meme") {
+    return (
+      <motion.span
+        className="absolute inset-y-1 left-[-45%] w-1/2 skew-x-[-18deg] rounded-full"
+        style={{ background: `linear-gradient(90deg, transparent, ${accent}, transparent)` }}
+        animate={{ x: ["0%", "320%"], opacity: [0, 0.85, 0] }}
+        transition={{ duration: 1.15, repeat: Infinity, ease: "easeOut" }}
+      />
+    );
+  }
+
+  if (actionId === "diamond-hands-meme" || actionId === "dogecoin-meme" || actionId === "whale-storm") {
+    return (
+      <motion.span
+        className="absolute h-2 w-2 rounded-sm"
+        style={{ background: accent, boxShadow: `0 0 12px ${accent}` }}
+        animate={{ x: [-10, 10, -10], y: [-10, 10, -10], opacity: [0, 1, 0], rotate: [0, 180, 360] }}
+        transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
+      />
+    );
+  }
+
+  if (actionId.includes("emote") || actionId.includes("meme")) {
+    return (
+      <motion.span
+        className="absolute inset-1 rounded-full border"
+        style={{ borderColor: `${accent}66` }}
+        animate={{ scale: [0.75, 1.18], opacity: [0.45, 0] }}
+        transition={{ duration: 1.2, repeat: Infinity, ease: "easeOut" }}
+      />
+    );
+  }
+
+  return null;
 }
 
 function Picker({ label, value, values, onChange, color = false }: { label: string; value: string; values: string[]; onChange: (v: string) => void; color?: boolean }) {

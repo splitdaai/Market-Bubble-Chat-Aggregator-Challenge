@@ -141,27 +141,37 @@ export function UserCard() {
 
   // All mod actions fan out to every platform this viewer chats on.
   const plural = userPlatforms.length > 1 ? ` · ${userPlatforms.length} platforms` : "";
+  const moderationTarget = (platform: Platform) => {
+    const lastMessage = [...userMessages].reverse().find((m) => m.platform === platform);
+    return {
+      platform,
+      username: open.name,
+      channel: lastMessage?.channel ?? (platform === row?.platform ? row.channel : undefined),
+      userId: lastMessage?.nativeUserId ?? (platform === row?.platform ? row.nativeUserId : undefined),
+    };
+  };
+
   const handleStack = async (seconds: number) => {
     let total = 0;
     for (const p of userPlatforms) total = addTimeout(p, open.name, seconds);
-    await Promise.all(userPlatforms.map((p) => moderate({ platform: p, username: open.name, action: { kind: "timeout", seconds: total } })));
+    await Promise.all(userPlatforms.map((p) => moderate({ ...moderationTarget(p), action: { kind: "timeout", seconds: total } })));
     push({ message: `Timed out ${open.name} · ${fmtDuration(total)} total${plural}`, tone: "ok" });
   };
   const handleReduce = async (seconds: number) => {
     let total = 0;
     for (const p of userPlatforms) total = reduceTimeout(p, open.name, seconds);
     if (total > 0) {
-      await Promise.all(userPlatforms.map((p) => moderate({ platform: p, username: open.name, action: { kind: "timeout", seconds: total } })));
+      await Promise.all(userPlatforms.map((p) => moderate({ ...moderationTarget(p), action: { kind: "timeout", seconds: total } })));
       push({ message: `Reduced ${open.name} to ${fmtDuration(total)}`, tone: "ok" });
     } else {
-      await Promise.all(userPlatforms.map((p) => moderate({ platform: p, username: open.name, action: { kind: "unban" } })));
+      await Promise.all(userPlatforms.map((p) => moderate({ ...moderationTarget(p), action: { kind: "unban" } })));
       push({ message: `Timeout removed for ${open.name}`, tone: "ok" });
       setMoMode("none");
     }
   };
   const handleRemoveTimeout = async () => {
     for (const p of userPlatforms) clearTimeout(p, open.name);
-    await Promise.all(userPlatforms.map((p) => moderate({ platform: p, username: open.name, action: { kind: "unban" } })));
+    await Promise.all(userPlatforms.map((p) => moderate({ ...moderationTarget(p), action: { kind: "unban" } })));
     push({ message: `Timeout removed for ${open.name}`, tone: "ok" });
     setMoMode("none");
   };
@@ -171,7 +181,7 @@ export function UserCard() {
       setBanned(p, open.name, next);
       if (next) clearTimeout(p, open.name);
     }
-    await Promise.all(userPlatforms.map((p) => moderate({ platform: p, username: open.name, action: { kind: next ? "ban" : "unban" } })));
+    await Promise.all(userPlatforms.map((p) => moderate({ ...moderationTarget(p), action: { kind: next ? "ban" : "unban" } })));
     push({ message: next ? `Banned ${open.name}${plural}` : `Unbanned ${open.name}`, tone: next ? "error" : "ok" });
   };
 

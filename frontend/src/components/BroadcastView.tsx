@@ -65,6 +65,7 @@ export function BroadcastView({ onOpenConnections, landing = false }: { onOpenCo
   const messages = useChatStore((s) => s.messages);
   const enabled = useChatStore((s) => s.enabled);
   const deleted = useChatStore((s) => s.deleted);
+  const markDeleted = useChatStore((s) => s.markDeleted);
   const snapshot = useStatsStore((s) => s.snapshot);
   const ALL = useActivePlatforms();
   const demo = useModeStore((s) => s.demo);
@@ -94,11 +95,12 @@ export function BroadcastView({ onOpenConnections, landing = false }: { onOpenCo
       const filtered = messages.filter(
         (m) =>
           enabled[m.platform] &&
+          !deleted.has(m.id) &&
           activePlatforms.includes(m.platform as Platform),
       );
       return filtered.length > messageLimit ? filtered.slice(-messageLimit) : filtered;
     },
-    [messages, enabled, activePlatforms, messageLimit],
+    [messages, enabled, activePlatforms, messageLimit, deleted],
   );
 
   // Per-streamer totals (Ansem / Banks / Market Bubble) + platform split each.
@@ -219,6 +221,7 @@ export function BroadcastView({ onOpenConnections, landing = false }: { onOpenCo
               key={msg.id}
               msg={msg}
               deleted={deleted.has(msg.id)}
+              onDeleted={markDeleted}
             />
           ))}
         </div>
@@ -254,12 +257,29 @@ export function BroadcastView({ onOpenConnections, landing = false }: { onOpenCo
   return <StageView panel={panel} onOpenConnections={onOpenConnections} landing={landing} />;
 }
 
-const BroadcastMessageRow = memo(function BroadcastMessageRow({ msg, deleted }: { msg: ChatMessage; deleted: boolean }) {
+const BroadcastMessageRow = memo(function BroadcastMessageRow({
+  msg,
+  deleted,
+  onDeleted,
+}: {
+  msg: ChatMessage;
+  deleted: boolean;
+  onDeleted: (id: string) => void;
+}) {
   const onModerate = useCallback(
     (action: ModerationAction) => {
-      moderate({ platform: msg.platform, username: msg.username, action });
+      if (action.kind === "delete") onDeleted(msg.id);
+      moderate({
+        platform: msg.platform,
+        localMessageId: msg.id,
+        messageId: msg.nativeId ?? msg.id,
+        channel: msg.channel ?? msg.accountId?.split(":").slice(1).join(":"),
+        username: msg.username,
+        userId: msg.nativeUserId,
+        action,
+      });
     },
-    [msg.platform, msg.username],
+    [msg.accountId, msg.channel, msg.id, msg.nativeId, msg.platform, msg.username, onDeleted],
   );
 
   return (

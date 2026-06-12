@@ -329,13 +329,17 @@ async function main() {
     for (const a of getAccounts()) {
       if (!a.connected || linked.has(a.id)) continue;
       const channel = a.handle.replace(/^@/, "").toLowerCase();
-      if ((a.platform === "twitch" || a.platform === "kick") && watched.has(`${a.platform}:${channel}`)) {
-        linked.add(a.id); // already covered by an env connector — don't duplicate
-        continue;
+      const alreadyWatched = (a.platform === "twitch" || a.platform === "kick") && watched.has(`${a.platform}:${channel}`);
+      const canUpgradeKickReader = a.platform === "kick" && Boolean(getToken(a.id)?.access);
+      if (alreadyWatched) {
+        if (!canUpgradeKickReader) {
+          linked.add(a.id); // already covered by an env connector — don't duplicate
+          continue;
+        }
       }
       let connector: Connector | null = null;
       if (a.platform === "twitch") connector = new TwitchConnector(channel);
-      else if (a.platform === "kick") connector = new KickConnector(channel);
+      else if (a.platform === "kick") connector = new KickConnector(channel, getToken(a.id)?.access, () => refreshToken(a.id));
       else if (a.platform === "youtube") {
         const tok = getToken(a.id)?.access;
         if (tok) connector = new YouTubeConnector({ oauthToken: tok, label: channel, refresh: () => refreshToken(a.id) });

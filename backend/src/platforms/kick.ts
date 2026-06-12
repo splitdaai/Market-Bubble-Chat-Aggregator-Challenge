@@ -12,10 +12,11 @@ const execFileP = promisify(execFile);
  * Kick has no first-party SDK. We resolve the chatroom id from the public
  * channel endpoint, then subscribe to `chatrooms.<id>.v2` over the shared
  * Pusher cluster. Read is unauthenticated; moderation requires a logged-in
- * session token (KICK_BEARER) hitting the v2 moderation REST endpoints.
+ * user token hitting Kick's public moderation REST endpoints.
  */
 const PUSHER_KEY = "32cbd69e4b950bf97679"; // Kick's public app key
 const PUSHER_URL = `wss://ws-us2.pusher.com/app/${PUSHER_KEY}?protocol=7&client=js&version=8.4.0&flash=false`;
+const KICK_API = "https://api.kick.com/public/v1";
 
 const BROWSER_UA =
   "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36";
@@ -26,7 +27,7 @@ type UnknownRecord = Record<string, unknown>;
 interface KickChatPayload {
   id: string | number;
   content: string;
-  sender: { username: string; identity?: { color?: string; badges?: { type: string; text: string }[] } };
+  sender: { id?: string | number; username: string; identity?: { color?: string; badges?: { type: string; text: string }[] } };
   emotes?: unknown;
   metadata?: unknown;
   message?: unknown;
@@ -34,6 +35,7 @@ interface KickChatPayload {
 
 interface KickChannelResolve {
   chatroomId: number;
+  broadcasterUserId?: number | null;
   emotes: Emote[];
 }
 
@@ -43,10 +45,11 @@ export class KickConnector extends BaseConnector {
   readonly platform = "kick" as const;
   private ws: WebSocket | null = null;
   private chatroomId: number | null = null;
+  private broadcasterUserId: number | null = null;
   private channelEmotes = new Map<string, string>();
   private stopped = false;
 
-  constructor(private slug: string, private bearer?: string) {
+  constructor(private slug: string, private bearer?: string, private refresh?: () => Promise<string | null>) {
     super("kick", slug);
   }
 
@@ -54,6 +57,10 @@ export class KickConnector extends BaseConnector {
     this.stopped = false;
     const resolved = await this.resolveChannel(this.slug);
     this.chatroomId = resolved?.chatroomId ?? null;
+    this.broadcasterUserId = resolved?.broadcasterUserId ?? null;
+    if (!this.broadcasterUserId && this.bearer) {
+      this.broadcasterUserId = await this.resolveBroadcasterUserId(this.slug);
+    }
     if (!this.chatroomId) {
       // Don't give up forever — Cloudflare can be flaky; retry the whole resolve.
       this.setStatus({ connected: false, error: "channel_not_found" });
@@ -87,7 +94,8 @@ export class KickConnector extends BaseConnector {
         );
         const data = JSON.parse(stdout) as unknown;
         const id = asRecord(asRecord(data)?.chatroom)?.id;
-        if (typeof id === "number") return { chatroomId: id, emotes: extractKickEmotesFromUnknown(data) };
+        const broadcasterUserId = parseNumber(asRecord(data)?.broadcaster_user_id);
+        if (typeof id === "number") return { chatroomId: id, broadcasterUserId, emotes: extractKickEmotesFromUnknown(data) };
       } catch {
         /* curl missing/failed/non-JSON — try fetch, then retry */
       }
@@ -97,7 +105,8 @@ export class KickConnector extends BaseConnector {
         if (res.ok) {
           const data = await res.json() as unknown;
           const id = asRecord(asRecord(data)?.chatroom)?.id;
-          if (typeof id === "number") return { chatroomId: id, emotes: extractKickEmotesFromUnknown(data) };
+          const broadcasterUserId = parseNumber(asRecord(data)?.broadcaster_user_id);
+          if (typeof id === "number") return { chatroomId: id, broadcasterUserId, emotes: extractKickEmotesFromUnknown(data) };
         }
       } catch {
         /* ignore and retry */
@@ -105,6 +114,17 @@ export class KickConnector extends BaseConnector {
       await new Promise((r) => setTimeout(r, 1500 * (attempt + 1)));
     }
     return null;
+  }
+
+  private async resolveBroadcasterUserId(slug: string): Promise<number | null> {
+    try {
+      const json = await this.kickJson(`/channels?slug=${encodeURIComponent(slug)}`);
+      const data = asRecord(json)?.data;
+      const first = Array.isArray(data) ? asRecord(data[0]) : null;
+      return parseNumber(first?.broadcaster_user_id);
+    } catch {
+      return null;
+    }
   }
 
   private connectSocket() {
@@ -188,7 +208,10 @@ export class KickConnector extends BaseConnector {
       id: `kick:${d.id}`,
       nativeId: String(d.id),
       platform: "kick",
+      accountId: `kick:${this.slug}`,
+      channel: this.slug,
       username: d.sender.username,
+      nativeUserId: cleanCode(d.sender.id) ?? undefined,
       color: d.sender.identity?.color,
       message,
       timestamp: Date.now(),
@@ -206,19 +229,96 @@ export class KickConnector extends BaseConnector {
 
   async moderate(req: ModerationRequest): Promise<ModerationResult> {
     if (!this.bearer) return { ok: false, request: req, error: "no_mod_credentials" };
-    // Kick moderation REST surface (v2). Wired to be implemented against a live
-    // mod session token; left as a clearly-marked seam rather than a guess.
     try {
-      // e.g. POST https://kick.com/api/v2/channels/<slug>/bans  { banned_username, duration }
-      return { ok: true, request: req };
+      switch (req.action.kind) {
+        case "delete":
+          if (!req.messageId) return { ok: false, request: req, error: "missing_message_id" };
+          await this.kickRequest(`/chat/${encodeURIComponent(req.messageId)}`, { method: "DELETE" }, [204]);
+          break;
+        case "ban":
+          await this.postBan(req);
+          break;
+        case "timeout":
+          await this.postBan(req, Math.max(1, Math.ceil(req.action.seconds / 60)));
+          break;
+        case "unban":
+          await this.deleteBan(req);
+          break;
+        case "slow":
+          return { ok: false, request: req, error: "kick_slow_mode_api_unsupported" };
+      }
+      return { ok: true, request: req, undoToken: req.action.kind === "ban" ? req.username : undefined };
     } catch (e) {
       return { ok: false, request: req, error: String(e) };
     }
   }
+
+  private async postBan(req: ModerationRequest, durationMinutes?: number) {
+    const body = this.moderationBody(req);
+    await this.kickRequest("/moderation/bans", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        ...body,
+        ...(durationMinutes ? { duration: Math.min(10_080, durationMinutes) } : {}),
+        reason: "Market Bubble moderation",
+      }),
+    });
+  }
+
+  private async deleteBan(req: ModerationRequest) {
+    await this.kickRequest("/moderation/bans", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(this.moderationBody(req)),
+    });
+  }
+
+  private moderationBody(req: ModerationRequest) {
+    const broadcaster_user_id = this.broadcasterUserId;
+    const user_id = parseNumber(req.userId);
+    if (!broadcaster_user_id) throw new Error("missing_broadcaster_user_id");
+    if (!user_id) throw new Error("missing_target_user_id");
+    return { broadcaster_user_id, user_id };
+  }
+
+  private async kickJson(path: string) {
+    const res = await this.kickFetch(path, { method: "GET" });
+    if (!res.ok) throw new Error(`kick_api_${res.status}`);
+    return res.json() as Promise<unknown>;
+  }
+
+  private async kickRequest(path: string, init: RequestInit, okStatuses = [200, 204]) {
+    const res = await this.kickFetch(path, init);
+    if (!okStatuses.includes(res.status)) {
+      const body = await res.text().catch(() => "");
+      throw new Error(`kick_api_${res.status}${body ? `:${body.slice(0, 240)}` : ""}`);
+    }
+  }
+
+  private async kickFetch(path: string, init: RequestInit): Promise<Response> {
+    const res = await this.kickFetchOnce(path, init, this.bearer);
+    if (res.status !== 401 || !this.refresh) return res;
+    const fresh = await this.refresh();
+    if (!fresh) return res;
+    this.bearer = fresh;
+    return this.kickFetchOnce(path, init, fresh);
+  }
+
+  private async kickFetchOnce(path: string, init: RequestInit, bearer?: string): Promise<Response> {
+    if (!bearer) throw new Error("no_mod_credentials");
+    const headers = new Headers(init.headers);
+    headers.set("Authorization", `Bearer ${bearer}`);
+    headers.set("Accept", "application/json");
+    return fetch(`${KICK_API}${path}`, { ...init, headers });
+  }
 }
 
 function cleanKickContent(content: string): string {
-  return content.replace(KICK_EMOTE_TOKEN_RE, "$2");
+  return content
+    .replace(KICK_EMOTE_TOKEN_RE, " $2 ")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 function extractKickEmotes(payload: KickChatPayload): Emote[] {
@@ -342,6 +442,11 @@ function cleanCode(value: unknown): string | null {
   const code = String(value).trim();
   if (!code) return null;
   return code.length > 2 && code.startsWith(":") && code.endsWith(":") ? code.slice(1, -1) : code;
+}
+
+function parseNumber(value: unknown): number | null {
+  const n = typeof value === "number" ? value : typeof value === "string" ? Number(value) : NaN;
+  return Number.isInteger(n) && n > 0 ? n : null;
 }
 
 function cleanUrl(value: unknown): string | null {

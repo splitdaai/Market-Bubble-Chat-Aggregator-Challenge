@@ -81,7 +81,7 @@ export function UserList() {
   }, [all, platforms]);
 
   const handleModerate = async (u: ListUser, action: ModerationAction) => {
-    const res = await moderate({ platform: u.platform, username: u.name, action });
+    const res = await moderate({ platform: u.platform, username: u.name, channel: u.channel, userId: u.nativeUserId, action });
     const verb =
       action.kind === "timeout" ? `Timed out ${u.name} (${action.seconds}s)`
       : action.kind === "ban" ? `Banned ${u.name}`

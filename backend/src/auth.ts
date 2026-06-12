@@ -96,16 +96,16 @@ const PROVIDERS: Partial<Record<Platform, Provider>> = {
   kick: {
     authorizeUrl: "https://id.kick.com/oauth/authorize",
     tokenUrl: "https://id.kick.com/oauth/token",
-    scopes: "user:read chat:write",
+    scopes: "user:read chat:write moderation:ban moderation:chat_message:manage",
     pkce: true,
     clientId: env.KICK_CLIENT_ID,
     clientSecret: env.KICK_CLIENT_SECRET,
     userInfo: async (token) => {
       const r = await fetch("https://api.kick.com/public/v1/users", { headers: { Authorization: `Bearer ${token}` } });
       if (!r.ok) return null;
-      const d = (await r.json()) as { data?: { name: string }[] };
+      const d = (await r.json()) as { data?: { name: string; user_id?: number; id?: number }[] };
       const u = d.data?.[0];
-      return u ? { handle: u.name, displayName: u.name } : null;
+      return u ? { handle: u.name, displayName: u.name, id: String(u.user_id ?? u.id ?? "") || undefined } : null;
     },
   },
 };

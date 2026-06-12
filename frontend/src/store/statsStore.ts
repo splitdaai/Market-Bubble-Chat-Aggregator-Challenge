@@ -46,6 +46,7 @@ interface ChatterInfo {
   subs: number;
   /** Source channel this viewer is watching (Ansem / Banks / Market Bubble). */
   channel?: string;
+  nativeUserId?: string;
 }
 
 interface Accum {
@@ -82,6 +83,7 @@ export interface UserRow {
   /** Lifetime Bubble Bucks spent on engagement actions / perks. */
   spent: number;
   channel?: string;
+  nativeUserId?: string;
 }
 
 
@@ -278,6 +280,7 @@ export const useStatsStore = create<StatsState>((set, get) => ({
     c.count += 1;
     c.last = now;
     if (m.channel) c.channel = m.channel;
+    if (m.nativeUserId) c.nativeUserId = m.nativeUserId;
     if (m.event) {
       // Tips + bits + the dollar value of subs all count toward "donated".
       c.donated += m.event.amount;
