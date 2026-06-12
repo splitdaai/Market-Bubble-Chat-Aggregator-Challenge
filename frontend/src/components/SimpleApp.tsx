@@ -1,6 +1,6 @@
 import { lazy, Suspense, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Zap, Plug, Palette, Pencil, Eye, Wallet } from "lucide-react";
+import { Zap, Plug, Palette, Pencil, Eye, Wallet, MessagesSquare } from "lucide-react";
 import type { PanelLayout, WidgetKind } from "@shared/types";
 import { useViewerStore } from "@/store/viewerStore";
 import { useWalletStore } from "@/store/walletStore";
@@ -113,6 +113,15 @@ export function SimpleApp() {
           >
             {demo ? "DEMO" : "LIVE"}
           </button>
+          <a
+            href="/?broadcast=1&stage=1"
+            target="_blank"
+            rel="noreferrer"
+            title="Preview the on-stream Chat Only panel (OBS center-screen)"
+            className="flex items-center gap-1.5 rounded-lg border border-white/15 bg-white/[0.05] px-3 py-1.5 text-[13px] font-bold text-ink transition hover:border-accent/50 hover:text-accent"
+          >
+            <MessagesSquare size={15} /> Chat Only
+          </a>
           <IconPop icon={<Palette size={16} />} label="Theme Editor" onClick={() => setThemeOpen(true)} />
           <IconPop icon={<Plug size={16} />} label="Connections" onClick={() => setConnOpen(true)} />
           <IconPop icon={<Wallet size={16} />} label={walletLabel} onClick={() => setAccount(true)} active={!!(xHandle || address)} />

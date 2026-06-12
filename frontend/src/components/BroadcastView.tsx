@@ -4,28 +4,56 @@ import { useChatStore } from "@/store/chatStore";
 import { useStatsStore } from "@/store/statsStore";
 import { useModeStore } from "@/store/modeStore";
 import { useActivePlatforms } from "@/hooks/useActivePlatforms";
+import { byStreamer } from "@/lib/streamers";
 import { Message } from "./Message";
-import { platformColor, platformIcon, CHAT_PLATFORMS } from "./SourceBadge";
+import { platformIcon, platformLabel, platformColor, CHAT_PLATFORMS } from "./SourceBadge";
 import { compact } from "@/lib/format";
 import { moderate } from "@/lib/api";
 import { LiveTimer } from "./LiveTimer";
 import type { Platform } from "@shared/types";
 
 /**
- * OBS Browser Source: center-screen broadcast panel.
+ * OBS Browser Source: center-screen broadcast panel ("Chat Only").
  *
  * Drop `?broadcast=1` into OBS as a Browser Source at whatever width fits your
- * center column (Banks' current OBS layout: ~600–800 px wide, full height).
- * Displays the unified aggregated chat + combined viewer count. No extra chrome.
+ * center column (the show's OBS layout: ~600–800 px wide between the hosts).
+ * Displays the unified aggregated chat + combined viewers. No extra chrome.
  *
  * URL params:
- *   ?broadcast=1            — renders this view
+ *   ?broadcast=1            — renders this view (clean, for OBS)
+ *   &stage=1                — DEMO: blurred hosts backdrop with the chat panel
+ *                             standing out center-screen, simulating its spot
+ *                             on the broadcast between Ansem & Banks
  *   &bg=transparent         — transparent background for chroma-free compositing
  *   &platform=twitch,kick   — comma-separated filter (all platforms if omitted)
- *   &fontsize=16            — base rem-equivalent in px (default 15)
+ *   &fontsize=16            — base font size in px (default 15)
  */
 
 const SCROLL_THRESHOLD = 120; // px from bottom before we consider it "scrolled up"
+
+/** Per-streamer viewer chip — hover reveals that streamer's platform split. */
+function StreamerChip({ name, viewers, breakdown }: { name: string; viewers: number; breakdown: { platform: Platform; viewers: number }[] }) {
+  return (
+    <span className="group relative flex cursor-default items-center gap-1 whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-bold" style={{ color: "#e8c987", background: "rgba(217,165,71,0.08)", border: "1px solid rgba(217,165,71,0.3)" }}>
+      {name}
+      <span className="tabular-nums" style={{ color: "#f3efe7" }}>{compact(viewers)}</span>
+
+      {/* Hover: per-platform breakdown */}
+      <span className="pointer-events-none absolute right-0 top-full z-50 mt-1.5 hidden min-w-[148px] flex-col gap-1 rounded-xl p-2.5 group-hover:flex" style={{ background: "#14100a", border: "1px solid rgba(217,165,71,0.35)", boxShadow: "0 12px 32px rgba(0,0,0,0.65)" }}>
+        <span className="mb-0.5 text-[9px] font-black uppercase tracking-[0.14em]" style={{ color: "#9a8f7e" }}>{name} · by platform</span>
+        {breakdown.map((b) => (
+          <span key={b.platform} className="flex items-center justify-between gap-3">
+            <span className="flex items-center gap-1.5 text-[11px] font-bold" style={{ color: platformColor(b.platform) }}>
+              <span className="grid place-items-center">{platformIcon(b.platform)}</span>
+              {platformLabel(b.platform)}
+            </span>
+            <span className="text-[11px] font-bold tabular-nums" style={{ color: "#f3efe7" }}>{compact(b.viewers)}</span>
+          </span>
+        ))}
+      </span>
+    </span>
+  );
+}
 
 export function BroadcastView() {
   const messages = useChatStore((s) => s.messages);
@@ -40,7 +68,8 @@ export function BroadcastView() {
 
   // Parse URL params once
   const params = useMemo(() => new URLSearchParams(window.location.search), []);
-  const transparent = params.get("bg") === "transparent";
+  const stage = params.has("stage");
+  const transparent = !stage && params.get("bg") === "transparent";
   const fontPx = parseInt(params.get("fontsize") ?? "15", 10) || 15;
   const platformFilter = useMemo<Platform[] | null>(() => {
     const raw = params.get("platform");
@@ -61,12 +90,25 @@ export function BroadcastView() {
     [messages, enabled, activePlatforms],
   );
 
-  // Auto-scroll pinned to bottom; pause when user scrolls up
+  // Per-streamer totals (Ansem / Banks / Market Bubble) + platform split each.
+  const streamers = useMemo(() => byStreamer(snapshot.accounts), [snapshot.accounts]);
+  const breakdownFor = (name: string) =>
+    snapshot.accounts
+      .filter((a) => a.displayName === name && a.viewers > 0)
+      .map((a) => ({ platform: a.platform, viewers: a.viewers }))
+      .sort((x, y) => y.viewers - x.viewers);
+
+  // Newest message id — drives auto-scroll. Keying on the id (not length) keeps
+  // the feed following live even after the buffer hits its cap, where length
+  // stops changing but new messages still arrive.
+  const newestId = visible.length ? visible[visible.length - 1].id : null;
+
+  // Auto-scroll pinned to bottom; pauses when the user scrolls up to read back.
   useEffect(() => {
     const el = scrollRef.current;
     if (!el || !pinned) return;
     el.scrollTop = el.scrollHeight;
-  }, [visible.length, pinned]);
+  }, [newestId, pinned]);
 
   useEffect(() => {
     const el = scrollRef.current;
@@ -79,80 +121,68 @@ export function BroadcastView() {
     return () => el.removeEventListener("scroll", onScroll);
   }, []);
 
-  // Set background for OBS transparent mode
+  // Page background for OBS modes
   useEffect(() => {
     if (transparent) {
       document.body.style.background = "transparent";
       document.documentElement.style.background = "transparent";
     } else {
-      document.body.style.background = "#06100d";
+      document.body.style.background = "#080706";
     }
   }, [transparent]);
 
-  const bgClass = transparent ? "bg-transparent" : "bg-[#06100d]";
-
   const totalViewers = snapshot.totals.viewers;
 
-  return (
+  // ── The chat panel itself (header + feed) ──
+  const panel = (
     <div
-      className={`flex h-screen flex-col ${bgClass} text-white`}
-      style={{ fontSize: fontPx }}
+      className={`relative flex h-full flex-col overflow-hidden ${stage ? "rounded-2xl" : ""}`}
+      style={{
+        fontSize: fontPx,
+        color: "#f3efe7",
+        background: transparent ? "transparent" : "#080706",
+        ...(stage ? { border: "1px solid rgba(217,165,71,0.35)", boxShadow: "0 24px 80px rgba(0,0,0,0.8), 0 0 42px rgba(217,165,71,0.12)" } : {}),
+      }}
     >
-      {/* ── Header strip ── */}
-      <header className="flex shrink-0 items-center justify-between px-4 py-2.5 border-b border-white/[0.06]" style={{ background: transparent ? "rgba(6,16,13,0.72)" : "#07140f" }}>
-        {/* Left: logo + LIVE pill + timer */}
-        <div className="flex items-center gap-2.5">
-          <img src="/market-bubble-logo.svg" alt="Market Bubble" className="h-7 w-auto" />
-          <div className="flex items-center gap-1.5 rounded-full border border-red-500/40 bg-red-500/12 px-2 py-0.5">
-            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-red-500" />
-            <span className="text-[11px] font-black uppercase tracking-widest text-red-400">Live</span>
-            <LiveTimer className="text-[11px] font-bold tabular-nums text-red-300/80" />
+      {/* ── Header strip (On Air broadcast lower-third) ── */}
+      <header
+        className="relative flex shrink-0 items-center justify-between px-4 pt-2.5 pb-3"
+        style={{ background: transparent ? "rgba(20,16,10,0.78)" : "linear-gradient(180deg, rgba(40,33,22,0.55), rgba(8,7,6,0))" }}
+      >
+        {/* Left: real logo + LIVE pill + timer */}
+        <div className="flex shrink-0 items-center gap-2.5">
+          <img src="/market-bubble-logo.svg" alt="Market Bubble" className="h-8 w-auto" />
+          <div className="flex items-center gap-1.5 whitespace-nowrap rounded-full px-2 py-0.5" style={{ border: "1px solid rgba(217,165,71,0.4)", background: "rgba(217,165,71,0.1)" }}>
+            <span className="h-1.5 w-1.5 animate-pulse rounded-full" style={{ background: "#d9a547" }} />
+            <span className="text-[11px] font-bold uppercase tracking-[0.14em]" style={{ color: "#e8c987" }}>Live</span>
+            <LiveTimer className="text-[11px] font-bold tabular-nums text-[#e8c987]/70" />
           </div>
         </div>
 
-        {/* Right: total viewers + per-platform chips */}
-        <div className="flex items-center gap-3">
-          {/* Combined viewer count */}
-          <div className="flex items-center gap-1.5">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" className="text-white/50" aria-hidden>
+        {/* Right: total viewers + per-streamer chips (hover = platform split) */}
+        <div className="flex min-w-0 items-center gap-2">
+          <div className="flex shrink-0 items-center gap-1">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" style={{ color: "rgba(243,239,231,0.45)" }} aria-hidden>
               <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" /><circle cx="12" cy="12" r="3" />
             </svg>
-            <span className="text-[15px] font-black tabular-nums text-white">{compact(totalViewers)}</span>
-            <span className="text-[11px] font-semibold text-white/40 uppercase tracking-wider">viewers</span>
+            <span className="text-[15px] font-black tabular-nums" style={{ color: "#f3efe7" }}>{compact(totalViewers)}</span>
           </div>
 
-          {/* Per-platform pills */}
           <div className="flex items-center gap-1.5">
-            {activePlatforms.map((p) => {
-              const v = snapshot.perPlatform[p]?.viewers ?? 0;
-              if (!v) return null;
-              const color = platformColor(p);
-              return (
-                <span
-                  key={p}
-                  className="flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-bold"
-                  style={{
-                    color,
-                    background: `color-mix(in srgb, ${color} 12%, transparent)`,
-                    border: `1px solid color-mix(in srgb, ${color} 35%, transparent)`,
-                  }}
-                >
-                  <span className="grid place-items-center" style={{ color }}>
-                    {platformIcon(p)}
-                  </span>
-                  {compact(v)}
-                </span>
-              );
-            })}
+            {streamers.filter((s) => s.viewers > 0).map((s) => (
+              <StreamerChip key={s.name} name={s.name} viewers={s.viewers} breakdown={breakdownFor(s.name)} />
+            ))}
           </div>
 
-          {/* Demo badge */}
-          {demo && (
-            <span className="rounded-full border border-amber-400/30 bg-amber-400/10 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-amber-300">
+          {demo && !stage && (
+            <span className="rounded-full px-2 py-0.5 text-[10px] font-black uppercase tracking-wider" style={{ border: "1px solid rgba(217,165,71,0.3)", background: "rgba(217,165,71,0.1)", color: "#e8c987" }}>
               Demo
             </span>
           )}
         </div>
+
+        {/* Gold sheen baseline — the broadcast lower-third accent */}
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-px" style={{ background: "linear-gradient(90deg, rgba(217,165,71,0) 0%, rgba(217,165,71,0.65) 25%, rgba(232,201,135,0.85) 50%, rgba(217,165,71,0.65) 75%, rgba(217,165,71,0) 100%)" }} />
       </header>
 
       {/* ── Chat feed ── */}
@@ -194,12 +224,41 @@ export function BroadcastView() {
               const el = scrollRef.current;
               if (el) { el.scrollTop = el.scrollHeight; setPinned(true); }
             }}
-            className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-1.5 rounded-full bg-accent px-4 py-1.5 text-[12px] font-black text-black shadow-neon"
+            className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-1.5 rounded-full px-4 py-1.5 text-[12px] font-black"
+            style={{ background: "#d9a547", color: "#14100a", boxShadow: "0 6px 22px rgba(217,165,71,0.4)" }}
           >
             ↓ Jump to live
           </motion.button>
         )}
       </AnimatePresence>
+    </div>
+  );
+
+  // ── Plain mode (real OBS source): the panel fills the viewport ──
+  if (!stage) return <div className="h-screen">{panel}</div>;
+
+  // ── Stage mode (demo): blurred hosts backdrop, chat standing out center ──
+  return (
+    <div className="relative h-screen overflow-hidden" style={{ background: "#080706" }}>
+      {/* The actual show footage (Ansem & Banks on set), blurred to a backdrop.
+          Seeks past the intro slate so the hosts are on screen from frame 1. */}
+      <video
+        src="/stream-preview.mp4"
+        autoPlay
+        muted
+        loop
+        playsInline
+        onLoadedMetadata={(e) => { e.currentTarget.currentTime = 24; }}
+        className="absolute inset-0 h-full w-full object-cover"
+        style={{ filter: "blur(12px) brightness(1.05) contrast(1.05) saturate(1.05)", transform: "scale(1.08)" }}
+      />
+      {/* Warm vignette so the espresso panel reads as the focal point */}
+      <div className="absolute inset-0" style={{ background: "radial-gradient(ellipse at center, rgba(8,7,6,0.04) 36%, rgba(8,7,6,0.42) 100%)" }} />
+
+      {/* Center column — where the panel sits between the hosts on stream */}
+      <div className="relative z-10 mx-auto flex h-full max-w-[640px] flex-col px-4 py-6">
+        {panel}
+      </div>
     </div>
   );
 }
