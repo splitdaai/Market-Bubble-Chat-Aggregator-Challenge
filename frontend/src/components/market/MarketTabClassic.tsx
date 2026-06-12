@@ -5,7 +5,7 @@ import { PageGrid } from "../PageGrid";
 import { useLayoutStore } from "../../store/layoutStore";
 import { useViewStore } from "../../store/viewStore";
 import { PolymarketMark } from "../Brand";
-import { TradingViewTechnicals, MiniChart, TechWidget, tvSymbolFor } from "./TradingViewTechnicals";
+import { AdvancedChart, TradingViewTechnicals, TechWidget, tvSymbolFor } from "./TradingViewTechnicals";
 import { PortfolioModal, PolyTraderModal } from "./Dashboards";
 import { HlWalletModal } from "../kol/KolTab";
 import { WatchStar } from "../WatchStar";
@@ -16,24 +16,83 @@ import { FALLBACK_MARKET_DATA } from "../../lib/marketFallback";
 interface HlRow { name: string; addr?: string; pnl: number; roi?: number; value?: number; trend?: number[] }
 interface LinkedRow { name: string; xHandle: string; addr: string; chain: "hl" | "evm"; value: number; pnl: number; top?: string }
 interface PolyRow { name: string; addr?: string; pnl: number }
+type GlobalMarket = MarketData["global"][number];
 
 type Detail =
-  | { kind: "asset"; label: string }
+  | { kind: "asset"; asset: GlobalMarket }
   | { kind: "hltrader"; t: { name: string; addr: string; pnl: number; roi?: number; value: number } }
   | { kind: "polytrader"; t: { name: string; addr?: string; pnl: number; win: number; trend: number[] } }
   | { kind: "portfolio"; p: { fund: string; top: string; value: number; chg: number } };
 
-function AssetModal({ label, onClose }: { label: string; onClose: () => void }) {
+function AssetModal({ asset, onClose }: { asset: GlobalMarket; onClose: () => void }) {
+  const symbol = tvSymbolFor(asset.sym);
+  const up = asset.chg >= 0;
+  const latest = asset.spark.length ? asset.spark[asset.spark.length - 1] : 0;
+  const first = asset.spark[0] ?? latest;
+  const sparkMin = asset.spark.length ? Math.min(...asset.spark) : latest;
+  const sparkMax = asset.spark.length ? Math.max(...asset.spark) : latest;
+  const sparkRange = sparkMax - sparkMin;
+  const momentum = latest >= first ? "Bullish drift" : "Bearish drift";
+  const volatility = sparkRange >= 8 ? "High" : sparkRange >= 3 ? "Medium" : "Low";
+  const statCard = "rounded-xl border border-white/8 bg-white/[0.035] px-3 py-2";
+  const statLabel = "text-[9px] font-bold uppercase tracking-wider text-faint";
+  const statValue = "mt-1 font-mono text-[15px] font-bold tabular-nums text-ink";
+
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/70 p-4 backdrop-blur-sm" onClick={onClose}>
-      <div className="mb-tab mt-10 w-full max-w-3xl rounded-2xl border border-white/10 bg-[#121212]" onClick={(e) => e.stopPropagation()}>
+    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/70 px-4 pb-4 pt-48 backdrop-blur-sm sm:pt-52" onClick={onClose}>
+      <div className="mb-tab w-full max-w-6xl rounded-2xl border border-white/10 bg-[#121212] shadow-2xl shadow-black/50" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between border-b border-white/8 p-4">
-          <div className="serif text-xl font-bold">{label}<span className="ml-2 text-[11px] font-normal uppercase tracking-wider text-faint">technicals</span></div>
+          <div>
+            <div className="serif text-2xl font-bold tracking-tight">{asset.sym}<span className="ml-2 text-[11px] font-normal uppercase tracking-wider text-faint">{asset.name}</span></div>
+            <div className="mt-1 text-[11px] uppercase tracking-wider text-faint">Live chart · RSI/MACD studies · technical analysis</div>
+          </div>
           <button onClick={onClose} className="rounded-lg p-1.5 text-muted hover:bg-white/10 hover:text-ink"><XIcon size={18} /></button>
         </div>
-        <div className="grid grid-cols-1 gap-3 p-4 lg:grid-cols-2">
-          <div className="overflow-hidden rounded-xl border border-white/8 bg-black/20"><MiniChart symbol={tvSymbolFor(label)} /></div>
-          <div className="overflow-hidden rounded-xl border border-white/8 bg-black/20"><TechWidget symbol={tvSymbolFor(label)} /></div>
+        <div className="space-y-3 p-4">
+          <div className="grid grid-cols-2 gap-2 md:grid-cols-6">
+            <div className={statCard}>
+              <div className={statLabel}>Price</div>
+              <div className={statValue}>{price(asset.price)}</div>
+            </div>
+            <div className={statCard}>
+              <div className={statLabel}>24h</div>
+              <div className={`mt-1 font-mono text-[15px] font-bold tabular-nums ${up ? "text-up" : "text-down"}`}>{pct(asset.chg)}</div>
+            </div>
+            <div className={statCard}>
+              <div className={statLabel}>Asset class</div>
+              <div className="mt-1 text-[13px] font-bold capitalize text-ink">{asset.cls ?? "market"}</div>
+            </div>
+            <div className={statCard}>
+              <div className={statLabel}>Symbol</div>
+              <div className="mt-1 truncate font-mono text-[12px] font-bold text-muted">{symbol}</div>
+            </div>
+            <div className={statCard}>
+              <div className={statLabel}>Momentum</div>
+              <div className={`mt-1 text-[13px] font-bold ${latest >= first ? "text-up" : "text-down"}`}>{momentum}</div>
+            </div>
+            <div className={statCard}>
+              <div className={statLabel}>Volatility</div>
+              <div className="mt-1 text-[13px] font-bold text-ink">{volatility}</div>
+            </div>
+          </div>
+          <div className="grid grid-cols-1 gap-3 xl:grid-cols-[minmax(0,1.55fr)_420px]">
+            <div className="h-[500px] overflow-hidden rounded-xl border border-white/8 bg-black/20">
+              <AdvancedChart key={`chart-${symbol}`} symbol={symbol} />
+            </div>
+            <div className="grid gap-3">
+              <div className="overflow-hidden rounded-xl border border-white/8 bg-black/20">
+                <TechWidget key={`tech-${symbol}`} symbol={symbol} />
+              </div>
+              <div className="rounded-xl border border-white/8 bg-white/[0.03] p-3">
+                <div className="mb-2 text-[10px] font-bold uppercase tracking-wider text-faint">Oscillator Stack</div>
+                <div className="grid grid-cols-3 gap-2 text-center text-[11px]">
+                  <div className="rounded-lg bg-black/25 p-2"><div className="text-faint">RSI</div><div className="font-bold text-accent">On chart</div></div>
+                  <div className="rounded-lg bg-black/25 p-2"><div className="text-faint">MACD</div><div className="font-bold text-accent">On chart</div></div>
+                  <div className="rounded-lg bg-black/25 p-2"><div className="text-faint">Gauge</div><div className="font-bold text-accent">Live TV</div></div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -79,7 +138,7 @@ function Panel({ title, icon, right, children, className = "" }: { title: string
   );
 }
 
-function MarketTable({ title, rows, onPick }: { title: string; rows: MarketData["global"]; onPick?: (sym: string) => void }) {
+function MarketTable({ title, rows, onPick }: { title: string; rows: MarketData["global"]; onPick?: (asset: GlobalMarket) => void }) {
   return (
     <div>
       <div className="mb-1.5 text-[10px] font-bold uppercase tracking-wider text-faint">{title}</div>
@@ -96,7 +155,7 @@ function MarketTable({ title, rows, onPick }: { title: string; rows: MarketData[
           {rows.map((m) => {
             const up = m.chg >= 0;
             return (
-              <tr key={m.sym} onClick={() => onPick?.(m.sym)} className="cursor-pointer border-t border-white/6 transition hover:bg-white/5">
+              <tr key={m.sym} onClick={() => onPick?.(m)} className="cursor-pointer border-t border-white/6 transition hover:bg-white/5">
                 <td className="py-1.5 font-bold"><span className="inline-flex items-center gap-1">{m.sym}<WatchStar item={{ key: `asset:${m.sym}`, type: "asset", label: m.sym }} size={11} /></span></td>
                 <td className="py-1.5 text-right font-mono tabular-nums text-muted">{price(m.price)}</td>
                 <td className={`py-1.5 text-right font-bold tabular-nums ${up ? "text-up" : "text-down"}`}>{pct(m.chg)}</td>
@@ -164,9 +223,9 @@ export function MarketTabClassic() {
             { id: "global", x: 0, y: 0, w: 12, h: 8, node: (
               <Panel title="Global Markets" icon={<Globe size={15} className="text-accent" />}>
                 <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
-                  <MarketTable title="Stock Indices" rows={indices} onPick={(sym) => setDetail({ kind: "asset", label: sym })} />
-                  <MarketTable title="Crypto" rows={crypto} onPick={(sym) => setDetail({ kind: "asset", label: sym })} />
-                  <MarketTable title="Commodities" rows={commodities} onPick={(sym) => setDetail({ kind: "asset", label: sym })} />
+                  <MarketTable title="Stock Indices" rows={indices} onPick={(asset) => setDetail({ kind: "asset", asset })} />
+                  <MarketTable title="Crypto" rows={crypto} onPick={(asset) => setDetail({ kind: "asset", asset })} />
+                  <MarketTable title="Commodities" rows={commodities} onPick={(asset) => setDetail({ kind: "asset", asset })} />
                 </div>
               </Panel>
             ) },
@@ -248,7 +307,7 @@ export function MarketTabClassic() {
 
         <p className="mt-5 text-center text-[11px] text-faint">Classic reference layout · <span className="font-bold text-up">● Live</span> markets (CoinGecko · Yahoo · alternative.me · Polymarket). Hyperliquid traders, vaults &amp; headlines are live.</p>
       </div>
-      {detail?.kind === "asset" && <AssetModal label={detail.label} onClose={() => setDetail(null)} />}
+      {detail?.kind === "asset" && <AssetModal asset={detail.asset} onClose={() => setDetail(null)} />}
       {detail?.kind === "hltrader" && <HlWalletModal trader={detail.t} onClose={() => setDetail(null)} />}
       {detail?.kind === "polytrader" && <PolyTraderModal trader={detail.t} color="#34d6ff" onClose={() => setDetail(null)} />}
       {detail?.kind === "portfolio" && <PortfolioModal portfolio={detail.p} color="#00d872" onClose={() => setDetail(null)} />}

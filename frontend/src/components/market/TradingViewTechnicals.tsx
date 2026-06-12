@@ -80,7 +80,7 @@ export function TechWidget({ symbol }: { symbol: string }) {
   return <div ref={ref} className="tradingview-widget-container overflow-hidden rounded-xl" />;
 }
 
-function AdvancedChart({ symbol }: { symbol: string }) {
+export function AdvancedChart({ symbol }: { symbol: string }) {
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (ref.current) tvWidget(ref.current, "https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js", {
