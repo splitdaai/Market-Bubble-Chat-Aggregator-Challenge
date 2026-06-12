@@ -1,13 +1,12 @@
 import { useRef } from "react";
-import { AnimatePresence, motion } from "framer-motion";
-import { Move, Copy, Check, X as XIcon, Monitor, Trash2, Wand2 } from "lucide-react";
+import { motion } from "framer-motion";
+import { Move, Copy, Check, X as XIcon, Monitor, Trash2 } from "lucide-react";
 import { useOverlayStore } from "@/store/overlayStore";
 import { useToastStore } from "@/store/toastStore";
 import { OverlayChip } from "./OverlayChip";
 import { OverlayChat } from "./OverlayChat";
 import { OverlayMarket } from "./OverlayMarket";
 import { CustomOverlayEffect } from "./CustomOverlayEffect";
-import { OverlayFxLab } from "./OverlayFxLab";
 import type { OverlaySource } from "@shared/types";
 import { useState } from "react";
 
@@ -39,7 +38,6 @@ export function OverlayLayer() {
   const removeCustomAsset = useOverlayStore((s) => s.removeCustomAsset);
   const push = useToastStore((s) => s.push);
   const [copied, setCopied] = useState(false);
-  const [fxOpen, setFxOpen] = useState(false);
 
   const dragInfo = useRef<{ id: string; dx: number; dy: number } | null>(null);
   const resizeInfo = useRef<{ id: string; sx: number; sy: number; w: number; h: number; isMarket: boolean } | null>(null);
@@ -163,17 +161,10 @@ export function OverlayLayer() {
         <button onClick={copyObsLink} className="flex items-center gap-1 rounded-md border border-white/15 px-2 py-1 text-[10px] font-semibold text-ink transition hover:border-accent hover:text-accent">
           {copied ? <Check size={11} className="text-emerald-400" /> : <Copy size={11} />} OBS link
         </button>
-        <button onClick={() => setFxOpen(true)} className="flex items-center gap-1 rounded-md border border-accent/35 bg-accent/10 px-2 py-1 text-[10px] font-bold text-accent transition hover:bg-accent/20">
-          <Wand2 size={11} /> FX Lab
-        </button>
         <button onClick={() => setEnabled(false)} className="rounded-md p-1 text-muted transition hover:text-ink" title="Done">
           <XIcon size={14} />
         </button>
       </motion.div>
-
-      <AnimatePresence>
-        {fxOpen && <OverlayFxLab onClose={() => setFxOpen(false)} />}
-      </AnimatePresence>
     </div>
   );
 }

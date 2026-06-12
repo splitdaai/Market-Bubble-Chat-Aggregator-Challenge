@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { motion } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import {
   ArrowDownRight,
   ArrowLeft,
@@ -18,12 +18,16 @@ import {
   Smile,
   Sparkles,
   Volume2,
+  Wand2,
   Zap,
   type LucideIcon,
 } from "lucide-react";
 import { OVERLAY_ACTIONS, canAfford, publishOverlayEvent, roomFromSearch, spendBucks, type OverlayActionDef } from "@/lib/overlayEngagement";
 import { compact } from "@/lib/format";
 import { useBucksLedger } from "@/store/bucksLedgerStore";
+import { useToastStore } from "@/store/toastStore";
+import { OverlayFxLab } from "./OverlayFxLab";
+import { Toaster } from "./Toaster";
 
 const BALANCE_KEY = "market-bubble-engage-balance";
 const USER_KEY = "market-bubble-engage-user";
@@ -138,6 +142,8 @@ export function EngagePage() {
   const [message, setMessage] = useState(DEFAULT_SPOTLIGHT_TAKE);
   const [last, setLast] = useState<string>("Ready to move the overlay.");
   const [isSending, setIsSending] = useState(false);
+  const [fxOpen, setFxOpen] = useState(false);
+  const hasToasts = useToastStore((s) => s.toasts.length > 0);
   const sendLockedUntil = useRef(0);
   const balanceRef = useRef(balance);
   const releaseTimer = useRef<number | null>(null);
@@ -221,6 +227,9 @@ export function EngagePage() {
           <a href="/" className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.04] px-3 py-2 text-[12px] font-bold text-white/75 transition hover:text-white">
             <ArrowLeft size={14} /> Dashboard
           </a>
+          <button onClick={() => setFxOpen(true)} className="inline-flex items-center gap-1.5 rounded-full border border-[#16e6a4]/35 bg-[#16e6a4]/12 px-3 py-2 text-[12px] font-black uppercase tracking-[0.12em] text-[#16e6a4] transition hover:bg-[#16e6a4]/18">
+            <Wand2 size={14} /> FX Lab
+          </button>
           <div className="ml-auto inline-flex items-center gap-2 rounded-full border border-[#d9a547]/35 bg-[#d9a547]/10 px-3 py-2 text-[12px] font-black uppercase tracking-[0.12em] text-[#e8c987]">
             <Radio size={14} /> Room {room.replace(/-/g, " ")}
           </div>
@@ -323,6 +332,10 @@ export function EngagePage() {
           </div>
         </section>
       </main>
+      <AnimatePresence>
+        {fxOpen && <OverlayFxLab onClose={() => setFxOpen(false)} />}
+      </AnimatePresence>
+      {hasToasts && <Toaster />}
     </div>
   );
 }
