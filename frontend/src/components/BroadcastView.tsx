@@ -13,6 +13,7 @@ import { moderate } from "@/lib/api";
 import { LiveTimer } from "./LiveTimer";
 import { EngagementQr, OverlayEngagementLayer } from "./OverlayEngagementLayer";
 import { ENGAGE_ROOM } from "@/lib/overlayEngagement";
+import { OnboardingChrome } from "./BroadcastOnboarding";
 import type { ChatMessage, ModerationAction, Platform } from "@shared/types";
 
 /**
@@ -60,7 +61,7 @@ function StreamerChip({ name, viewers, breakdown }: { name: string; viewers: num
   );
 }
 
-export function BroadcastView({ onOpenConnections }: { onOpenConnections?: () => void }) {
+export function BroadcastView({ onOpenConnections, landing = false }: { onOpenConnections?: () => void; landing?: boolean }) {
   const messages = useChatStore((s) => s.messages);
   const enabled = useChatStore((s) => s.enabled);
   const deleted = useChatStore((s) => s.deleted);
@@ -73,7 +74,7 @@ export function BroadcastView({ onOpenConnections }: { onOpenConnections?: () =>
 
   // Parse URL params once
   const params = useMemo(() => new URLSearchParams(window.location.search), []);
-  const stage = params.has("stage");
+  const stage = params.has("stage") || landing;
   const transparent = !stage && params.get("bg") === "transparent";
   const room = params.get("room") || ENGAGE_ROOM;
   const showQr = params.get("qr") !== "0";
@@ -250,7 +251,7 @@ export function BroadcastView({ onOpenConnections }: { onOpenConnections?: () =>
   // ── Plain mode (real OBS source): the panel fills the viewport ──
   if (!stage) return <div className="h-screen">{panel}</div>;
 
-  return <StageView panel={panel} onOpenConnections={onOpenConnections} />;
+  return <StageView panel={panel} onOpenConnections={onOpenConnections} landing={landing} />;
 }
 
 const BroadcastMessageRow = memo(function BroadcastMessageRow({ msg, deleted }: { msg: ChatMessage; deleted: boolean }) {
@@ -294,7 +295,7 @@ function loadTile(): Tile {
   return { ...DEFAULT_TILE };
 }
 
-function StageView({ panel, onOpenConnections }: { panel: React.ReactNode; onOpenConnections?: () => void }) {
+function StageView({ panel, onOpenConnections, landing = false }: { panel: React.ReactNode; onOpenConnections?: () => void; landing?: boolean }) {
   const [tile, setTile] = useState<Tile>(() => loadTile());
   const [edit, setEdit] = useState(false);
   const [savedFlash, setSavedFlash] = useState(false);
@@ -415,7 +416,7 @@ function StageView({ panel, onOpenConnections }: { panel: React.ReactNode; onOpe
       {/* Back to the dashboard — demo chrome only, never on the clean OBS route. */}
       <div className="absolute left-4 top-4 z-20 flex items-center gap-2">
         <a
-          href="/"
+          href="/?app"
           className="flex items-center gap-1.5 rounded-xl px-3 py-2 text-[13px] font-bold transition hover:brightness-125"
           style={{ background: "rgba(8,7,6,0.82)", border: "1px solid rgba(217,165,71,0.4)", color: "#e8c987", backdropFilter: "blur(6px)" }}
         >
@@ -487,6 +488,7 @@ function StageView({ panel, onOpenConnections }: { panel: React.ReactNode; onOpe
         </button>
       </div>
 
+      {landing && <OnboardingChrome demo={demo} />}
     </div>
   );
 }

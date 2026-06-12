@@ -96,6 +96,20 @@ export default function App() {
     return <Suspense fallback={null}><MobileApp /></Suspense>;
   }
 
+  // Bare visit (no query at all) → land on the Chat Only page with an
+  // onboarding popup. Any param (?app, ?pro, ?simple, ?tour, ...) skips this
+  // and goes straight to the dashboard shells below.
+  if (window.location.search === "") {
+    return (
+      <Suspense fallback={null}>
+        <BroadcastView landing onOpenConnections={() => setConnOpen(true)} />
+        {connOpen && <ConnectionsManager open={connOpen} onClose={() => setConnOpen(false)} />}
+        {userCardOpen && <UserCard />}
+        {hasToasts && <Toaster />}
+      </Suspense>
+    );
+  }
+
   // Simple (stock) shell — just stream + unified chat. The "Pro" button reveals
   // the full dashboard. `?pro` / `?simple` force a mode for previewing.
   if (params.has("simple") || (uiMode === "simple" && !params.has("pro"))) {

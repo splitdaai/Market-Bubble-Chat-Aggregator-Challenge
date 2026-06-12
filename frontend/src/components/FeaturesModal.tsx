@@ -2,12 +2,14 @@ import { motion, AnimatePresence, type Variants } from "framer-motion";
 import { useTourStore } from "@/store/tourStore";
 import {X, Sparkles, MessagesSquare, Activity, BarChart3, Trophy, Monitor, Flame,
   Wallet, Gift, Scissors, Film, ShieldCheck, Palette, LayoutGrid, Users,
-  Crosshair, LineChart, Star, Calculator, AtSign, Play } from "lucide-react";
+  Crosshair, LineChart, Star, Calculator, AtSign, Play, Gamepad2, Coins } from "lucide-react";
 
 /** One feature card's data. `tint` drives the icon chip + hover glow color. */
 type Feature = { icon: typeof Sparkles; title: string; desc: string; tint: string };
 
 const FEATURES: Feature[] = [
+  { icon: Gamepad2, title: "Interactive Overlay", desc: "Viewers scan a QR and spend points to fire on-screen effects — charging bull, bear slash, green/red candles, emote storms, bull/bear votes & a FUD boss. Works in Live or Demo.", tint: "#d9a547" },
+  { icon: Coins, title: "User Points", desc: "Watch-&-earn points: earned per minute watched, per message, per sub & per $ supported — then spent on the Interactive Overlay. Ranked on the leaderboards & shown in chat.", tint: "#fbbf24" },
   { icon: MessagesSquare, title: "Unified Chat", desc: "Twitch, YouTube, Kick & X chat merged into one live, color-coded feed.", tint: "#16e6a4" },
   { icon: AtSign, title: "Chat as You", desc: "Connect your X account and post into the unified feed as your own handle.", tint: "#1d9bf0" },
   { icon: Crosshair, title: "KOL Tracker", desc: "Top crypto KOLs' wallets — balances, holdings, a live buy/sell firehose & their X posts.", tint: "#fb923c" },
