@@ -122,3 +122,21 @@ export async function addOverlaySource(client: ObsClient, url: string): Promise<
     sceneItemEnabled: true,
   });
 }
+
+/** Add the Market Bubble unified chat to OBS as a Browser Source, sized to
+ *  the show's center capture region (~880×624 at 1080p; matches the panel
+ *  the operator was sizing in stage preview). The source can be moved or
+ *  resized inside OBS afterward. */
+export async function addChatSource(client: ObsClient, url: string): Promise<void> {
+  const scene = await client.call("GetCurrentProgramScene");
+  const sceneName = scene.currentProgramSceneName ?? scene.sceneName;
+  await client.call("CreateInput", {
+    sceneName,
+    inputName: `Market Bubble Chat ${Math.floor(Date.now() / 1000) % 10000}`,
+    inputKind: "browser_source",
+    // 880x624 ≈ the same proportions as the broadcast tile the operator
+    // tuned in stage preview, but starting at a sensible canvas size.
+    inputSettings: { url, width: 880, height: 624, css: "" },
+    sceneItemEnabled: true,
+  });
+}

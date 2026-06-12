@@ -7,7 +7,7 @@ import { useConnectionsStore } from "@/store/connectionsStore";
 import { useModeStore } from "@/store/modeStore";
 import { useToastStore } from "@/store/toastStore";
 import { useWalletStore } from "@/store/walletStore";
-import { connectObs, addOverlaySource, type ObsClient } from "@/lib/obs";
+import { connectObs, addOverlaySource, addChatSource, type ObsClient } from "@/lib/obs";
 import { chainInfo, shortAddr } from "@/lib/web3";
 import { WalletButtons } from "./WalletButtons";
 
@@ -170,6 +170,15 @@ export function ConnectionsManager({ open, onClose }: { open: boolean; onClose: 
     try {
       await addOverlaySource(obsClient, url);
       push({ message: "Added Market Bubble overlay to OBS as a Browser Source", tone: "ok" });
+    } catch (e) {
+      push({ message: `OBS: ${(e as Error).message}`, tone: "error" });
+    }
+  };
+  const addChat = async () => {
+    if (!obsClient) return;
+    try {
+      await addChatSource(obsClient, chatSourceUrl);
+      push({ message: "Added Market Bubble chat to OBS — it's now a Browser Source in your current scene", tone: "ok" });
     } catch (e) {
       push({ message: `OBS: ${(e as Error).message}`, tone: "error" });
     }
@@ -340,7 +349,10 @@ export function ConnectionsManager({ open, onClose }: { open: boolean; onClose: 
                     <span className="flex items-center gap-1.5 text-sm font-semibold text-emerald-400"><Check size={14} /> Connected · OBS {obsVersion}</span>
                     <button onClick={disconnectObs} className="rounded-lg border border-white/10 px-2.5 py-1 text-xs font-semibold text-muted hover:text-red-300">Disconnect</button>
                   </div>
-                  <button onClick={addOverlay} className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg border border-accent/50 bg-accent/15 py-2 text-sm font-bold text-accent transition hover:bg-accent/25">
+                  <button onClick={addChat} className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg border border-accent bg-accent/25 py-2.5 text-sm font-extrabold text-accent shadow-neon transition hover:bg-accent/35">
+                    <MessagesSquare size={15} /> Add Chat to OBS · one-click
+                  </button>
+                  <button onClick={addOverlay} className="mt-2 flex w-full items-center justify-center gap-2 rounded-lg border border-white/15 bg-white/[0.04] py-2 text-sm font-semibold text-ink transition hover:border-white/25">
                     <ExternalLink size={15} /> Add Viewer Overlay to OBS
                   </button>
                 </>
@@ -353,20 +365,23 @@ export function ConnectionsManager({ open, onClose }: { open: boolean; onClose: 
             </h3>
             <div className="rounded-xl border border-accent/30 bg-accent/[0.04] p-3">
               <p className="mb-2 text-[11px] leading-relaxed text-muted">
-                Add the aggregated chat as an OBS <span className="font-semibold text-ink">Browser Source</span>. In OBS go to{" "}
-                <span className="font-semibold text-ink">Sources → + → Browser</span>, paste this URL, and size it to wherever you want chat on screen (e.g. between the host cams):
+                The aggregated chat as an OBS <span className="font-semibold text-ink">Browser Source</span> — a real video source you can place, size and animate inside OBS like any other source. Two ways:
               </p>
+              <ol className="mb-2 list-decimal space-y-1 pl-4 text-[11px] leading-relaxed text-muted">
+                <li><span className="font-semibold text-accent">Best:</span> connect OBS WebSocket above and click <span className="rounded bg-accent/15 px-1 font-semibold text-accent">Add Chat to OBS</span> — adds the source to your current scene in one click.</li>
+                <li>Or paste this URL into OBS: <span className="font-semibold text-ink">Sources → + → Browser</span>, paste, OK.</li>
+              </ol>
               <div className="flex items-center gap-1.5">
                 <input readOnly value={chatSourceUrl} className="vc-input flex-1 font-mono text-[11px]" onFocus={(e) => e.target.select()} />
                 <button onClick={copyChatSource} className="flex items-center gap-1 rounded-md bg-accent/20 px-2.5 py-1.5 text-xs font-bold text-accent hover:bg-accent/30">
-                  {dockCopied ? <Check size={13} /> : <Copy size={13} />} Copy
+                  {dockCopied ? <Check size={13} /> : <Copy size={13} />} Copy URL
                 </button>
               </div>
               <p className="mt-2 text-[10px] leading-relaxed text-muted/80">
-                Options (append to the URL): <code className="text-accent">&amp;bg=transparent</code> for chroma-free, <code className="text-accent">&amp;fontsize=18</code> to bump text size, <code className="text-accent">&amp;platform=twitch,kick</code> to filter platforms.
+                Tip: in the Browser source's settings, untick <span className="font-semibold text-ink">"Shutdown source when not visible"</span> so the chat keeps connecting in the background. Recommended size: <span className="font-semibold text-ink">880×624</span>. URL options: <code className="text-accent">&amp;bg=transparent</code> (chroma-free), <code className="text-accent">&amp;fontsize=18</code>, <code className="text-accent">&amp;platform=twitch,kick</code>.
               </p>
               <a href={chatSourceUrl} target="_blank" rel="noreferrer" className="mt-2 inline-flex items-center gap-1 text-[10px] font-semibold text-muted hover:text-accent">
-                <ExternalLink size={11} /> Preview the source
+                <ExternalLink size={11} /> Preview the source in a new tab
               </a>
             </div>
 
