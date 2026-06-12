@@ -345,9 +345,9 @@ function ChartCandleBurst({ event, side }: { event: OverlayEngagementEvent; side
   return (
     <motion.div
       initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
+      animate={{ opacity: [0, 1, 1, 0] }}
       exit={{ opacity: 0 }}
-      transition={{ duration: 0.18, ease: "easeOut" }}
+      transition={{ duration: 3.15, times: [0, 0.08, 0.76, 1], ease: "easeOut" }}
       className="absolute inset-0 z-20 overflow-hidden"
     >
       <motion.div
@@ -381,8 +381,8 @@ function ChartCandleBurst({ event, side }: { event: OverlayEngagementEvent; side
             strokeWidth="8"
             vectorEffect="non-scaling-stroke"
             initial={{ pathLength: 0, opacity: 0, filter: "blur(6px)" }}
-            animate={{ pathLength: 1, opacity: 1, filter: "blur(0px)" }}
-            transition={{ duration: 0.88, ease: [0.16, 1, 0.3, 1] }}
+            animate={{ pathLength: 1, opacity: [0, 1, 1, 0], filter: "blur(0px)" }}
+            transition={{ duration: 2.8, times: [0, 0.22, 0.76, 1], ease: [0.16, 1, 0.3, 1] }}
             style={{ filter: `drop-shadow(0 0 18px ${glow})` }}
           />
           <motion.path
