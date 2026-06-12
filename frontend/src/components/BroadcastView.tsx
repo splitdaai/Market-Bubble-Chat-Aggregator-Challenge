@@ -5,7 +5,7 @@ import { useStatsStore } from "@/store/statsStore";
 import { useModeStore } from "@/store/modeStore";
 import { useActivePlatforms } from "@/hooks/useActivePlatforms";
 import { byStreamer } from "@/lib/streamers";
-import { BroadcastMessage } from "./BroadcastMessage";
+import { Message } from "./Message";
 import { platformIcon, platformLabel, platformColor, CHAT_PLATFORMS } from "./SourceBadge";
 import { compact } from "@/lib/format";
 import { moderate } from "@/lib/api";
@@ -140,113 +140,35 @@ export function BroadcastView() {
   // ── The chat panel itself (header + feed) ──
   const panel = (
     <div
-      className="vc-bcast-panel relative flex h-full flex-col overflow-hidden"
+      className="relative flex h-full flex-col overflow-hidden"
       style={{
         fontSize: fontPx,
         color: "#f3efe7",
         background: transparent ? "transparent" : "#080706",
       }}
     >
-      {/* Premium broadcast typography + film-grain texture + soft inner vignette */}
-      <style>{`
-        .vc-bcast-panel {
-          -webkit-font-smoothing: antialiased;
-          -moz-osx-font-smoothing: grayscale;
-          text-rendering: optimizeLegibility;
-          font-feature-settings: "tnum" 1, "ss01" 1, "cv11" 1, "kern" 1;
-          font-variant-numeric: tabular-nums;
-          letter-spacing: -0.003em;
-        }
-        .vc-bcast-panel::before {
-          content: "";
-          position: absolute; inset: 0;
-          background:
-            radial-gradient(140% 110% at 50% -10%, rgba(217,165,71,0.06) 0%, rgba(217,165,71,0) 55%),
-            radial-gradient(120% 100% at 50% 110%, rgba(217,165,71,0.04) 0%, rgba(0,0,0,0) 50%);
-          pointer-events: none;
-          z-index: 1;
-        }
-        .vc-bcast-panel::after {
-          content: "";
-          position: absolute; inset: 0;
-          background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.95' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.55 0'/></filter><rect width='100%' height='100%' filter='url(%23n)' opacity='0.35'/></svg>");
-          background-size: 160px 160px;
-          mix-blend-mode: overlay;
-          opacity: 0.18;
-          pointer-events: none;
-          z-index: 2;
-        }
-        .vc-bcast-row { position: relative; z-index: 3; }
-        .vc-bcast-row::after {
-          content: "";
-          position: absolute; left: 8px; right: 8px; bottom: -1px;
-          height: 1px;
-          background: linear-gradient(90deg, transparent, rgba(243,239,231,0.05) 40%, rgba(243,239,231,0.05) 60%, transparent);
-          pointer-events: none;
-        }
-        .vc-bcast-row:last-of-type::after { display: none; }
-        .vc-bcast-name { letter-spacing: -0.01em; }
-        .vc-bcast-chip { box-sizing: border-box; }
-        .vc-bcast-channel { font-feature-settings: "tnum" 1; letter-spacing: 0.08em; }
-        .vc-bcast-brand { font-family: "Playfair Display", "Geist", serif; font-feature-settings: "lnum" 1, "ss01" 1; }
-        .vc-bcast-time { font-feature-settings: "tnum" 1; }
-      `}</style>
       {/* ── Header strip (On Air broadcast lower-third) ── */}
       <header
-        className="relative z-10 flex shrink-0 items-center justify-between px-4 pt-3 pb-3"
-        style={{
-          background: transparent
-            ? "linear-gradient(180deg, rgba(20,16,10,0.92), rgba(20,16,10,0.78))"
-            : "linear-gradient(180deg, rgba(48,38,24,0.7) 0%, rgba(28,22,14,0.5) 60%, rgba(8,7,6,0) 100%)",
-          boxShadow: "inset 0 1px 0 0 rgba(255,255,255,0.04)",
-        }}
+        className="relative flex shrink-0 items-center justify-between px-4 pt-2.5 pb-3"
+        style={{ background: transparent ? "rgba(20,16,10,0.78)" : "linear-gradient(180deg, rgba(40,33,22,0.55), rgba(8,7,6,0))" }}
       >
         {/* Left: real logo + LIVE pill + timer */}
         <div className="flex shrink-0 items-center gap-2.5">
-          <img
-            src="/market-bubble-logo.svg"
-            alt="Market Bubble"
-            className="h-9 w-auto"
-            style={{ filter: "drop-shadow(0 1px 0 rgba(0,0,0,0.6)) drop-shadow(0 0 10px rgba(217,165,71,0.18))" }}
-          />
-          <div
-            className="flex items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 py-0.5"
-            style={{
-              border: "1px solid rgba(217,165,71,0.5)",
-              background: "linear-gradient(180deg, rgba(217,165,71,0.18) 0%, rgba(217,165,71,0.08) 100%)",
-              boxShadow: "0 0 12px rgba(217,165,71,0.18), inset 0 1px 0 rgba(255,255,255,0.08)",
-            }}
-          >
-            <span
-              className="h-1.5 w-1.5 animate-pulse rounded-full"
-              style={{ background: "#f4d27a", boxShadow: "0 0 6px rgba(217,165,71,0.9)" }}
-            />
-            <span
-              className="text-[11px] font-extrabold uppercase tracking-[0.18em]"
-              style={{ color: "#f6deb0", textShadow: "0 0 8px rgba(217,165,71,0.4)" }}
-            >
-              Live
-            </span>
-            <LiveTimer className="text-[11px] font-bold tabular-nums text-[#f6deb0]/80" />
+          <img src="/market-bubble-logo.svg" alt="Market Bubble" className="h-8 w-auto" />
+          <div className="flex items-center gap-1.5 whitespace-nowrap rounded-full px-2 py-0.5" style={{ border: "1px solid rgba(217,165,71,0.4)", background: "rgba(217,165,71,0.1)" }}>
+            <span className="h-1.5 w-1.5 animate-pulse rounded-full" style={{ background: "#d9a547" }} />
+            <span className="text-[11px] font-bold uppercase tracking-[0.14em]" style={{ color: "#e8c987" }}>Live</span>
+            <LiveTimer className="text-[11px] font-bold tabular-nums text-[#e8c987]/70" />
           </div>
         </div>
 
         {/* Right: total viewers + per-streamer chips (hover = platform split) */}
         <div className="flex min-w-0 items-center gap-2">
-          <div className="flex shrink-0 items-center gap-1.5">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" style={{ color: "rgba(243,239,231,0.55)", filter: "drop-shadow(0 0 6px rgba(217,165,71,0.18))" }} aria-hidden>
+          <div className="flex shrink-0 items-center gap-1">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" style={{ color: "rgba(243,239,231,0.45)" }} aria-hidden>
               <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" /><circle cx="12" cy="12" r="3" />
             </svg>
-            <span
-              className="text-[16px] font-black tabular-nums"
-              style={{
-                color: "#f6deb0",
-                letterSpacing: "-0.01em",
-                textShadow: "0 1px 0 rgba(0,0,0,0.4), 0 0 16px rgba(217,165,71,0.25)",
-              }}
-            >
-              {compact(totalViewers)}
-            </span>
+            <span className="text-[15px] font-black tabular-nums" style={{ color: "#f3efe7" }}>{compact(totalViewers)}</span>
           </div>
 
           <div className="flex items-center gap-1.5">
@@ -262,9 +184,8 @@ export function BroadcastView() {
           )}
         </div>
 
-        {/* Gold sheen baseline — broadcast lower-third accent (double-stop: hairline + soft halo) */}
-        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-px" style={{ background: "linear-gradient(90deg, rgba(217,165,71,0) 0%, rgba(217,165,71,0.85) 30%, rgba(246,222,176,1) 50%, rgba(217,165,71,0.85) 70%, rgba(217,165,71,0) 100%)" }} />
-        <div className="pointer-events-none absolute inset-x-8 bottom-[-3px] h-1.5" style={{ background: "linear-gradient(90deg, transparent, rgba(217,165,71,0.35), transparent)", filter: "blur(3px)" }} />
+        {/* Gold sheen baseline — the broadcast lower-third accent */}
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-px" style={{ background: "linear-gradient(90deg, rgba(217,165,71,0) 0%, rgba(217,165,71,0.65) 25%, rgba(232,201,135,0.85) 50%, rgba(217,165,71,0.65) 75%, rgba(217,165,71,0) 100%)" }} />
       </header>
 
       {/* ── Chat feed ── */}
@@ -279,14 +200,20 @@ export function BroadcastView() {
             linger in flow and mash into the incoming ones. */}
         <div className="flex min-h-full flex-col justify-end">
           {visible.map((msg) => (
-            <BroadcastMessage
+            <motion.div
               key={msg.id}
-              msg={msg}
-              deleted={deleted.has(msg.id)}
-              onModerate={(action) =>
-                moderate({ platform: msg.platform, username: msg.username, action })
-              }
-            />
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.18 }}
+            >
+              <Message
+                msg={msg}
+                deleted={deleted.has(msg.id)}
+                onModerate={(action) =>
+                  moderate({ platform: msg.platform, username: msg.username, action })
+                }
+              />
+            </motion.div>
           ))}
         </div>
       </div>
