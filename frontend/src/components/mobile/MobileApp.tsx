@@ -1,16 +1,18 @@
-import { useState } from "react";
+import { lazy, Suspense, useState } from "react";
 import { Radio, TrendingUp, Clapperboard, Crosshair, UserCircle2, Zap, Minimize2 } from "lucide-react";
 import { useViewStore, type View } from "@/store/viewStore";
 import { useModeStore } from "@/store/modeStore";
 import { useViewerStore } from "@/store/viewerStore";
 import { useUiModeStore } from "@/store/uiModeStore";
-import { AccountModal } from "../AccountModal";
-import { WatchlistDashboard } from "../WatchlistDashboard";
-import { UserCard } from "../UserCard";
+import { useUserCardStore } from "@/store/userCardStore";
 import { MobileLive } from "./MobileLive";
-import { MobileMarket } from "./MobileMarket";
-import { MobileKol } from "./MobileKol";
-import { MobileContent } from "./MobileContent";
+
+const AccountModal = lazy(() => import("../AccountModal").then((m) => ({ default: m.AccountModal })));
+const WatchlistDashboard = lazy(() => import("../WatchlistDashboard").then((m) => ({ default: m.WatchlistDashboard })));
+const UserCard = lazy(() => import("../UserCard").then((m) => ({ default: m.UserCard })));
+const MobileMarket = lazy(() => import("./MobileMarket").then((m) => ({ default: m.MobileMarket })));
+const MobileKol = lazy(() => import("./MobileKol").then((m) => ({ default: m.MobileKol })));
+const MobileContent = lazy(() => import("./MobileContent").then((m) => ({ default: m.MobileContent })));
 
 const TABS = [
   { key: "live", label: "Live", Icon: Radio },
@@ -32,7 +34,9 @@ export function MobileApp() {
   const xHandle = useViewerStore((s) => s.xHandle);
   const uiMode = useUiModeStore((s) => s.mode);
   const setUiMode = useUiModeStore((s) => s.setMode);
-  const simple = uiMode === "simple";
+  const userCardOpen = useUserCardStore((s) => s.open !== null);
+  const params = new URLSearchParams(window.location.search);
+  const simple = params.has("pro") ? false : params.has("simple") ? true : uiMode === "simple";
   const [account, setAccount] = useState(false);
   const [dash, setDash] = useState(false);
 
@@ -64,9 +68,11 @@ export function MobileApp() {
       {/* content */}
       <main className="relative z-10 min-h-0 flex-1 overflow-hidden">
         {(simple || active === "live") && <MobileLive />}
-        {!simple && active === "market" && <div className="vc-scroll h-full overflow-y-auto"><MobileMarket /></div>}
-        {!simple && active === "content" && <div className="vc-scroll h-full overflow-y-auto"><MobileContent /></div>}
-        {!simple && active === "kol" && <div className="vc-scroll h-full overflow-y-auto"><MobileKol /></div>}
+        <Suspense fallback={null}>
+          {!simple && active === "market" && <div className="vc-scroll h-full overflow-y-auto"><MobileMarket /></div>}
+          {!simple && active === "content" && <div className="vc-scroll h-full overflow-y-auto"><MobileContent /></div>}
+          {!simple && active === "kol" && <div className="vc-scroll h-full overflow-y-auto"><MobileKol /></div>}
+        </Suspense>
       </main>
 
       {/* bottom tab bar — Pro only */}
@@ -92,9 +98,11 @@ export function MobileApp() {
       </nav>
       )}
 
-      {account && <AccountModal open={account} onClose={() => setAccount(false)} onOpenDashboard={() => { setAccount(false); setDash(true); }} />}
-      <WatchlistDashboard open={dash} onClose={() => setDash(false)} />
-      <UserCard />
+      <Suspense fallback={null}>
+        {account && <AccountModal open={account} onClose={() => setAccount(false)} onOpenDashboard={() => { setAccount(false); setDash(true); }} />}
+        {dash && <WatchlistDashboard open={dash} onClose={() => setDash(false)} />}
+        {userCardOpen && <UserCard />}
+      </Suspense>
     </div>
   );
 }

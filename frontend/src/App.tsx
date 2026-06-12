@@ -1,17 +1,18 @@
 import { lazy, Suspense, useEffect, useState } from "react";
 import type { ActionButton } from "@shared/types";
 import { Topbar } from "./components/Topbar";
-import { Toaster } from "./components/Toaster";
-import { OverlayLayer } from "./components/OverlayLayer";
 import { useViewStore } from "./store/viewStore";
 import { useThemeStore } from "./store/themeStore";
 import { useChatConnection } from "./hooks/useChatConnection";
 import { useWalletStore } from "./store/walletStore";
-import { JudgeTour, useTourStore } from "./components/JudgeTour";
+import { useTourStore } from "./store/tourStore";
 import { useXBroadcastChat } from "./hooks/useXBroadcastChat";
 import { ScheduleBanner } from "./components/widgets/ShowSchedule";
 import { useIsMobile } from "./hooks/useIsMobile";
 import { useUiModeStore } from "./store/uiModeStore";
+import { useOverlayStore } from "./store/overlayStore";
+import { useToastStore } from "./store/toastStore";
+import { useUserCardStore } from "./store/userCardStore";
 
 const EditorCanvas = lazy(() => import("./components/EditorCanvas").then((m) => ({ default: m.EditorCanvas })));
 const MarketTab = lazy(() => import("./components/market/MarketTab").then((m) => ({ default: m.MarketTab })));
@@ -31,6 +32,9 @@ const SimpleApp = lazy(() => import("./components/SimpleApp").then((m) => ({ def
 const FeaturesModal = lazy(() => import("./components/FeaturesModal").then((m) => ({ default: m.FeaturesModal })));
 const UserCard = lazy(() => import("./components/UserCard").then((m) => ({ default: m.UserCard })));
 const DebugLogOverlay = lazy(() => import("./components/DebugLogOverlay").then((m) => ({ default: m.DebugLogOverlay })));
+const Toaster = lazy(() => import("./components/Toaster").then((m) => ({ default: m.Toaster })));
+const OverlayLayer = lazy(() => import("./components/OverlayLayer").then((m) => ({ default: m.OverlayLayer })));
+const JudgeTour = lazy(() => import("./components/JudgeTour").then((m) => ({ default: m.JudgeTour })));
 
 export default function App() {
   // Always boot the data pipeline — both the dashboard and the OBS overlay
@@ -45,6 +49,10 @@ export default function App() {
   const isMobile = useIsMobile();
   const uiMode = useUiModeStore((s) => s.mode);
   const marketTemplate = useThemeStore((s) => s.marketTemplate);
+  const overlayEnabled = useOverlayStore((s) => s.enabled);
+  const tourActive = useTourStore((s) => s.active);
+  const hasToasts = useToastStore((s) => s.toasts.length > 0);
+  const userCardOpen = useUserCardStore((s) => s.open !== null);
   const [themeOpen, setThemeOpen] = useState(false);
   const [connOpen, setConnOpen] = useState(false);
   const [featuresOpen, setFeaturesOpen] = useState(false);
@@ -74,8 +82,8 @@ export default function App() {
     return (
       <Suspense fallback={null}>
         <BroadcastView />
-        <UserCard />
-        <Toaster />
+        {userCardOpen && <UserCard />}
+        {hasToasts && <Toaster />}
       </Suspense>
     );
   }
@@ -120,10 +128,12 @@ export default function App() {
         </Suspense>
       </main>
 
-      <OverlayLayer />
-      <JudgeTour />
       <Suspense fallback={null}>
-        <UserCard />
+        {overlayEnabled && <OverlayLayer />}
+        {tourActive && <JudgeTour />}
+      </Suspense>
+      <Suspense fallback={null}>
+        {userCardOpen && <UserCard />}
         {connOpen && <ConnectionsManager open={connOpen} onClose={() => setConnOpen(false)} />}
         {featuresOpen && <FeaturesModal open={featuresOpen} onClose={() => setFeaturesOpen(false)} />}
         {themeOpen && <ThemeEditor open={themeOpen} onClose={() => setThemeOpen(false)} />}
@@ -136,7 +146,9 @@ export default function App() {
         )}
         <DebugLogOverlay />
       </Suspense>
-      <Toaster />
+      <Suspense fallback={null}>
+        {hasToasts && <Toaster />}
+      </Suspense>
     </div>
   );
 }

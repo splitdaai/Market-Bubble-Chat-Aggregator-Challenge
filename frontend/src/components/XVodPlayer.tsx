@@ -1,10 +1,9 @@
 import { useEffect, useRef, useState } from "react";
-import Hls from "hls.js";
+import type HlsType from "hls.js";
+import { LATEST_EPISODE_BID } from "@/lib/broadcastConstants";
 
 const BACKEND = (import.meta.env.VITE_BACKEND_URL as string | undefined) ?? "https://3-213-104-77.nip.io";
-
-/** Most recent full episode (EP5) — the default replay shown when nothing is live. */
-export const LATEST_EPISODE_BID = "1dxYllbQZELJX";
+export { LATEST_EPISODE_BID };
 
 /**
  * Plays an X broadcast replay (full episode) via the guest HLS proxy — hls.js in
@@ -16,7 +15,7 @@ export function XVodPlayer({ id, autoPlay, onError, className = "aspect-video w-
   const fail = () => { setErr(true); onError?.(); };
   useEffect(() => {
     setErr(false);
-    let hls: Hls | null = null;
+    let hls: HlsType | null = null;
     let dead = false;
     (async () => {
       try {
@@ -33,14 +32,17 @@ export function XVodPlayer({ id, autoPlay, onError, className = "aspect-video w-
         v.addEventListener("canplay", kick, { once: true });
         if (v.canPlayType("application/vnd.apple.mpegurl")) {
           v.src = url;
-        } else if (Hls.isSupported()) {
+        } else {
+          const { default: Hls } = await import("hls.js");
+          if (!Hls.isSupported()) {
+            fail();
+            return;
+          }
           hls = new Hls({ enableWorker: true });
           hls.on(Hls.Events.ERROR, (_e, d) => { if (d.fatal) fail(); });
           hls.on(Hls.Events.MANIFEST_PARSED, kick);
           hls.loadSource(url);
           hls.attachMedia(v);
-        } else {
-          fail();
         }
       } catch { fail(); }
     })();

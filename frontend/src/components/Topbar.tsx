@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Palette, Pencil, Eye, RotateCcw, Monitor, Radio, BarChart3, Plug, Sparkles, MousePointerClick, X, TrendingUp, Clapperboard, Crosshair, UserCircle2, Star, Minimize2, MessagesSquare } from "lucide-react";
 import { useLayoutStore } from "@/store/layoutStore";
@@ -8,9 +8,10 @@ import { useViewStore } from "@/store/viewStore";
 import { useViewerStore } from "@/store/viewerStore";
 import { useWalletStore } from "@/store/walletStore";
 import { AudioControl } from "./AudioControl";
-import { AccountModal } from "./AccountModal";
-import { WatchlistDashboard } from "./WatchlistDashboard";
 import { useUiModeStore } from "@/store/uiModeStore";
+
+const AccountModal = lazy(() => import("./AccountModal").then((m) => ({ default: m.AccountModal })));
+const WatchlistDashboard = lazy(() => import("./WatchlistDashboard").then((m) => ({ default: m.WatchlistDashboard })));
 
 /** Top command bar — view tabs, edit-mode toggle, theme editor, sound, reset. */
 export function Topbar({ onOpenTheme, onOpenConnections, onOpenFeatures }: { onOpenTheme: () => void; onOpenConnections: () => void; onOpenFeatures: () => void }) {
@@ -259,8 +260,10 @@ export function Topbar({ onOpenTheme, onOpenConnections, onOpenFeatures }: { onO
           <Minimize2 size={15} /> <span className="hidden sm:inline">Simple</span>
         </motion.button>
       </div>
-      <AccountModal open={accountOpen} onClose={() => setAccountOpen(false)} onOpenDashboard={() => setDashOpen(true)} />
-      <WatchlistDashboard open={dashOpen} onClose={() => setDashOpen(false)} />
+      <Suspense fallback={null}>
+        {accountOpen && <AccountModal open={accountOpen} onClose={() => setAccountOpen(false)} onOpenDashboard={() => setDashOpen(true)} />}
+        {dashOpen && <WatchlistDashboard open={dashOpen} onClose={() => setDashOpen(false)} />}
+      </Suspense>
     </header>
   );
 }

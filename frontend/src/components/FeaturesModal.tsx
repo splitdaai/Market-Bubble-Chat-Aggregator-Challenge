@@ -1,5 +1,5 @@
 import { motion, AnimatePresence, type Variants } from "framer-motion";
-import { useTourStore } from "./JudgeTour";
+import { useTourStore } from "@/store/tourStore";
 import {X, Sparkles, MessagesSquare, Activity, BarChart3, Trophy, Monitor, Flame,
   Wallet, Gift, Scissors, Film, ShieldCheck, Palette, LayoutGrid, Users,
   Crosshair, LineChart, Star, Calculator, AtSign, Play } from "lucide-react";

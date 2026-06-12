@@ -7,8 +7,17 @@ interface ViewState {
   setView: (v: View) => void;
 }
 
-/** Top-level tab: the live dashboard vs the analytics tab. */
+const views: View[] = ["live", "market", "content", "kol", "analytics"];
+
+function initialView(): View {
+  if (typeof window === "undefined") return "live";
+  const params = new URLSearchParams(window.location.search);
+  const requested = params.get("view") ?? params.get("tab") ?? window.location.hash.replace(/^#/, "");
+  return views.includes(requested as View) ? (requested as View) : "live";
+}
+
+/** Top-level page tab for the dashboard shell. */
 export const useViewStore = create<ViewState>((set) => ({
-  view: "live",
+  view: initialView(),
   setView: (view) => set({ view }),
 }));

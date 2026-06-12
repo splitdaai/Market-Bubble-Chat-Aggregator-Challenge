@@ -11,6 +11,7 @@ import { HlWalletModal } from "../kol/KolTab";
 import { WatchStar } from "../WatchStar";
 import { IntelFeed } from "./IntelFeed";
 import { compact } from "../../lib/format";
+import { FALLBACK_MARKET_DATA } from "../../lib/marketFallback";
 
 interface HlRow { name: string; addr?: string; pnl: number; roi?: number; value?: number; trend?: number[] }
 interface LinkedRow { name: string; xHandle: string; addr: string; chain: "hl" | "evm"; value: number; pnl: number; top?: string }
@@ -110,7 +111,7 @@ function MarketTable({ title, rows, onPick }: { title: string; rows: MarketData[
 }
 
 export function MarketTabClassic() {
-  const [d, setD] = useState<MarketData | null>(null);
+  const [d, setD] = useState<MarketData>(FALLBACK_MARKET_DATA);
   const [tries, setTries] = useState(0);
   const [detail, setDetail] = useState<Detail | null>(null);
   const [lb, setLb] = useState<{ hyperliquid: HlRow[]; polymarket: PolyRow[]; linked?: LinkedRow[] } | null>(null);
@@ -135,17 +136,12 @@ export function MarketTabClassic() {
     const load = () => {
       fetch(`${BACKEND}/api/market`)
         .then((r) => { if (!r.ok) throw new Error(String(r.status)); return r.json(); })
-        .then((j) => { if (!on) return; if (!j || !Array.isArray(j.global)) throw new Error("bad shape"); fails = 0; setD(j); schedule(120_000); })
+        .then((j) => { if (!on) return; if (!j || !Array.isArray(j.global)) throw new Error("bad shape"); fails = 0; setTries(0); setD(j); schedule(120_000); })
         .catch(() => { if (!on) return; fails += 1; setTries(fails); schedule(Math.min(1500 * fails, 12_000)); });
     };
     load();
     return () => { on = false; clearTimeout(timer); };
   }, []);
-  if (!d) return (
-    <div className="mb-tab p-10 text-center text-muted">
-      {tries >= 3 ? `Market feed slow to respond — retrying… (attempt ${tries})` : "Loading market data…"}
-    </div>
-  );
 
   const crypto = d.global.filter((m) => m.cls === "crypto").slice(0, 10);
   const indices = d.global.filter((m) => m.cls === "index").slice(0, 10);
@@ -155,7 +151,10 @@ export function MarketTabClassic() {
     <div className="mb-tab" data-text="serif">
       <div className="mx-auto max-w-[1500px] px-4 py-6 sm:px-6">
         <h1 className="serif text-3xl font-bold tracking-tight sm:text-4xl">Market</h1>
-        <p className="mt-1 text-[13px] text-muted">Classic layout — global markets, narratives, smart money, portfolios &amp; Polymarket in one terminal.</p>
+        <p className="mt-1 text-[13px] text-muted">
+          Classic layout - global markets, narratives, smart money, portfolios &amp; Polymarket in one terminal.
+          {tries > 0 && <span className="ml-2 text-faint">Live market feed retrying in the background.</span>}
+        </p>
 
         <PageGrid
           pageKey="market-classic-v5"

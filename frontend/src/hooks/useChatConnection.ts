@@ -55,9 +55,19 @@ export function useChatConnection() {
       useAnalyticsStore.setState({ live: true, sessions: [] });
     }
 
-    // Emotes: load 7TV/BTTV/FFZ global sets + per-channel sets for every
-    // connected Twitch channel so chat renders real emote images.
-    initEmotes(useConnectionsStore.getState().accounts.filter((a) => a.platform === "twitch").map((a) => a.handle));
+    // Emotes are visual enhancement, not first paint. Let the dashboard become
+    // interactive before opening several third-party emote requests.
+    const loadEmotes = () => {
+      initEmotes(useConnectionsStore.getState().accounts.filter((a) => a.platform === "twitch").map((a) => a.handle));
+    };
+    const cancelEmoteLoad = (() => {
+      if ("requestIdleCallback" in window) {
+        const idleId = window.requestIdleCallback(loadEmotes, { timeout: 3500 });
+        return () => window.cancelIdleCallback(idleId);
+      }
+      const timeoutId = globalThis.setTimeout(loadEmotes, 1500);
+      return () => globalThis.clearTimeout(timeoutId);
+    })();
 
     const conn = connect({
       onMessage: (m) => {
@@ -103,6 +113,7 @@ export function useChatConnection() {
     return () => {
       conn.disconnect();
       window.clearInterval(ticker);
+      cancelEmoteLoad();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [demo]);

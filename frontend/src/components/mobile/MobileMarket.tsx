@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Sparkline } from "../Sparkline";
 import { BubbleScroll } from "../BubbleScroll";
 import { MSection, MCard, MTone, mPrice, mPct, mUsd } from "./ui";
+import { FALLBACK_MARKET_DATA } from "../../lib/marketFallback";
 
 const BACKEND = (import.meta.env.VITE_BACKEND_URL as string | undefined) ?? "https://3-213-104-77.nip.io";
 
@@ -41,23 +42,25 @@ function Board({ title, rows, cap = 10 }: { title: string; rows: { name: string;
 }
 
 export function MobileMarket() {
-  const [m, setM] = useState<MarketData | null>(null);
+  const [m, setM] = useState<MarketData>(FALLBACK_MARKET_DATA);
   const [lb, setLb] = useState<LB | null>(null);
   useEffect(() => {
-    fetch(`${BACKEND}/api/market`).then((r) => r.json()).then(setM).catch(() => {});
+    fetch(`${BACKEND}/api/market`).then((r) => r.json()).then((j) => {
+      if (j && Array.isArray(j.global)) setM(j);
+    }).catch(() => {});
     fetch(`${BACKEND}/api/leaderboards`).then((r) => r.json()).then(setLb).catch(() => {});
   }, []);
 
-  const g = m?.gauges;
+  const g = m.gauges;
   return (
     <div className="pb-6">
       {/* Pulse */}
       <MSection title="Market Pulse">
         <div className="grid grid-cols-3 gap-2">
           {[
-            ["Fear / Greed", g ? String(g.fearGreed) : "—", g?.fearGreedLabel ?? ""],
-            ["BTC Dom", g ? g.btcDominance.toFixed(1) + "%" : "—", "dominance"],
-            ["Total Mcap", g ? mUsd(g.totalMcap) : "—", "global"],
+            ["Fear / Greed", String(g.fearGreed), g.fearGreedLabel],
+            ["BTC Dom", g.btcDominance.toFixed(1) + "%", "dominance"],
+            ["Total Mcap", mUsd(g.totalMcap), "global"],
           ].map(([l, v, s]) => (
             <MCard key={l} className="px-2 py-2.5 text-center">
               <div className="text-[9px] uppercase tracking-wider text-faint">{l}</div>
@@ -69,10 +72,10 @@ export function MobileMarket() {
       </MSection>
 
       {/* Markets */}
-      <MSection title="Global Markets" right={m && m.global.length > 6 ? <span className="text-[10px] text-muted">scroll {m.global.length - 6}+</span> : undefined}>
+      <MSection title="Global Markets" right={m.global.length > 6 ? <span className="text-[10px] text-muted">scroll {m.global.length - 6}+</span> : undefined}>
         <MCard className="overflow-hidden">
           <BubbleScroll maxHeight={330}>
-            {(m?.global ?? []).map((a) => (
+            {m.global.map((a) => (
               <div key={a.sym} className="flex items-center gap-2 border-b border-white/5 px-3 py-2 last:border-0">
                 <div className="min-w-0 flex-1">
                   <div className="text-[13px] font-bold">{a.sym}</div>
@@ -87,13 +90,12 @@ export function MobileMarket() {
                 </div>
               </div>
             ))}
-            {!m && <div className="px-3 py-6 text-center text-[12px] text-faint">Loading markets…</div>}
           </BubbleScroll>
         </MCard>
       </MSection>
 
       {/* Movers */}
-      {m?.movers?.length ? (
+      {m.movers.length ? (
         <MSection title="Top Movers">
           <div className="flex gap-2 overflow-x-auto pb-1">
             {m.movers.slice(0, 10).map((mv) => (

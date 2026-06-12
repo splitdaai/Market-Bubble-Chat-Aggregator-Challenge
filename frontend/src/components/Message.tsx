@@ -1,6 +1,5 @@
 import { memo, useMemo, useState } from "react";
 import { getEmoteUrl, useEmoteStore } from "@/lib/emotes";
-import { motion } from "framer-motion";
 import type { ChatMessage, ModerationAction } from "@shared/types";
 import { SourceBadge, platformColor } from "./SourceBadge";
 import { Shield, Star, Crown, BadgeCheck, Gem, Wallet } from "lucide-react";
@@ -59,16 +58,12 @@ function MessageInner({ msg, deleted, onModerate }: Props) {
 
   return (
     <>
-      <motion.div
-        layout
-        initial={{ opacity: 0, x: -10, scale: 0.98 }}
-        animate={{ opacity: struck ? 0.45 : 1, x: 0, scale: 1 }}
-        transition={{ type: "spring", stiffness: 520, damping: 34, mass: 0.6 }}
+      <div
         onContextMenu={(e) => {
           e.preventDefault();
           setMenuAt({ x: e.clientX, y: e.clientY });
         }}
-        className={`group relative rounded-xl px-2.5 py-1.5 transition-colors hover:bg-white/[0.04] ${
+        className={`group relative rounded-xl px-2.5 py-1.5 transition-[background-color,opacity] hover:bg-white/[0.04] ${
           msg.hype ? "vc-hype" : ""
         }`}
         style={
@@ -77,8 +72,9 @@ function MessageInner({ msg, deleted, onModerate }: Props) {
                 border: "1px solid color-mix(in srgb, var(--vc-accent) 50%, transparent)",
                 boxShadow: "0 0 18px color-mix(in srgb, var(--vc-accent) 35%, transparent)",
                 background: "color-mix(in srgb, var(--vc-accent) 8%, transparent)",
+                opacity: struck ? 0.45 : 1,
               }
-            : undefined
+            : { opacity: struck ? 0.45 : 1 }
         }
       >
         <div className="flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5 text-[13px] leading-snug">
@@ -135,7 +131,7 @@ function MessageInner({ msg, deleted, onModerate }: Props) {
             Mod
           </button>
         )}
-      </motion.div>
+      </div>
 
       {menuAt && (
         <ModMenu

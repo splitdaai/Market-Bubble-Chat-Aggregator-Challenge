@@ -4,6 +4,7 @@ import { Sparkline } from "../Sparkline";
 import { PolymarketMark } from "../Brand";
 import { TradingViewTechnicals } from "./TradingViewTechnicals";
 import { compact } from "../../lib/format";
+import { FALLBACK_MARKET_DATA } from "../../lib/marketFallback";
 
 const BACKEND = (import.meta.env.VITE_BACKEND_URL as string | undefined) ?? "https://3-213-104-77.nip.io";
 
@@ -53,20 +54,22 @@ const Tag = ({ v }: { v: number }) => (
 const chip = "rounded-md border border-white/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-muted";
 
 export function MarketTab() {
-  const [d, setD] = useState<MarketData | null>(null);
+  const [d, setD] = useState<MarketData>(FALLBACK_MARKET_DATA);
   const [err, setErr] = useState(false);
   const [gmClass, setGmClass] = useState<"crypto" | "index" | "commodity">("crypto");
 
   useEffect(() => {
     let on = true;
-    const load = () => fetch(`${BACKEND}/api/market`).then((r) => r.json()).then((j) => on && setD(j)).catch(() => on && setErr(true));
+    const load = () => fetch(`${BACKEND}/api/market`).then((r) => r.json()).then((j) => {
+      if (on && j && Array.isArray(j.global)) {
+        setD(j);
+        setErr(false);
+      }
+    }).catch(() => on && setErr(true));
     load();
     const t = setInterval(load, 120_000);
     return () => { on = false; clearInterval(t); };
   }, []);
-
-  if (err) return <div className="p-10 text-center text-muted">Market feed unavailable. Retrying…</div>;
-  if (!d) return <div className="p-10 text-center text-muted">Loading live market data…</div>;
 
   const g = d.gauges;
   const gainers = d.movers.filter((m) => m.chg >= 0).sort((a, b) => b.chg - a.chg);
@@ -76,7 +79,10 @@ export function MarketTab() {
     <div className="mb-tab">
     <div className="mx-auto max-w-[1500px] px-4 py-6 sm:px-6">
       <h1 className="serif text-3xl font-bold tracking-tight sm:text-4xl">Market Intelligence</h1>
-      <p className="mt-1 text-[13px] text-muted">Smart money · Polymarket · global markets · narrative monitor — live, in one view.</p>
+      <p className="mt-1 text-[13px] text-muted">
+        Smart money · Polymarket · global markets · narrative monitor - live, in one view.
+        {err && <span className="ml-2 text-faint">Live market feed retrying in the background.</span>}
+      </p>
 
       <div className="mt-5 grid grid-cols-1 gap-4 lg:grid-cols-12">
         {/* Narrative Monitor */}

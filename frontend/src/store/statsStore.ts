@@ -22,6 +22,8 @@ const VELOCITY_WINDOW = 60_000; // messages/min lookback
 const SENTIMENT_WINDOW = 90_000;
 const VELOCITY_SAMPLES = 90; // ~3 min of sparkline at 2s
 const CLIP_COOLDOWN = 14_000;
+const MAX_TRACKED_CHATTERS = 1_200;
+const MAX_ACCOUNT_CHATTERS = 700;
 
 /** Demo-mode viewer baseline PER ACCOUNT (scaled by # of connected channels). */
 const MOCK_BASE: Record<Platform, number> = { twitch: 520, kick: 240, x: 640, youtube: 380 };
@@ -203,6 +205,22 @@ const SPARK_SAMPLES = 32;
 let viewersHist: Record<Platform, number[]> = { twitch: [], kick: [], x: [], youtube: [] };
 const accountHist = new Map<string, number[]>();
 
+function pruneTrackedChatters() {
+  if (chatters.size <= MAX_TRACKED_CHATTERS) return;
+  const remove = [...chatters.entries()]
+    .sort((a, b) => a[1].last - b[1].last)
+    .slice(0, chatters.size - MAX_TRACKED_CHATTERS);
+  for (const [key] of remove) chatters.delete(key);
+}
+
+function capSet<T>(set: Set<T>, max: number) {
+  while (set.size > max) {
+    const first = set.values().next();
+    if (first.done) break;
+    set.delete(first.value);
+  }
+}
+
 function blankAccum(): Accum {
   return {
     messages: 0,
@@ -273,12 +291,14 @@ export const useStatsStore = create<StatsState>((set, get) => ({
     recentSentiment.push({ t: now, s: scoreMessage(m.message) });
     if (/\$[A-Z]{2,6}\b/.test(m.message)) recentTickers.push({ t: now });
     chatters.set(key, c);
+    pruneTrackedChatters();
 
     // per-account accumulation for the analytics filter
     if (m.accountId) {
       const acc = byAccount.get(m.accountId) ?? { platform: m.platform, messages: 0, chatters: new Set<string>(), donated: 0, subs: 0 };
       acc.messages += 1;
       acc.chatters.add(m.username.toLowerCase());
+      capSet(acc.chatters, MAX_ACCOUNT_CHATTERS);
       if (m.event) {
         acc.donated += m.event.amount;
         if (m.event.kind === "subscription" || m.event.kind === "gift") acc.subs += m.event.count ?? 1;

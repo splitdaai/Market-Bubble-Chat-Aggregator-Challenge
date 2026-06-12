@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { useChatStore } from "@/store/chatStore";
 import { useModeStore } from "@/store/modeStore";
-import { LATEST_EPISODE_BID } from "@/components/XVodPlayer";
+import { LATEST_EPISODE_BID } from "@/lib/broadcastConstants";
 
 const BACKEND = (import.meta.env.VITE_BACKEND_URL as string | undefined) ?? "https://3-213-104-77.nip.io";
 
@@ -26,6 +26,7 @@ export function useXBroadcastChat(broadcastId: string = LATEST_EPISODE_BID) {
     if (!demo) return;
     let alive = true;
     let timer: number | undefined;
+    let cancelIdleLoad = () => {};
 
     const drip = (msgs: XMsg[]) => {
       if (!msgs.length) return;
@@ -50,11 +51,24 @@ export function useXBroadcastChat(broadcastId: string = LATEST_EPISODE_BID) {
       tick();
     };
 
-    fetch(`${BACKEND}/api/x-broadcast-chat/${broadcastId}`)
-      .then((r) => r.json())
-      .then((d: { messages?: XMsg[] }) => { if (alive && Array.isArray(d.messages) && d.messages.length) drip(d.messages); })
-      .catch(() => {});
+    const load = () => {
+      fetch(`${BACKEND}/api/x-broadcast-chat/${broadcastId}`)
+        .then((r) => r.json())
+        .then((d: { messages?: XMsg[] }) => { if (alive && Array.isArray(d.messages) && d.messages.length) drip(d.messages); })
+        .catch(() => {});
+    };
+    if ("requestIdleCallback" in window) {
+      const idleId = window.requestIdleCallback(load, { timeout: 3000 });
+      cancelIdleLoad = () => window.cancelIdleCallback(idleId);
+    } else {
+      const timeoutId = globalThis.setTimeout(load, 1200);
+      cancelIdleLoad = () => globalThis.clearTimeout(timeoutId);
+    }
 
-    return () => { alive = false; if (timer) window.clearTimeout(timer); };
+    return () => {
+      alive = false;
+      if (timer) window.clearTimeout(timer);
+      cancelIdleLoad();
+    };
   }, [broadcastId, addMessage, demo]);
 }

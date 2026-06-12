@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
 import type { Platform, ModerationAction, PanelLayout } from "@shared/types";
 import { useChatStore } from "@/store/chatStore";
 import { Message } from "./Message";
@@ -128,15 +127,8 @@ export function ChatFeed({ panel }: { panel: PanelLayout }) {
       </div>
 
       {/* search + quick filters — slim row that slides open under the header */}
-      <AnimatePresence initial={false}>
-        {searchOpen && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: "auto", opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.18, ease: "easeOut" }}
-            className="overflow-hidden border-b border-white/10"
-          >
+      {searchOpen && (
+          <div className="overflow-hidden border-b border-white/10">
             <div className="flex items-center gap-1.5 px-3 py-2">
               <div className="flex min-w-0 flex-1 items-center gap-1.5 rounded-lg border border-white/12 bg-white/[0.03] px-2 py-1 focus-within:border-accent/50">
                 <Search size={12} className="shrink-0 text-faint" />
@@ -163,23 +155,20 @@ export function ChatFeed({ panel }: { panel: PanelLayout }) {
             {filtering && (
               <div className="px-3 pb-1.5 text-[10px] text-faint">{visible.length} match{visible.length === 1 ? "" : "es"} · live messages keep streaming in</div>
             )}
-          </motion.div>
-        )}
-      </AnimatePresence>
+          </div>
+      )}
 
       {/* messages */}
       <div ref={scrollRef} onScroll={onScroll} className="vc-scroll relative flex-1 overflow-y-auto px-1.5 py-2">
         <div className="flex flex-col gap-0.5">
-          <AnimatePresence initial={false}>
-            {visible.map((m) => (
-              <Message
-                key={m.id}
-                msg={m}
-                deleted={deleted.has(m.id)}
-                onModerate={(a) => handleModerate(m.id, m.username, m.platform, a)}
-              />
-            ))}
-          </AnimatePresence>
+          {visible.map((m) => (
+            <Message
+              key={m.id}
+              msg={m}
+              deleted={deleted.has(m.id)}
+              onModerate={(a) => handleModerate(m.id, m.username, m.platform, a)}
+            />
+          ))}
         </div>
         {visible.length === 0 && (
           <div className="grid h-full place-items-center text-sm text-muted">Waiting for messages…</div>

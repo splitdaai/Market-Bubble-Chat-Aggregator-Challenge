@@ -1,29 +1,14 @@
 import { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { create } from "zustand";
 import { X, ChevronRight, ChevronLeft, Sparkles } from "lucide-react";
 import { useViewStore, type View } from "@/store/viewStore";
+import { useTourStore } from "@/store/tourStore";
 
 /**
  * The 60-second Judge Tour — a non-blocking guided walkthrough that drives the
  * real app (switches tabs under the card) and narrates the working core in 8
  * short steps. Launched from the Features popup or by visiting `?tour`.
  */
-
-interface TourState {
-  active: boolean;
-  step: number;
-  start: () => void;
-  stop: () => void;
-  setStep: (n: number) => void;
-}
-export const useTourStore = create<TourState>((set) => ({
-  active: false,
-  step: 0,
-  start: () => set({ active: true, step: 0 }),
-  stop: () => set({ active: false }),
-  setStep: (step) => set({ step }),
-}));
 
 const SECONDS_PER_STEP = 8;
 

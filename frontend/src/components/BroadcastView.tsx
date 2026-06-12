@@ -265,14 +265,14 @@ const BroadcastMessageRow = memo(function BroadcastMessageRow({ msg, deleted }: 
 // with whatever scene they're going to use, and persists the result so it
 // holds across reloads.
 
-/** Pixel-measured off the show frame: the panel covers the center capture
- *  tile exactly, with a small bleed past the inside edge of the white border
- *  so the slightly-rounded inner corners of the tile can't let video peek
- *  through. Inside edges of the white border live at x 523→1397, y 55→679
- *  on 1920×1080; we extend ~4px past each one. Percentages are relative to
- *  the letterboxed 16:9 frame, so this tracks the tile at every window
- *  size. */
-const DEFAULT_TILE = { left: 27.05, top: 4.7, width: 45.9, height: 58.5 };
+/** Operator-tuned to seat the chat panel cleanly inside the show's white
+ *  tile border — thin white frame visible on all four sides, no video
+ *  peeking through. Tuned off Eddie's reference screenshot: the broadcast
+ *  frame's inner edges sit at roughly x 523→1397, y 55→679 on 1920×1080,
+ *  and this default insets a touch so the white border frames the panel
+ *  rather than getting covered. Percentages are relative to the letterboxed
+ *  16:9 frame so the panel tracks the tile at every window size. */
+const DEFAULT_TILE = { left: 27.5, top: 6.0, width: 45.0, height: 59.5 };
 const TILE_KEY = "vibechat-broadcast-tile";
 
 interface Tile { left: number; top: number; width: number; height: number }
