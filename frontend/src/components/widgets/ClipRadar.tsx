@@ -29,14 +29,21 @@ export function ClipRadar() {
   const lastAuto = useRef<number>(0);
   const gid = useId().replace(/:/g, "");
 
-  // Auto-save a clip whenever the radar detects a fresh spike moment.
+  // Smart auto-clip — uses the detector's verdict, not raw spike count:
+  //   "auto-clip" → capture + clip-worthy toast
+  //   "alert"    → toast only, operator decides
+  //   "watch"    → ignored (radar still shows it on the strip)
   useEffect(() => {
     const newest = moments[0];
-    if (newest && newest.t !== lastAuto.current) {
-      lastAuto.current = newest.t;
-      capture("auto-radar", `Auto · ${newest.intensity.toFixed(1)}× spike`);
+    if (!newest || newest.t === lastAuto.current) return;
+    lastAuto.current = newest.t;
+    if (newest.verdict === "auto-clip") {
+      capture("auto-radar", `${newest.kind} · ${newest.why}`);
+      push({ message: `📎 Auto-clipped — ${newest.kind} (${newest.score}). ${newest.why}`, tone: "ok" });
+    } else if (newest.verdict === "alert") {
+      push({ message: `🔔 ${newest.kind} brewing (${newest.score}). ${newest.why}`, tone: "info" });
     }
-  }, [moments, capture]);
+  }, [moments, capture, push]);
 
   // Most-active channel right now → shown on the preview.
   const primary = useMemo(() => {

@@ -15,6 +15,7 @@ import { avatarUrl } from "@/lib/avatar";
 import { shortAddr } from "@/lib/web3";
 import { moderate } from "@/lib/api";
 import { compact } from "@/lib/format";
+import { bucksFor } from "@/lib/bucks";
 import { TipModal } from "./TipModal";
 import type { Platform } from "@shared/types";
 
@@ -209,10 +210,15 @@ export function UserCard() {
         </div>
 
         {/* stat strip */}
-        <div className="grid grid-cols-4 gap-px bg-white/5 text-center">
+        <div className="grid grid-cols-5 gap-px bg-white/5 text-center">
           <Stat icon={<MessageSquare size={13} />} label="msgs" value={compact(Math.max(userMessages.length, row?.count ?? 0))} />
           <Stat icon={<DollarSign size={13} />} label="tipped" value={`$${compact(row?.donated ?? 0)}`} />
           <Stat icon={<Gift size={13} />} label="subs" value={String(row?.subs ?? 0)} />
+          <Stat
+            icon={<span className="text-[13px] leading-none">🫧</span>}
+            label="Bubble Bucks"
+            value={compact(bucksFor({ count: Math.max(userMessages.length, row?.count ?? 0), donated: row?.donated ?? 0, subs: row?.subs ?? 0, first: row?.first, last: row?.last }))}
+          />
           <Stat icon={<Clock size={13} />} label="last" value={row ? fmtTime(row.last) : "—"} />
         </div>
 

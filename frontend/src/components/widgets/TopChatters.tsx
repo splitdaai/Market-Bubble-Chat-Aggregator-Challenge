@@ -6,9 +6,10 @@ import { useUserCardStore } from "@/store/userCardStore";
 import { SourceBadge, platformColor } from "../SourceBadge";
 import { compact } from "@/lib/format";
 import { subRevenue } from "@/lib/revenue";
+import { bucksFor } from "@/lib/bucks";
 import type { Platform } from "@shared/types";
 
-type Tab = "chatters" | "subs";
+type Tab = "chatters" | "subs" | "bucks";
 type RangeKey = "day" | "week" | "month" | "all";
 
 /** Roughly how much a longer window accumulates vs the live session ("today"). */
@@ -23,6 +24,7 @@ const RANGES: { key: RangeKey; label: string }[] = [
 const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
   { id: "chatters", label: "Chatters", icon: <MessageSquare size={12} /> },
   { id: "subs", label: "Subs", icon: <Gift size={12} /> },
+  { id: "bucks", label: "Bucks", icon: <span className="text-[12px] leading-none">🫧</span> },
 ];
 
 interface Row {
@@ -41,6 +43,7 @@ interface Row {
  */
 export function TopChatters() {
   const snap = useStatsStore((s) => s.snapshot);
+  const listUsers = useStatsStore((s) => s.listUsers);
   const showUser = useUserCardStore((s) => s.show);
   const [tab, setTab] = useState<Tab>("chatters");
   const [range, setRange] = useState<RangeKey>("day");
@@ -49,19 +52,31 @@ export function TopChatters() {
   const f = RANGE_FACTOR[range];
   const sc = (n: number) => compact(Math.round(n * f));
 
+  // Bubble Bucks: 1/msg + 100/sub + 5/$ — the show's watch-&-earn currency.
+  const bucksRows: Row[] =
+    tab === "bucks"
+      ? listUsers()
+          .map((u) => ({ name: u.name, platform: u.platform, channel: u.channel, value: bucksFor(u) * f, display: `🫧 ${sc(bucksFor(u))}` }))
+          .sort((a, b) => b.value - a.value)
+          .slice(0, 25)
+      : [];
+
   const rows: Row[] =
     tab === "chatters"
       ? snap.topChatters.map((r) => ({ ...r, value: r.count * f, display: sc(r.count) }))
-      : snap.topSubs
-          .map((r) => {
-            const rev = subRevenue(r.platform, r.subs);
-            return { name: r.name, platform: r.platform, channel: r.channel, value: rev * f, display: `$${sc(rev)}`, subCount: Math.round(r.subs * f) };
-          })
-          .sort((a, b) => b.value - a.value);
+      : tab === "subs"
+        ? snap.topSubs
+            .map((r) => {
+              const rev = subRevenue(r.platform, r.subs);
+              return { name: r.name, platform: r.platform, channel: r.channel, value: rev * f, display: `$${sc(rev)}`, subCount: Math.round(r.subs * f) };
+            })
+            .sort((a, b) => b.value - a.value)
+        : bucksRows;
 
   const max = Math.max(1, rows[0]?.value ?? 1);
   const summary =
     tab === "subs" ? `$${sc(snap.totalSubRevenue)} from subs`
+    : tab === "bucks" ? `🫧 ${sc(listUsers().reduce((s, u) => s + bucksFor(u), 0))} issued`
     : `${sc(snap.totals.uniqueChatters)} chatters`;
 
   return (
@@ -105,7 +120,7 @@ export function TopChatters() {
       <div className="vc-scroll flex-1 space-y-1 overflow-y-auto">
         {rows.length === 0 && (
           <div className="grid h-full place-items-center text-center text-[11px] text-muted opacity-70">
-            {tab === "subs" ? "No subs yet" : "tallying chatters…"}
+            {tab === "subs" ? "No subs yet" : tab === "bucks" ? "No Bubble Bucks earned yet" : "tallying chatters…"}
           </div>
         )}
         {rows.map((r, i) => (
@@ -128,7 +143,7 @@ export function TopChatters() {
             <SourceBadge platform={r.platform} compact />
             {r.channel && <span className="z-10 shrink-0 text-[10px] font-semibold text-muted/80">{r.channel}</span>}
             <span className="z-10 flex-1 truncate text-sm font-semibold text-ink">{r.name}</span>
-            <span className={`z-10 flex items-baseline gap-1 text-xs font-bold tabular-nums ${tab === "chatters" ? "text-accent" : "text-emerald-400"}`}>
+            <span className={`z-10 flex items-baseline gap-1 text-xs font-bold tabular-nums ${tab === "chatters" ? "text-accent" : tab === "bucks" ? "text-amber-300" : "text-emerald-400"}`}>
               {tab === "subs" && r.subCount != null && <span className="text-[10px] font-semibold text-muted">{r.subCount} sub{r.subCount === 1 ? "" : "s"}</span>}
               {r.display}
             </span>

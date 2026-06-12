@@ -136,12 +136,11 @@ export function BroadcastView() {
   // ── The chat panel itself (header + feed) ──
   const panel = (
     <div
-      className={`relative flex h-full flex-col overflow-hidden ${stage ? "rounded-lg" : ""}`}
+      className="relative flex h-full flex-col overflow-hidden"
       style={{
         fontSize: fontPx,
         color: "#f3efe7",
         background: transparent ? "transparent" : "#080706",
-        ...(stage ? { border: "1px solid rgba(217,165,71,0.28)" } : {}),
       }}
     >
       {/* ── Header strip (On Air broadcast lower-third) ── */}
@@ -248,10 +247,12 @@ export function BroadcastView() {
 // with whatever scene they're going to use, and persists the result so it
 // holds across reloads.
 
-/** The operator-tuned layout that lines up cleanly with the center capture
- *  tile in the show frame. Percentages are relative to the letterboxed 16:9
- *  frame, so this tracks the video tile at every window size. */
-const DEFAULT_TILE = { left: 27.7, top: 5.9, width: 44.9, height: 59.4 };
+/** Pixel-measured off the show frame: the panel covers the center capture
+ *  tile exactly, leaving only its white border visible (inside edges:
+ *  x 523→1397, y 55→679 at 1920×1080). Percentages are relative to the
+ *  letterboxed 16:9 frame, so this tracks the video tile at every window
+ *  size. */
+const DEFAULT_TILE = { left: 27.24, top: 5.09, width: 45.52, height: 57.78 };
 const TILE_KEY = "vibechat-broadcast-tile";
 
 interface Tile { left: number; top: number; width: number; height: number }

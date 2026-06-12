@@ -65,7 +65,17 @@ export default function App() {
   const params = new URLSearchParams(window.location.search);
   if (params.has("overlay")) return <Suspense fallback={null}><OverlayPage /></Suspense>;
   if (params.has("dock")) return <Suspense fallback={null}><DockView /></Suspense>;
-  if (params.has("broadcast")) return <Suspense fallback={null}><BroadcastView /></Suspense>;
+  if (params.has("broadcast")) {
+    // Full chat toolkit rides along: click-a-user card (history / timeout /
+    // ban / tip via TipModal inside UserCard) + toasts for mod confirmations.
+    return (
+      <Suspense fallback={null}>
+        <BroadcastView />
+        <UserCard />
+        <Toaster />
+      </Suspense>
+    );
+  }
 
   // Phones get a dedicated mobile shell (bottom-tab native feel). The desktop
   // dashboard below is left completely untouched. `?desktop` forces the full UI;

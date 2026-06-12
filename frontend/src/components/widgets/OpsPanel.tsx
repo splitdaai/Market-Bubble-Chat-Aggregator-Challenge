@@ -1,17 +1,20 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
-import {Activity, Gift, Radio, ClipboardList } from "lucide-react";
+import { Activity, Gift, Radio, ClipboardList, Scissors } from "lucide-react";
 import { ChatVibe } from "./ChatVibe";
 import { ProducerBrief } from "./ProducerBrief";
 import { GiveawayBot } from "./GiveawayBot";
 import { Broadcasts } from "./Broadcasts";
+import { Clips } from "./Clips";
+import { useClipsStore } from "@/store/clipsStore";
 
-type Tab = "vibe" | "brief" | "giveaway" | "broadcasts";
+type Tab = "vibe" | "brief" | "giveaway" | "clips" | "broadcasts";
 
 const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
   { id: "vibe", label: "Chat Vibe", icon: <Activity size={15} /> },
   { id: "brief", label: "Producer Brief", icon: <ClipboardList size={15} /> },
   { id: "giveaway", label: "Giveaway", icon: <Gift size={15} /> },
+  { id: "clips", label: "Clips", icon: <Scissors size={15} /> },
   { id: "broadcasts", label: "Broadcasts", icon: <Radio size={15} /> },
 ];
 
@@ -21,6 +24,8 @@ const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
  */
 export function OpsPanel() {
   const [tab, setTab] = useState<Tab>("vibe");
+  // Tiny "new clip" count next to the Clips tab.
+  const clipsCount = useClipsStore((s) => s.clips.length);
   return (
     <div className="flex h-full flex-col">
       <div className="flex shrink-0 gap-2 p-2">
@@ -50,6 +55,11 @@ export function OpsPanel() {
               )}
               <span className="relative z-10 flex items-center gap-1.5">
                 {t.icon} {t.label}
+                {t.id === "clips" && clipsCount > 0 && (
+                  <span className="ml-0.5 rounded-full bg-accent/30 px-1.5 text-[10px] font-extrabold text-accent">
+                    {clipsCount}
+                  </span>
+                )}
               </span>
             </motion.button>
           );
@@ -59,6 +69,7 @@ export function OpsPanel() {
         {tab === "vibe" && <ChatVibe />}
         {tab === "brief" && <ProducerBrief />}
         {tab === "giveaway" && <GiveawayBot />}
+        {tab === "clips" && <Clips />}
         {tab === "broadcasts" && <Broadcasts />}
       </div>
     </div>

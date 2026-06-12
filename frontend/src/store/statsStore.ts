@@ -4,6 +4,7 @@ import { scoreMessage } from "@/lib/sentiment";
 import { useConnectionsStore, connectedAccounts } from "@/store/connectionsStore";
 import { accountShare } from "@/lib/accounts";
 import { subRevenue } from "@/lib/revenue";
+import { useBucksLedger } from "@/store/bucksLedgerStore";
 
 /**
  * The stats brain.
@@ -34,6 +35,8 @@ interface ChatterInfo {
   name: string;
   platform: Platform;
   count: number;
+  /** First time we saw this viewer — start of their watch session. */
+  first: number;
   last: number;
   /** Cumulative USD-equivalent donated (tips + bits + sub value). */
   donated: number;
@@ -69,6 +72,8 @@ export interface UserRow {
   name: string;
   platform: Platform;
   count: number;
+  /** First seen — start of the viewer's watch session (Bubble Bucks accrual). */
+  first: number;
   last: number;
   donated: number;
   subs: number;
@@ -133,8 +138,23 @@ export interface StatsSnapshot {
   /** Per-account raw stats (for the analytics account filter). */
   accounts: AccountStat[];
   velocity: number[]; // combined mpm samples, oldest→newest
-  clipMoments: { t: number; intensity: number }[];
+  clipMoments: ClipMoment[];
   hot: boolean; // currently inside a clip-worthy spike
+}
+
+/** A detected clip-worthy moment with the signals + verdict that surfaced it. */
+export type ClipKind = "HYPE" | "ROAST" | "DROP" | "DONO-RAIN" | "TICKER" | "SPIKE";
+export type ClipVerdict = "auto-clip" | "alert" | "watch";
+export interface ClipMoment {
+  t: number;
+  /** Chat-velocity multiple over baseline (legacy). */
+  intensity: number;
+  /** 0–100 — how confident the detector is that this is worth a clip. */
+  score: number;
+  kind: ClipKind;
+  verdict: ClipVerdict;
+  /** Short, human-readable reason ("3.2× chat · $250 dono rain"). */
+  why: string;
 }
 
 interface StatsState {
@@ -167,7 +187,11 @@ const chatters = new Map<string, ChatterInfo>();
 const byAccount = new Map<string, { platform: Platform; messages: number; chatters: Set<string>; donated: number; subs: number }>();
 let sentimentBuf: { t: number; s: number }[] = [];
 let velocityHist: number[] = [];
-let clipMoments: { t: number; intensity: number }[] = [];
+let clipMoments: ClipMoment[] = [];
+// rolling event/$ counters for the smart auto-clip detector
+let recentEvents: { t: number; kind: "sub" | "tip"; amount: number }[] = [];
+let recentSentiment: { t: number; s: number }[] = [];
+let recentTickers: { t: number }[] = [];
 let lastTick = start;
 let lastClip = 0;
 let warmed = false;
@@ -230,7 +254,7 @@ export const useStatsStore = create<StatsState>((set, get) => ({
     a.msgTimes.push(now);
 
     const key = `${m.platform}:${m.username.toLowerCase()}`;
-    const c = chatters.get(key) ?? { name: m.username, platform: m.platform, count: 0, last: now, donated: 0, subs: 0 };
+    const c = chatters.get(key) ?? { name: m.username, platform: m.platform, count: 0, first: now, last: now, donated: 0, subs: 0 };
     c.count += 1;
     c.last = now;
     if (m.channel) c.channel = m.channel;
@@ -238,7 +262,14 @@ export const useStatsStore = create<StatsState>((set, get) => ({
       // Tips + bits + the dollar value of subs all count toward "donated".
       c.donated += m.event.amount;
       if (m.event.kind === "subscription" || m.event.kind === "gift") c.subs += m.event.count ?? 1;
+      // Feed the smart auto-clip detector — recent dono/sub bursts are a
+      // primary signal (DONO-RAIN).
+      const kind: "sub" | "tip" = m.event.kind === "subscription" || m.event.kind === "gift" ? "sub" : "tip";
+      recentEvents.push({ t: now, kind, amount: m.event.amount });
     }
+    // Sentiment + ticker signal feed
+    recentSentiment.push({ t: now, s: scoreMessage(m.message) });
+    if (/\$[A-Z]{2,6}\b/.test(m.message)) recentTickers.push({ t: now });
     chatters.set(key, c);
 
     // per-account accumulation for the analytics filter
@@ -288,7 +319,25 @@ export const useStatsStore = create<StatsState>((set, get) => ({
     set({ snapshot: emptySnapshot() });
   },
 
-  listUsers: () => [...chatters.values()],
+  // listUsers merges the persisted Bubble Bucks ledger into the current
+  // session so each user's `first`, `count`, `donated` and `subs` reflect
+  // their lifetime totals (not just what's happened since page load).
+  listUsers: () => {
+    const ledger = useBucksLedger.getState().entries;
+    return [...chatters.values()].map((c) => {
+      const key = `${c.platform}:${c.name.toLowerCase()}`;
+      const l = ledger[key];
+      if (!l) return c;
+      return {
+        ...c,
+        first: Math.min(c.first, l.first),
+        last: Math.max(c.last, l.last),
+        count: Math.max(c.count, l.count),
+        donated: Math.max(c.donated, l.donated),
+        subs: Math.max(c.subs, l.subs),
+      };
+    });
+  },
 
   warmStart: () => {
     if (warmed) return;
@@ -342,7 +391,8 @@ export const useStatsStore = create<StatsState>((set, get) => ({
         const name = `${isX ? "@" : ""}${pick(HANDLES)}${10 + Math.floor(Math.random() * 89)}`;
         // attribute the seeded chatter to one of this platform's channels
         const acc = platAccounts.length ? pick(platAccounts) : null;
-        chatters.set(`${p}:seed-${seq}`, { name, platform: p, count, last: Date.now() - Math.random() * 240_000, donated, subs, channel: acc?.displayName });
+        // joined at a random point in the session so watch-time bucks look real
+        chatters.set(`${p}:seed-${seq}`, { name, platform: p, count, first: Date.now() - (3 + Math.random() * (elapsedMin - 3)) * 60_000, last: Date.now() - Math.random() * 240_000, donated, subs, channel: acc?.displayName });
 
         if (acc) {
           const bucket = byAccount.get(acc.id) ?? { platform: p, messages: 0, chatters: new Set<string>(), donated: 0, subs: 0 };
@@ -433,7 +483,7 @@ export const useStatsStore = create<StatsState>((set, get) => ({
       };
     }
 
-    // ---- velocity history + clip detection ----
+    // ---- velocity history + smart clip detection ----
     velocityHist.push(combinedMpm);
     if (velocityHist.length > VELOCITY_SAMPLES) velocityHist = velocityHist.slice(-VELOCITY_SAMPLES);
     const baseline =
@@ -441,10 +491,45 @@ export const useStatsStore = create<StatsState>((set, get) => ({
         ? velocityHist.slice(0, -1).reduce((s, v) => s + v, 0) / (velocityHist.length - 1)
         : combinedMpm;
     const ratio = baseline > 0 ? combinedMpm / baseline : 1;
-    const hot = combinedMpm >= 35 && ratio >= 1.7;
+
+    // Trim 30-second rolling windows for the auxiliary signals
+    const WIN = 30_000;
+    recentEvents = recentEvents.filter((e) => now - e.t < WIN);
+    recentSentiment = recentSentiment.filter((e) => now - e.t < WIN);
+    recentTickers = recentTickers.filter((e) => now - e.t < WIN);
+    const donoSum = recentEvents.filter((e) => e.kind === "tip").reduce((s, e) => s + e.amount, 0);
+    const subBurst = recentEvents.filter((e) => e.kind === "sub").length;
+    const avgSent = recentSentiment.length ? recentSentiment.reduce((s, e) => s + e.s, 0) / recentSentiment.length : 0;
+    const tickerHits = recentTickers.length;
+
+    // Score each signal 0–25 then sum to 0–100. Picks the dominant lens to
+    // classify the moment (hype / roast / dono-rain / ticker / drop).
+    const velScore = Math.max(0, Math.min(25, (ratio - 1.2) * 35));
+    const sentScore = Math.max(0, Math.min(25, Math.abs(avgSent) * 35));
+    const donoScore = Math.max(0, Math.min(25, donoSum / 4 + subBurst * 4));
+    const tickerScore = Math.max(0, Math.min(15, tickerHits * 1.4));
+    const dropScore = combinedMpm > 0 && ratio < 0.45 && velocityHist.length > 8 ? 18 : 0;
+    const score = Math.round(velScore + sentScore + donoScore + tickerScore + dropScore);
+    const hot = score >= 40;
+    let kind: ClipKind = "SPIKE";
+    if (donoScore >= 15) kind = "DONO-RAIN";
+    else if (dropScore > 0) kind = "DROP";
+    else if (sentScore >= 15 && avgSent < -0.15) kind = "ROAST";
+    else if (sentScore >= 15 && avgSent > 0.15) kind = "HYPE";
+    else if (tickerScore >= 10) kind = "TICKER";
+    const verdict: ClipVerdict = score >= 70 ? "auto-clip" : score >= 50 ? "alert" : "watch";
+    const why = [
+      ratio >= 1.4 ? `${ratio.toFixed(1)}× chat` : null,
+      donoSum >= 25 ? `$${Math.round(donoSum)} tips` : null,
+      subBurst >= 3 ? `${subBurst} subs` : null,
+      Math.abs(avgSent) >= 0.2 ? `${avgSent > 0 ? "+" : ""}${avgSent.toFixed(2)} mood` : null,
+      tickerHits >= 6 ? `${tickerHits} tickers` : null,
+      dropScore > 0 ? "chat went silent" : null,
+    ].filter(Boolean).join(" · ") || "rising signal";
+
     if (hot && now - lastClip > CLIP_COOLDOWN) {
       lastClip = now;
-      clipMoments = [{ t: now, intensity: ratio }, ...clipMoments].slice(0, 6);
+      clipMoments = [{ t: now, intensity: ratio, score, kind, verdict, why }, ...clipMoments].slice(0, 8);
     }
 
     // ---- sentiment ----
@@ -452,6 +537,21 @@ export const useStatsStore = create<StatsState>((set, get) => ({
     const sentiment = sentimentBuf.length
       ? Math.max(-1, Math.min(1, sentimentBuf.reduce((s, x) => s + x.s, 0) / sentimentBuf.length / 1.5))
       : 0;
+
+    // ---- persist watch-time + messages so balances survive reloads ----
+    // The ledger holds lifetime totals keyed by platform:username; every tick
+    // we upsert each known chatter so refreshing the page never zeroes a
+    // viewer's Bubble Bucks. When the backend lands this is the swap point.
+    const ledger = useBucksLedger.getState();
+    for (const c of chatters.values()) {
+      ledger.upsert(c.platform, c.name, {
+        first: c.first,
+        last: c.last,
+        count: c.count,
+        donated: c.donated,
+        subs: c.subs,
+      });
+    }
 
     // ---- leaderboards: chatters / donors / subs ----
     const all = [...chatters.values()];
