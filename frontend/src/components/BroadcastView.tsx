@@ -239,18 +239,104 @@ export function BroadcastView() {
   // ── Plain mode (real OBS source): the panel fills the viewport ──
   if (!stage) return <div className="h-screen">{panel}</div>;
 
-  // ── Stage mode (demo): the chat installed INTO the show frame — unblurred
-  // footage in a fixed 16:9 box, panel composited exactly over the center
-  // capture tile (measured off the actual frame: just inside its white border),
-  // so it reads as a real broadcast with the chat as a native source.
-  const TILE = { left: "20.63%", top: "5.1%", width: "52.14%", height: "57.7%" };
+  return <StageView panel={panel} />;
+}
+
+// ── Stage mode (demo): the chat installed INTO the show frame — unblurred
+// footage in a fixed 16:9 box, panel composited over the center capture
+// tile. Edit mode lets the operator drag/resize the panel to line it up
+// with whatever scene they're going to use, and persists the result so it
+// holds across reloads.
+
+/** Measured off a real frame: just inside the tile's white border. */
+const DEFAULT_TILE = { left: 20.63, top: 5.1, width: 52.14, height: 57.7 };
+const TILE_KEY = "vibechat-broadcast-tile";
+
+interface Tile { left: number; top: number; width: number; height: number }
+
+function loadTile(): Tile {
+  try {
+    const raw = localStorage.getItem(TILE_KEY);
+    if (raw) {
+      const t = JSON.parse(raw) as Partial<Tile>;
+      if (typeof t.left === "number" && typeof t.top === "number" && typeof t.width === "number" && typeof t.height === "number") return t as Tile;
+    }
+  } catch { /* ignore */ }
+  return { ...DEFAULT_TILE };
+}
+
+function StageView({ panel }: { panel: React.ReactNode }) {
+  const [tile, setTile] = useState<Tile>(() => loadTile());
+  const [edit, setEdit] = useState(false);
+  const frameRef = useRef<HTMLDivElement>(null);
+
+  // Persist on change (skip writes if equal to defaults so a "Reset" clears localStorage cleanly).
+  useEffect(() => {
+    try {
+      const isDefault = tile.left === DEFAULT_TILE.left && tile.top === DEFAULT_TILE.top && tile.width === DEFAULT_TILE.width && tile.height === DEFAULT_TILE.height;
+      if (isDefault) localStorage.removeItem(TILE_KEY);
+      else localStorage.setItem(TILE_KEY, JSON.stringify(tile));
+    } catch { /* ignore */ }
+  }, [tile]);
+
+  // Pointer-driven drag + resize. We convert pixels → frame-relative percent
+  // so the saved position is resolution-independent.
+  const dragRef = useRef<{ mode: "move" | "resize"; sx: number; sy: number; t0: Tile; frameW: number; frameH: number } | null>(null);
+
+  function onPointerDown(mode: "move" | "resize") {
+    return (e: React.PointerEvent) => {
+      if (!edit) return;
+      e.preventDefault();
+      e.stopPropagation();
+      const frame = frameRef.current;
+      if (!frame) return;
+      const r = frame.getBoundingClientRect();
+      dragRef.current = { mode, sx: e.clientX, sy: e.clientY, t0: { ...tile }, frameW: r.width, frameH: r.height };
+      (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
+    };
+  }
+
+  useEffect(() => {
+    const onMove = (e: PointerEvent) => {
+      const d = dragRef.current;
+      if (!d) return;
+      const dxPct = ((e.clientX - d.sx) / d.frameW) * 100;
+      const dyPct = ((e.clientY - d.sy) / d.frameH) * 100;
+      if (d.mode === "move") {
+        setTile({
+          left: clamp(d.t0.left + dxPct, 0, 100 - d.t0.width),
+          top: clamp(d.t0.top + dyPct, 0, 100 - d.t0.height),
+          width: d.t0.width,
+          height: d.t0.height,
+        });
+      } else {
+        setTile({
+          left: d.t0.left,
+          top: d.t0.top,
+          width: clamp(d.t0.width + dxPct, 12, 100 - d.t0.left),
+          height: clamp(d.t0.height + dyPct, 10, 100 - d.t0.top),
+        });
+      }
+    };
+    const onUp = () => { dragRef.current = null; };
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+    return () => { window.removeEventListener("pointermove", onMove); window.removeEventListener("pointerup", onUp); };
+  }, []);
+
+  const tileStyle = {
+    left: `${tile.left}%`,
+    top: `${tile.top}%`,
+    width: `${tile.width}%`,
+    height: `${tile.height}%`,
+  };
 
   return (
     <div className="relative flex h-screen items-center justify-center overflow-hidden" style={{ background: "#000" }}>
       {/* 16:9 broadcast frame, letterboxed to the viewport */}
-      <div className="relative" style={{ aspectRatio: "16 / 9", width: "min(100vw, 177.78vh)" }}>
-        {/* The actual show footage (Ansem & Banks on set) — clean, no blur.
-            Seeks past the intro slate so the hosts are on screen from frame 1. */}
+      <div ref={frameRef} className="relative" style={{ aspectRatio: "16 / 9", width: "min(100vw, 177.78vh)" }}>
+        {/* The actual show footage — clean, no blur. Seeks past the intro
+            slate so the hosts are on screen from frame 1. */}
         <video
           src="/stream-preview.mp4"
           autoPlay
@@ -262,13 +348,32 @@ export function BroadcastView() {
         />
 
         {/* The chat, installed over the center tile */}
-        <div className="absolute z-10 flex flex-col" style={TILE}>
+        <div className="absolute z-10 flex flex-col" style={{ ...tileStyle, outline: edit ? "2px dashed #d9a547" : undefined, outlineOffset: edit ? 2 : 0 }}>
           {panel}
+
+          {/* Edit affordances — grip on top to drag, handle at bottom-right to resize. */}
+          {edit && (
+            <>
+              <div
+                onPointerDown={onPointerDown("move")}
+                title="Drag to reposition"
+                className="absolute -top-3 left-1/2 z-30 flex -translate-x-1/2 cursor-move items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-black uppercase tracking-[0.14em]"
+                style={{ background: "#d9a547", color: "#14100a", boxShadow: "0 4px 14px rgba(0,0,0,0.5)" }}
+              >
+                ⋮⋮ Drag
+              </div>
+              <div
+                onPointerDown={onPointerDown("resize")}
+                title="Drag to resize"
+                className="absolute -bottom-2 -right-2 z-30 h-6 w-6 cursor-nwse-resize rounded-md"
+                style={{ background: "#d9a547", border: "2px solid #14100a", boxShadow: "0 2px 8px rgba(0,0,0,0.5)" }}
+              />
+            </>
+          )}
         </div>
       </div>
 
-      {/* Back to the dashboard (Simple/Pro per saved mode) — demo chrome only,
-          never rendered on the clean OBS route. */}
+      {/* Back to the dashboard — demo chrome only, never on the clean OBS route. */}
       <a
         href="/"
         className="absolute left-4 top-4 z-20 flex items-center gap-1.5 rounded-xl px-3 py-2 text-[13px] font-bold transition hover:brightness-125"
@@ -276,6 +381,39 @@ export function BroadcastView() {
       >
         ← Dashboard
       </a>
+
+      {/* Edit toggle + (when editing) live coordinates + reset */}
+      <div className="absolute right-4 top-4 z-20 flex items-center gap-2">
+        {edit && (
+          <>
+            <span className="rounded-lg px-2.5 py-1 font-mono text-[11px]" style={{ background: "rgba(8,7,6,0.82)", border: "1px solid rgba(217,165,71,0.25)", color: "#e8c987", backdropFilter: "blur(6px)" }}>
+              {tile.left.toFixed(1)},{tile.top.toFixed(1)} · {tile.width.toFixed(1)}×{tile.height.toFixed(1)}
+            </span>
+            <button
+              onClick={() => setTile({ ...DEFAULT_TILE })}
+              className="rounded-xl px-3 py-2 text-[13px] font-bold transition hover:brightness-125"
+              style={{ background: "rgba(8,7,6,0.82)", border: "1px solid rgba(217,165,71,0.4)", color: "#e8c987", backdropFilter: "blur(6px)" }}
+            >
+              ↻ Reset
+            </button>
+          </>
+        )}
+        <button
+          onClick={() => setEdit((v) => !v)}
+          className="rounded-xl px-3 py-2 text-[13px] font-bold transition hover:brightness-125"
+          style={
+            edit
+              ? { background: "#d9a547", color: "#14100a", border: "1px solid #d9a547", boxShadow: "0 4px 14px rgba(217,165,71,0.35)" }
+              : { background: "rgba(8,7,6,0.82)", border: "1px solid rgba(217,165,71,0.4)", color: "#e8c987", backdropFilter: "blur(6px)" }
+          }
+        >
+          {edit ? "✓ Done" : "✎ Edit"}
+        </button>
+      </div>
     </div>
   );
+}
+
+function clamp(n: number, lo: number, hi: number): number {
+  return Math.max(lo, Math.min(hi, n));
 }
