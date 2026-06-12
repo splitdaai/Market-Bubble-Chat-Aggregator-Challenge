@@ -22,6 +22,9 @@ const VISUAL_KIND_COOLDOWNS: Partial<Record<OverlayEngagementEvent["kind"], numb
 };
 const BULL_ASSET = "/overlay-vfx/charging-bull.png";
 const BEAR_ASSET = "/overlay-vfx/bear-slash.png";
+const FX_EASE = [0.16, 1, 0.3, 1] as const;
+const IMPACT_EASE = [0.12, 0.8, 0.18, 1] as const;
+const GLASS_EDGE = "linear-gradient(135deg, rgba(255,255,255,0.22), rgba(255,255,255,0.04) 34%, rgba(255,255,255,0.14))";
 
 let overlayAudioCtx: AudioContext | null = null;
 let lastHeroAudioAt = 0;
@@ -183,51 +186,113 @@ export function OverlayEngagementLayer({ room }: { room: string }) {
 function BullBearMeter({ bullPct, lastSide, pulseKey }: { bullPct: number; lastSide: "bull" | "bear"; pulseKey: number }) {
   const bearPct = 100 - bullPct;
   const accent = lastSide === "bull" ? "#16e6a4" : "#ff5c7a";
+  const bearStrength = 100 - bullPct;
   return (
     <motion.div
-      initial={{ opacity: 0, y: -10, scale: 0.98 }}
-      animate={{ opacity: 1, y: 0, scale: 1 }}
-      exit={{ opacity: 0, y: -8, scale: 0.99 }}
-      transition={{ duration: 0.22, ease: [0.2, 0, 0, 1] }}
-      className="absolute left-1/2 top-[58px] -translate-x-1/2 overflow-hidden rounded-xl border border-white/12 bg-[#050607]/82 px-3.5 py-2 shadow-[0_16px_44px_rgba(0,0,0,0.48)] backdrop-blur-md"
-      style={{ width: "min(440px, calc(100vw - 28px))" }}
+      initial={{ opacity: 0, y: -16, scale: 0.95, filter: "blur(6px)" }}
+      animate={{ opacity: 1, y: 0, scale: 1, filter: "blur(0px)" }}
+      exit={{ opacity: 0, y: -10, scale: 0.98, filter: "blur(4px)" }}
+      transition={{ duration: 0.34, ease: FX_EASE }}
+      className="absolute left-1/2 top-[52px] -translate-x-1/2 overflow-hidden rounded-2xl px-3.5 py-3 shadow-[0_22px_70px_rgba(0,0,0,0.58)] backdrop-blur-xl"
+      style={{
+        width: "min(520px, calc(100vw - 28px))",
+        background: "linear-gradient(135deg, rgba(7,9,10,0.92), rgba(10,14,15,0.74))",
+        boxShadow: `0 22px 70px rgba(0,0,0,0.58), 0 0 34px ${accent}24, inset 0 1px 0 rgba(255,255,255,0.14)`,
+      }}
     >
       <motion.div
         key={pulseKey}
         className="absolute inset-0"
-        initial={{ opacity: 0.32 }}
-        animate={{ opacity: [0.32, 0.12, 0] }}
-        transition={{ duration: 0.85, ease: "easeOut" }}
-        style={{ background: `linear-gradient(90deg, transparent, ${accent}55, transparent)` }}
+        initial={{ opacity: 0.44 }}
+        animate={{ opacity: [0.44, 0.2, 0] }}
+        transition={{ duration: 1.05, ease: "easeOut" }}
+        style={{
+          background: `radial-gradient(circle at ${lastSide === "bull" ? "22%" : "78%"} 50%, ${accent}88, transparent 48%)`,
+        }}
       />
+      <div className="pointer-events-none absolute inset-px rounded-2xl" style={{ background: GLASS_EDGE, maskImage: "linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0)", WebkitMaskComposite: "xor", maskComposite: "exclude", padding: 1 }} />
       <div className="relative flex items-center gap-3">
-        <div className="w-[74px] text-left">
-          <div className="text-[9px] font-black uppercase tracking-[0.16em] text-[#16e6a4]">Bull</div>
-          <div className="text-xl font-black leading-none tabular-nums text-white">{bullPct}%</div>
-        </div>
-        <div className="relative h-4 flex-1 overflow-hidden rounded-sm bg-[#ff5c7a] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.14),inset_0_2px_8px_rgba(0,0,0,0.45)]">
-          <motion.div
-            className="absolute inset-y-0 left-0 bg-[#16e6a4] shadow-[0_0_18px_rgba(22,230,164,0.45)]"
-            animate={{ width: `${bullPct}%` }}
-            transition={{ type: "spring", stiffness: 210, damping: 25 }}
+        <motion.div
+          key={`bull-score-${bullPct}`}
+          initial={{ scale: lastSide === "bull" ? 0.92 : 1 }}
+          animate={{ scale: lastSide === "bull" ? [0.92, 1.12, 1] : 1 }}
+          transition={{ duration: 0.44, ease: FX_EASE }}
+          className="w-[88px] text-left"
+        >
+          <div className="text-[9px] font-black uppercase tracking-[0.16em] text-[#16e6a4]">Bull Flow</div>
+          <div className="mt-0.5 text-[24px] font-black leading-none tabular-nums text-white drop-shadow-[0_0_14px_rgba(22,230,164,0.45)]">{bullPct}%</div>
+        </motion.div>
+        <div className="relative h-9 flex-1 overflow-hidden rounded-lg bg-[#ff5c7a] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.16),inset_0_2px_12px_rgba(0,0,0,0.62)]">
+          <div
+            className="absolute inset-0 opacity-40"
+            style={{
+              backgroundImage: "linear-gradient(90deg, rgba(255,255,255,0.16) 1px, transparent 1px)",
+              backgroundSize: "10% 100%",
+            }}
           />
           <motion.div
-            className="absolute top-0 h-full w-[3px] bg-white/85 shadow-[0_0_12px_rgba(255,255,255,0.72)]"
-            animate={{ left: `calc(${bullPct}% - 1.5px)` }}
-            transition={{ type: "spring", stiffness: 210, damping: 25 }}
+            className="absolute inset-y-0 left-0 overflow-hidden rounded-l-lg"
+            animate={{ width: `${bullPct}%` }}
+            transition={{ type: "spring", stiffness: 230, damping: 26 }}
+            style={{
+              background: "linear-gradient(90deg, #047857, #16e6a4 66%, #baffea)",
+              boxShadow: "0 0 26px rgba(22,230,164,0.54), inset 0 0 18px rgba(255,255,255,0.16)",
+            }}
+          >
+            <motion.div
+              className="absolute inset-y-0 w-20 skew-x-[-18deg] bg-white/40"
+              initial={{ x: "-110%" }}
+              animate={{ x: "320%" }}
+              transition={{ duration: 1.25, repeat: Infinity, repeatDelay: 1.1, ease: "easeInOut" }}
+            />
+          </motion.div>
+          <motion.div
+            className="absolute inset-y-0 right-0"
+            animate={{ width: `${bearStrength}%` }}
+            transition={{ type: "spring", stiffness: 230, damping: 26 }}
+            style={{
+              background: "linear-gradient(270deg, #8f1230, #ff5c7a 70%, #ffc0ca)",
+              boxShadow: "inset 0 0 18px rgba(255,255,255,0.12)",
+            }}
+          />
+          <motion.div
+            className="absolute top-[-6px] h-[calc(100%+12px)] w-[4px] rounded-full bg-white shadow-[0_0_18px_rgba(255,255,255,0.92)]"
+            animate={{ left: `calc(${bullPct}% - 2px)` }}
+            transition={{ type: "spring", stiffness: 230, damping: 26 }}
           />
           <motion.div
             key={`meter-scan-${pulseKey}`}
-            initial={{ x: "-110%", opacity: 0 }}
-            animate={{ x: "210%", opacity: [0, 0.75, 0] }}
-            transition={{ duration: 0.7, ease: "easeOut" }}
-            className="absolute inset-y-0 w-16 skew-x-[-18deg] bg-white/50"
+            initial={{ x: "-140%", opacity: 0 }}
+            animate={{ x: "240%", opacity: [0, 0.9, 0] }}
+            transition={{ duration: 0.8, ease: "easeOut" }}
+            className="absolute inset-y-0 w-24 skew-x-[-18deg] bg-white/55"
           />
+          {Array.from({ length: 7 }, (_, i) => (
+            <motion.span
+              key={`meter-spark-${pulseKey}-${i}`}
+              initial={{ opacity: 0, y: 0, scale: 0.5 }}
+              animate={{ opacity: [0, 1, 0], y: lastSide === "bull" ? -18 - i * 2 : 18 + i * 2, scale: [0.5, 1, 0.2] }}
+              transition={{ duration: 0.7, delay: i * 0.035, ease: "easeOut" }}
+              className="absolute h-1 w-7 rounded-full"
+              style={{
+                left: `calc(${bullPct}% + ${(i - 3) * 9}px)`,
+                top: `${28 + (i % 3) * 14}%`,
+                background: accent,
+                boxShadow: `0 0 16px ${accent}`,
+              }}
+            />
+          ))}
         </div>
-        <div className="w-[74px] text-right">
-          <div className="text-[9px] font-black uppercase tracking-[0.16em] text-[#ff5c7a]">Bear</div>
-          <div className="text-xl font-black leading-none tabular-nums text-white">{bearPct}%</div>
-        </div>
+        <motion.div
+          key={`bear-score-${bearPct}`}
+          initial={{ scale: lastSide === "bear" ? 0.92 : 1 }}
+          animate={{ scale: lastSide === "bear" ? [0.92, 1.12, 1] : 1 }}
+          transition={{ duration: 0.44, ease: FX_EASE }}
+          className="w-[88px] text-right"
+        >
+          <div className="text-[9px] font-black uppercase tracking-[0.16em] text-[#ff5c7a]">Bear Flow</div>
+          <div className="mt-0.5 text-[24px] font-black leading-none tabular-nums text-white drop-shadow-[0_0_14px_rgba(255,92,122,0.45)]">{bearPct}%</div>
+        </motion.div>
       </div>
     </motion.div>
   );
@@ -248,41 +313,156 @@ function HeroEffect({ event }: { event: OverlayEngagementEvent }) {
   }
 }
 
+function CinematicVignette({ color, focus = "50% 50%" }: { color: string; focus?: string }) {
+  return (
+    <>
+      <motion.div
+        className="absolute inset-0 mix-blend-screen"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: [0, 0.44, 0.18, 0] }}
+        transition={{ duration: 2.7, times: [0, 0.18, 0.66, 1], ease: "easeOut" }}
+        style={{ background: `radial-gradient(circle at ${focus}, ${color}66, transparent 44%)` }}
+      />
+      <motion.div
+        className="absolute inset-0"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: [0, 0.58, 0.28, 0] }}
+        transition={{ duration: 2.8, times: [0, 0.12, 0.68, 1], ease: "easeOut" }}
+        style={{
+          background: "radial-gradient(circle at 50% 50%, transparent 38%, rgba(0,0,0,0.42) 100%)",
+        }}
+      />
+    </>
+  );
+}
+
+function LensStreak({ color, delay = 0, reverse = false }: { color: string; delay?: number; reverse?: boolean }) {
+  return (
+    <motion.span
+      initial={{ opacity: 0, x: reverse ? "110vw" : "-40vw", scaleX: 0.2 }}
+      animate={{ opacity: [0, 0.72, 0], x: reverse ? "-68vw" : "138vw", scaleX: [0.2, 1.35, 0.5] }}
+      transition={{ duration: 1.05, delay, ease: IMPACT_EASE }}
+      className="absolute left-0 top-1/2 h-[2px] w-[48vw] -translate-y-1/2 rounded-full"
+      style={{
+        background: `linear-gradient(90deg, transparent, #fff, ${color}, transparent)`,
+        boxShadow: `0 0 22px ${color}`,
+        rotate: reverse ? "9deg" : "-9deg",
+        willChange: "transform, opacity",
+      }}
+    />
+  );
+}
+
+function ImpactRing({ color, x, y, delay = 0 }: { color: string; x: string; y: string; delay?: number }) {
+  return (
+    <motion.span
+      initial={{ opacity: 0, scale: 0.16, filter: "blur(0px)" }}
+      animate={{ opacity: [0, 0.9, 0], scale: [0.16, 1.45, 2.4], filter: ["blur(0px)", "blur(0px)", "blur(6px)"] }}
+      transition={{ duration: 1.05, delay, ease: "easeOut" }}
+      className="absolute h-[24vw] max-h-[360px] min-h-[160px] w-[24vw] min-w-[160px] max-w-[360px] rounded-full border"
+      style={{
+        left: x,
+        top: y,
+        borderColor: color,
+        boxShadow: `0 0 28px ${color}, inset 0 0 28px ${color}`,
+        transform: "translate(-50%, -50%)",
+      }}
+    />
+  );
+}
+
+function DebrisField({ eventId, color, side, count = 26 }: { eventId: string; color: string; side: "bull" | "bear"; count?: number }) {
+  return (
+    <>
+      {Array.from({ length: count }, (_, i) => {
+        const seed = hash(`${eventId}-debris-${i}`);
+        const startX = side === "bull" ? 16 + (seed % 24) : 82 - (seed % 24);
+        const travel = side === "bull" ? 120 + (seed % 150) : -120 - (seed % 150);
+        const lift = -80 + (seed % 160);
+        return (
+          <motion.span
+            key={`${eventId}-debris-${i}`}
+            initial={{ opacity: 0, x: 0, y: 0, scale: 0.32, rotate: 0 }}
+            animate={{ opacity: [0, 1, 0], x: travel, y: lift, scale: [0.32, 1, 0.2], rotate: side === "bull" ? 190 : -190 }}
+            transition={{ duration: 1.1 + (seed % 8) * 0.07, delay: 0.18 + (seed % 12) * 0.018, ease: "easeOut" }}
+            className="absolute rounded-[2px]"
+            style={{
+              left: `${startX}%`,
+              top: `${28 + (seed % 50)}%`,
+              width: 7 + (seed % 14),
+              height: 2 + (seed % 5),
+              background: `linear-gradient(90deg, #fff, ${color})`,
+              boxShadow: `0 0 12px ${color}`,
+              willChange: "transform, opacity",
+            }}
+          />
+        );
+      })}
+    </>
+  );
+}
+
 function ChargingBull({ event }: { event: OverlayEngagementEvent }) {
   return (
     <motion.div
       initial={{ opacity: 0 }}
-      animate={{ opacity: 1, x: [0, -8, 7, -4, 0] }}
+      animate={{ opacity: 1, x: [0, -12, 9, -5, 0], y: [0, 2, -2, 1, 0] }}
       exit={{ opacity: 0 }}
-      transition={{ duration: 0.42, ease: "easeOut" }}
+      transition={{ duration: 0.56, ease: "easeOut" }}
       className="absolute inset-0 z-20 overflow-hidden"
     >
+      <CinematicVignette color="#16e6a4" focus="28% 58%" />
       <motion.div
         initial={{ opacity: 0 }}
-        animate={{ opacity: [0, 0.38, 0] }}
-        transition={{ duration: 0.52, ease: "easeOut" }}
-        className="absolute inset-0 bg-[#16e6a4]/40 mix-blend-screen"
+        animate={{ opacity: [0, 0.52, 0.12, 0] }}
+        transition={{ duration: 0.76, ease: "easeOut" }}
+        className="absolute inset-0 mix-blend-screen"
+        style={{ background: "linear-gradient(100deg, transparent 0%, rgba(22,230,164,0.52) 42%, rgba(255,255,255,0.45) 50%, transparent 74%)" }}
       />
+      <ImpactRing color="#16e6a4" x="48%" y="58%" delay={0.54} />
+      <ImpactRing color="#d7fff2" x="58%" y="52%" delay={0.72} />
+      <DebrisField eventId={event.id} color="#16e6a4" side="bull" />
+      <LensStreak color="#16e6a4" delay={0.18} />
+      <LensStreak color="#d7fff2" delay={0.58} />
       {Array.from({ length: 16 }, (_, i) => (
         <motion.span
           key={`${event.id}-speed-${i}`}
           initial={{ x: "-30vw", opacity: 0, scaleX: 0.25 }}
-          animate={{ x: "118vw", opacity: [0, 0.82, 0], scaleX: [0.25, 1.15, 0.4] }}
-          transition={{ duration: 0.9 + (i % 5) * 0.08, delay: i * 0.035, ease: "easeOut" }}
+          animate={{ x: "124vw", opacity: [0, 0.9, 0], scaleX: [0.25, 1.45, 0.4] }}
+          transition={{ duration: 0.78 + (i % 5) * 0.08, delay: i * 0.026, ease: IMPACT_EASE }}
           className="absolute h-[3px] rounded-full bg-[linear-gradient(90deg,transparent,#d7fff2,#16e6a4,transparent)] blur-[0.5px]"
           style={{ top: `${18 + ((i * 11) % 64)}%`, left: "-18%", width: `${18 + (i % 4) * 8}%` }}
         />
       ))}
       <ShockStreaks color="#16e6a4" side="bull" />
+      <motion.div
+        initial={{ opacity: 0, scaleX: 0.4 }}
+        animate={{ opacity: [0, 0.85, 0], scaleX: [0.4, 1.25, 0.8] }}
+        transition={{ duration: 1.25, delay: 0.48, ease: "easeOut" }}
+        className="absolute bottom-[14%] left-[-10%] h-[16vh] w-[120%] origin-left blur-xl"
+        style={{ background: "linear-gradient(90deg, transparent, rgba(22,230,164,0.28), rgba(255,255,255,0.22), transparent)" }}
+      />
       <motion.img
         src={BULL_ASSET}
         alt=""
         draggable={false}
-        initial={{ x: "-72vw", y: "26vh", opacity: 0, scale: 0.84, rotate: -1 }}
-        animate={{ x: ["-72vw", "12vw", "112vw"], y: ["28vh", "18vh", "22vh"], opacity: [0, 1, 1, 0], scale: [0.84, 1.08, 1.1], rotate: [-1, 1.5, 0] }}
-        transition={{ duration: 2.8, times: [0, 0.55, 1], ease: [0.12, 0.8, 0.18, 1] }}
+        initial={{ x: "-78vw", y: "28vh", opacity: 0, scale: 0.72, rotate: -3, filter: "blur(5px) contrast(1.15) saturate(1.2) drop-shadow(0 0 0 rgba(22,230,164,0))" }}
+        animate={{
+          x: ["-78vw", "-18vw", "26vw", "118vw"],
+          y: ["30vh", "22vh", "17vh", "24vh"],
+          opacity: [0, 1, 1, 0],
+          scale: [0.72, 1.04, 1.18, 1.04],
+          rotate: [-3, 1.5, -1, 0],
+          filter: [
+            "blur(5px) contrast(1.18) saturate(1.22) drop-shadow(0 0 0 rgba(22,230,164,0))",
+            "blur(0px) contrast(1.12) saturate(1.18) drop-shadow(0 0 34px rgba(22,230,164,0.52))",
+            "blur(0px) contrast(1.12) saturate(1.2) drop-shadow(0 0 42px rgba(22,230,164,0.62))",
+            "blur(2px) contrast(1.08) saturate(1.12) drop-shadow(0 0 18px rgba(22,230,164,0.32))",
+          ],
+        }}
+        transition={{ duration: 2.85, times: [0, 0.26, 0.62, 1], ease: IMPACT_EASE }}
         className="absolute left-0 h-[min(44vh,430px)] max-h-[430px] min-h-[210px] w-auto select-none drop-shadow-[0_24px_38px_rgba(0,0,0,0.62)]"
-        style={{ filter: "contrast(1.08) saturate(1.12) drop-shadow(0 0 28px rgba(22,230,164,0.38))" }}
+        style={{ willChange: "transform, opacity, filter" }}
       />
       <HeroLabel event={event} title="Bull charge" color="#16e6a4" />
     </motion.div>
@@ -293,25 +473,32 @@ function BearSlash({ event }: { event: OverlayEngagementEvent }) {
   return (
     <motion.div
       initial={{ opacity: 0 }}
-      animate={{ opacity: 1, x: [0, 7, -8, 4, 0] }}
+      animate={{ opacity: 1, x: [0, 10, -12, 5, 0], y: [0, -2, 2, -1, 0] }}
       exit={{ opacity: 0 }}
-      transition={{ duration: 0.42, ease: "easeOut" }}
+      transition={{ duration: 0.56, ease: "easeOut" }}
       className="absolute inset-0 z-20 overflow-hidden"
     >
+      <CinematicVignette color="#ff5c7a" focus="72% 52%" />
       <motion.div
         initial={{ opacity: 0 }}
-        animate={{ opacity: [0, 0.5, 0] }}
-        transition={{ duration: 0.42, ease: "easeOut" }}
-        className="absolute inset-0 bg-[#ff5c7a]/42 mix-blend-screen"
+        animate={{ opacity: [0, 0.58, 0.1, 0] }}
+        transition={{ duration: 0.58, ease: "easeOut" }}
+        className="absolute inset-0 mix-blend-screen"
+        style={{ background: "linear-gradient(80deg, transparent 8%, rgba(255,255,255,0.4) 42%, rgba(255,92,122,0.58) 54%, transparent 78%)" }}
       />
+      <ImpactRing color="#ff5c7a" x="54%" y="46%" delay={0.44} />
+      <ImpactRing color="#ffc0ca" x="44%" y="55%" delay={0.6} />
+      <DebrisField eventId={event.id} color="#ff5c7a" side="bear" />
+      <LensStreak color="#ff5c7a" delay={0.12} reverse />
+      <LensStreak color="#ffc0ca" delay={0.5} reverse />
       <ShockStreaks color="#ff5c7a" side="bear" />
       {Array.from({ length: 3 }, (_, i) => (
         <motion.span
           key={`${event.id}-claw-${i}`}
-          initial={{ scaleX: 0, opacity: 0, x: "24vw" }}
-          animate={{ scaleX: [0, 1, 1], opacity: [0, 1, 0], x: "-20vw" }}
-          transition={{ duration: 0.62, delay: 0.45 + i * 0.055, ease: "easeOut" }}
-          className="absolute left-[14%] h-[9px] w-[78%] origin-right rotate-[-17deg] rounded-full bg-[linear-gradient(90deg,transparent,#fff,#ff5c7a,#7d1025,transparent)] shadow-[0_0_28px_rgba(255,92,122,0.72)]"
+          initial={{ scaleX: 0, opacity: 0, x: "34vw", filter: "blur(5px)" }}
+          animate={{ scaleX: [0, 1.08, 0.96], opacity: [0, 1, 0], x: "-26vw", filter: ["blur(5px)", "blur(0px)", "blur(2px)"] }}
+          transition={{ duration: 0.74, delay: 0.36 + i * 0.05, ease: IMPACT_EASE }}
+          className="absolute left-[10%] h-[11px] w-[84%] origin-right rotate-[-17deg] rounded-full bg-[linear-gradient(90deg,transparent,#fff,#ff5c7a,#7d1025,transparent)] shadow-[0_0_34px_rgba(255,92,122,0.84)]"
           style={{ top: `${34 + i * 6}%` }}
         />
       ))}
@@ -319,11 +506,23 @@ function BearSlash({ event }: { event: OverlayEngagementEvent }) {
         src={BEAR_ASSET}
         alt=""
         draggable={false}
-        initial={{ x: "74vw", y: "18vh", opacity: 0, scale: 0.9, rotate: 2 }}
-        animate={{ x: ["74vw", "-16vw", "-112vw"], y: ["20vh", "16vh", "24vh"], opacity: [0, 1, 1, 0], scale: [0.9, 1.08, 1.02], rotate: [2, -2, -4] }}
-        transition={{ duration: 2.55, times: [0, 0.5, 1], ease: [0.12, 0.8, 0.18, 1] }}
+        initial={{ x: "82vw", y: "18vh", opacity: 0, scale: 0.76, rotate: 4, filter: "blur(6px) contrast(1.16) saturate(1.2) drop-shadow(0 0 0 rgba(255,92,122,0))" }}
+        animate={{
+          x: ["82vw", "18vw", "-18vw", "-116vw"],
+          y: ["21vh", "15vh", "17vh", "25vh"],
+          opacity: [0, 1, 1, 0],
+          scale: [0.76, 1.08, 1.18, 1.02],
+          rotate: [4, -2, 1, -5],
+          filter: [
+            "blur(6px) contrast(1.18) saturate(1.2) drop-shadow(0 0 0 rgba(255,92,122,0))",
+            "blur(0px) contrast(1.12) saturate(1.18) drop-shadow(0 0 34px rgba(255,92,122,0.56))",
+            "blur(0px) contrast(1.12) saturate(1.2) drop-shadow(0 0 42px rgba(255,92,122,0.66))",
+            "blur(2px) contrast(1.08) saturate(1.12) drop-shadow(0 0 18px rgba(255,92,122,0.34))",
+          ],
+        }}
+        transition={{ duration: 2.65, times: [0, 0.25, 0.58, 1], ease: IMPACT_EASE }}
         className="absolute right-0 h-[min(48vh,460px)] max-h-[460px] min-h-[220px] w-auto select-none drop-shadow-[0_24px_38px_rgba(0,0,0,0.66)]"
-        style={{ filter: "contrast(1.08) saturate(1.12) drop-shadow(0 0 28px rgba(255,92,122,0.45))" }}
+        style={{ willChange: "transform, opacity, filter" }}
       />
       <HeroLabel event={event} title="Bear slash" color="#ff5c7a" />
     </motion.div>
@@ -350,6 +549,8 @@ function ChartCandleBurst({ event, side }: { event: OverlayEngagementEvent; side
       transition={{ duration: 3.15, times: [0, 0.08, 0.76, 1], ease: "easeOut" }}
       className="absolute inset-0 z-20 overflow-hidden"
     >
+      <CinematicVignette color={color} focus={`64% ${isBull ? "36%" : "64%"}`} />
+      <LensStreak color={color} delay={0.28} reverse={!isBull} />
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: [0, 0.44, 0] }}
@@ -358,7 +559,21 @@ function ChartCandleBurst({ event, side }: { event: OverlayEngagementEvent; side
         style={{ background: `radial-gradient(circle at 64% ${isBull ? "32%" : "64%"}, ${color}88, transparent 54%)` }}
       />
       <div className="absolute left-1/2 top-1/2 h-[min(62vh,560px)] w-[min(900px,92vw)] -translate-x-1/2 -translate-y-1/2">
-        <div className="absolute inset-0 rounded-[28px] border border-white/10 bg-black/34 shadow-[0_26px_80px_rgba(0,0,0,0.42)] backdrop-blur-[2px]" />
+        <motion.div
+          initial={{ opacity: 0, scale: 0.94, rotateX: isBull ? 5 : -5 }}
+          animate={{ opacity: [0, 1, 1, 0], scale: [0.94, 1, 1.02, 0.98], rotateX: 0 }}
+          transition={{ duration: 3, times: [0, 0.14, 0.78, 1], ease: FX_EASE }}
+          className="absolute inset-0 overflow-hidden rounded-[28px] bg-black/44 shadow-[0_30px_90px_rgba(0,0,0,0.5)] backdrop-blur-[2px]"
+          style={{ border: "1px solid rgba(255,255,255,0.14)", boxShadow: `0 30px 90px rgba(0,0,0,0.5), 0 0 48px ${glow}` }}
+        >
+          <div className="absolute inset-px rounded-[27px]" style={{ background: GLASS_EDGE, opacity: 0.38 }} />
+          <motion.div
+            className="absolute inset-y-0 w-28 skew-x-[-18deg] bg-white/18"
+            initial={{ x: "-120%" }}
+            animate={{ x: "900%" }}
+            transition={{ duration: 1.45, delay: 0.25, ease: "easeOut" }}
+          />
+        </motion.div>
         <svg className="absolute inset-[5%] h-[90%] w-[90%] overflow-visible" viewBox="0 0 760 360" preserveAspectRatio="none" aria-hidden="true">
           <defs>
             <linearGradient id={`chart-candle-${event.id}`} x1="0" x2="1" y1={isBull ? "1" : "0"} y2={isBull ? "0" : "1"}>
@@ -393,6 +608,36 @@ function ChartCandleBurst({ event, side }: { event: OverlayEngagementEvent; side
             transition={{ duration: 1.4, delay: 0.18, ease: "easeOut" }}
           />
         </svg>
+        <div className="absolute bottom-[8%] left-[7%] right-[7%] flex h-[18%] items-end gap-[1.2%] opacity-80">
+          {Array.from({ length: 26 }, (_, i) => {
+            const seed = hash(`${event.id}-volume-${i}`);
+            const height = 18 + (seed % 72);
+            return (
+              <motion.span
+                key={`${event.id}-volume-${i}`}
+                initial={{ scaleY: 0, opacity: 0 }}
+                animate={{ scaleY: [0, 1, isBull ? 0.72 : 0.58], opacity: [0, 0.82, 0.2] }}
+                transition={{ duration: 1.1, delay: 0.18 + i * 0.018, ease: "easeOut" }}
+                className="min-w-[4px] flex-1 origin-bottom rounded-t-sm"
+                style={{
+                  height: `${height}%`,
+                  background: i % 5 === 0 ? "#fff" : color,
+                  boxShadow: `0 0 14px ${glow}`,
+                }}
+              />
+            );
+          })}
+        </div>
+        <motion.div
+          initial={{ opacity: 0, x: isBull ? 28 : -28, y: isBull ? -18 : 18, scale: 0.9 }}
+          animate={{ opacity: [0, 1, 1, 0], x: 0, y: 0, scale: [0.9, 1, 1] }}
+          transition={{ duration: 2.2, delay: 0.58, times: [0, 0.2, 0.8, 1], ease: FX_EASE }}
+          className={`absolute ${isBull ? "right-[10%] top-[13%]" : "left-[10%] bottom-[13%]"} rounded-xl px-3 py-2 text-right shadow-[0_16px_34px_rgba(0,0,0,0.42)] backdrop-blur`}
+          style={{ background: "rgba(0,0,0,0.58)", border: `1px solid ${color}66`, boxShadow: `0 16px 34px rgba(0,0,0,0.42), 0 0 24px ${glow}` }}
+        >
+          <div className="text-[9px] font-black uppercase tracking-[0.16em]" style={{ color }}>{ticker}</div>
+          <div className="text-lg font-black leading-none text-white">{isBull ? "+8.42%" : "-6.19%"}</div>
+        </motion.div>
         <motion.div
           initial={{ opacity: 0, scaleX: 0.55 }}
           animate={{ opacity: [0, 1, 1, 0], scaleX: [0.55, 1.08, 1, 0.96] }}
@@ -475,29 +720,50 @@ function ShockStreaks({ color, side }: { color: string; side: "bull" | "bear" })
 function HeroLabel({ event, title, color }: { event: OverlayEngagementEvent; title: string; color: string }) {
   return (
     <motion.div
-      initial={{ opacity: 0, y: 18, scale: 0.94 }}
-      animate={{ opacity: [0, 1, 1, 0], y: [18, 0, 0, -8], scale: [0.94, 1, 1, 0.98] }}
-      transition={{ duration: 2.55, times: [0, 0.22, 0.78, 1], ease: "easeOut" }}
-      className="absolute bottom-[76px] left-1/2 -translate-x-1/2 rounded-full border border-white/18 bg-black/70 px-5 py-2 text-center shadow-[0_18px_44px_rgba(0,0,0,0.58)] backdrop-blur"
-      style={{ boxShadow: `0 18px 44px rgba(0,0,0,0.58), 0 0 28px ${color}55` }}
+      initial={{ opacity: 0, y: 22, scale: 0.86, filter: "blur(8px)" }}
+      animate={{ opacity: [0, 1, 1, 0], y: [22, 0, 0, -10], scale: [0.86, 1.04, 1, 0.98], filter: ["blur(8px)", "blur(0px)", "blur(0px)", "blur(4px)"] }}
+      transition={{ duration: 2.55, times: [0, 0.2, 0.78, 1], ease: FX_EASE }}
+      className="absolute bottom-[74px] left-1/2 -translate-x-1/2 overflow-hidden rounded-2xl px-5 py-2.5 text-center shadow-[0_20px_54px_rgba(0,0,0,0.62)] backdrop-blur-xl"
+      style={{
+        background: "linear-gradient(135deg, rgba(0,0,0,0.78), rgba(10,12,14,0.58))",
+        border: "1px solid rgba(255,255,255,0.16)",
+        boxShadow: `0 20px 54px rgba(0,0,0,0.62), 0 0 34px ${color}66, inset 0 1px 0 rgba(255,255,255,0.16)`,
+      }}
     >
-      <div className="text-[10px] font-black uppercase tracking-[0.18em]" style={{ color }}>{event.user}</div>
-      <div className="text-lg font-black uppercase tracking-[0.12em] text-white">{title}</div>
+      <motion.div
+        className="absolute inset-y-0 w-20 skew-x-[-18deg] bg-white/20"
+        initial={{ x: "-130%" }}
+        animate={{ x: "360%" }}
+        transition={{ duration: 0.82, delay: 0.18, ease: "easeOut" }}
+      />
+      <div className="relative text-[10px] font-black uppercase tracking-[0.18em]" style={{ color }}>{event.user}</div>
+      <div className="relative text-lg font-black uppercase tracking-[0.12em] text-white drop-shadow-[0_2px_12px_rgba(0,0,0,0.7)]">{title}</div>
     </motion.div>
   );
 }
 
 function TickerTape({ events }: { events: OverlayEngagementEvent[] }) {
   return (
-    <div className="absolute bottom-2 left-2 right-[116px] flex min-w-0 gap-1.5 overflow-hidden">
+    <div className="absolute bottom-2 left-2 right-[116px] flex min-w-0 gap-1.5 overflow-hidden rounded-full">
       {events.map((event) => (
         <motion.div
           key={event.id}
-          initial={{ y: 18, opacity: 0, scale: 0.9 }}
-          animate={{ y: 0, opacity: 1, scale: 1 }}
-          className="shrink-0 rounded-full border border-[#34d6ff]/45 bg-[#34d6ff]/12 px-3 py-1 text-[13px] font-black text-[#bdf2ff] shadow-[0_0_18px_rgba(52,214,255,0.22)]"
+          initial={{ y: 18, opacity: 0, scale: 0.86, filter: "blur(4px)" }}
+          animate={{ y: 0, opacity: 1, scale: 1, filter: "blur(0px)" }}
+          transition={{ duration: 0.32, ease: FX_EASE }}
+          className="relative shrink-0 overflow-hidden rounded-full px-3.5 py-1.5 text-[13px] font-black text-[#bdf2ff] shadow-[0_0_22px_rgba(52,214,255,0.28)] backdrop-blur"
+          style={{
+            background: "linear-gradient(135deg, rgba(52,214,255,0.24), rgba(0,0,0,0.48))",
+            border: "1px solid rgba(189,242,255,0.36)",
+          }}
         >
-          ${event.payload?.ticker ?? "BTC"} boosted by {event.user}
+          <motion.span
+            className="absolute inset-y-0 w-12 skew-x-[-18deg] bg-white/30"
+            initial={{ x: "-140%" }}
+            animate={{ x: "420%" }}
+            transition={{ duration: 0.95, delay: 0.08, ease: "easeOut" }}
+          />
+          <span className="relative">${event.payload?.ticker ?? "BTC"} boosted by {event.user}</span>
         </motion.div>
       ))}
     </div>
@@ -516,6 +782,8 @@ function EmoteBurst({ event }: { event: OverlayEngagementEvent }) {
         const motionPreset = emoteParticleMotion(event.actionId, seed, i, pattern.count);
         const delay = motionPreset.delay ?? (seed % 9) * 0.035;
         const size = pattern.sizeMin + (seed % pattern.sizeRange);
+        const depth = 0.78 + (seed % 34) / 100;
+        const blur = seed % 5 === 0 ? "0.8px" : "0px";
         return (
           <motion.span
             key={`${event.id}-${i}`}
@@ -527,9 +795,13 @@ function EmoteBurst({ event }: { event: OverlayEngagementEvent }) {
             style={{
               ...motionPreset.style,
               fontSize: size,
+              zIndex: seed % 3,
               color: pattern.accent,
               textShadow: asset ? undefined : `0 0 14px ${pattern.glow}, 0 4px 12px rgba(0,0,0,0.7)`,
-              filter: asset ? `drop-shadow(0 8px 16px rgba(0,0,0,0.58)) drop-shadow(0 0 12px ${pattern.glow})` : "drop-shadow(0 3px 10px rgba(0,0,0,0.65))",
+              filter: asset ? `blur(${blur}) drop-shadow(0 10px 18px rgba(0,0,0,0.62)) drop-shadow(0 0 15px ${pattern.glow})` : `blur(${blur}) drop-shadow(0 4px 12px rgba(0,0,0,0.68))`,
+              perspective: 900,
+              transformStyle: "preserve-3d",
+              opacity: depth,
               willChange: "transform, opacity",
             }}
           >
@@ -622,15 +894,28 @@ function EmotePatternBackdrop({ event, pattern }: { event: OverlayEngagementEven
   const origin = pattern.backdrop === "drop" ? "50% 20%" : pattern.backdrop === "moon" ? "50% 78%" : "50% 50%";
   const scale = pattern.backdrop === "whale" ? 1.8 : pattern.backdrop === "scan" ? 1.35 : 1.55;
   return (
-    <motion.div
-      key={`${event.id}-emote-backdrop`}
-      initial={{ opacity: 0, scale: 0.64 }}
-      animate={{ opacity: [0, 0.34, 0], scale }}
-      exit={{ opacity: 0 }}
-      transition={{ duration: pattern.backdrop === "whale" ? 2.8 : 1.7, ease: "easeOut" }}
-      className="absolute inset-[-18%] rounded-full blur-2xl"
-      style={{ background: `radial-gradient(circle at ${origin}, ${pattern.accent}88, transparent 58%)` }}
-    />
+    <>
+      <motion.div
+        key={`${event.id}-emote-backdrop`}
+        initial={{ opacity: 0, scale: 0.64 }}
+        animate={{ opacity: [0, 0.38, 0], scale }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: pattern.backdrop === "whale" ? 2.8 : 1.7, ease: "easeOut" }}
+        className="absolute inset-[-18%] rounded-full blur-2xl"
+        style={{ background: `radial-gradient(circle at ${origin}, ${pattern.accent}92, transparent 58%)` }}
+      />
+      <motion.div
+        key={`${event.id}-emote-radial`}
+        initial={{ opacity: 0, rotate: -8, scale: 0.92 }}
+        animate={{ opacity: [0, 0.24, 0], rotate: 10, scale: 1.08 }}
+        transition={{ duration: pattern.backdrop === "whale" ? 2.4 : 1.35, ease: "easeOut" }}
+        className="absolute inset-[-10%]"
+        style={{
+          backgroundImage: `repeating-conic-gradient(from 0deg at ${origin}, ${pattern.accent}44 0deg, transparent 8deg, transparent 18deg)`,
+          maskImage: "radial-gradient(circle at 50% 50%, #000 0%, transparent 68%)",
+        }}
+      />
+    </>
   );
 }
 
@@ -875,40 +1160,74 @@ function ImageEmote({ asset, seed, size, patternId }: { asset: EmoteAsset; seed:
   const width = asset.aspect === "wide" ? size * 1.72 : asset.aspect === "auto" ? size * 1.18 : size;
   const radius = patternId === "nelk" || patternId === "happy" || patternId === "poly" ? "10px" : "999px";
   return (
-    <img
-      src={asset.src}
-      alt={asset.alt}
-      draggable={false}
-      className="block select-none object-contain"
-      style={{ width, height: size, borderRadius: radius, transform: `rotate(${tilt}deg)` }}
-    />
+    <span
+      className="relative inline-grid place-items-center overflow-hidden"
+      style={{
+        width,
+        height: size,
+        borderRadius: radius,
+        transform: `rotate(${tilt}deg)`,
+        background: patternId === "ansem" || patternId === "banks" ? "radial-gradient(circle at 50% 38%, rgba(255,255,255,0.24), rgba(0,0,0,0.38) 68%)" : "linear-gradient(135deg, rgba(255,255,255,0.14), rgba(0,0,0,0.24))",
+        boxShadow: `inset 0 0 0 1px rgba(255,255,255,0.22), 0 14px 28px rgba(0,0,0,0.45), 0 0 22px ${asset.glow}`,
+      }}
+    >
+      <span className="pointer-events-none absolute inset-0 bg-[linear-gradient(120deg,transparent_28%,rgba(255,255,255,0.34)_48%,transparent_68%)] opacity-60" />
+      <img
+        src={asset.src}
+        alt={asset.alt}
+        draggable={false}
+        className="relative block h-full w-full select-none object-contain"
+        style={{ borderRadius: radius }}
+      />
+    </span>
   );
 }
 
 function ColorWave({ event }: { event: OverlayEngagementEvent }) {
   const color = event.payload?.color ?? "#d9a547";
   return (
-    <motion.div
-      initial={{ opacity: 0, scale: 0.7 }}
-      animate={{ opacity: [0, 0.38, 0], scale: 1.45 }}
-      exit={{ opacity: 0 }}
-      transition={{ duration: 2.4, ease: "easeOut" }}
-      className="absolute inset-[-20%] rounded-full blur-2xl"
-      style={{ background: `radial-gradient(circle at 50% 50%, ${color}, transparent 58%)` }}
-    />
+    <>
+      <motion.div
+        initial={{ opacity: 0, scale: 0.66, rotate: -10 }}
+        animate={{ opacity: [0, 0.42, 0], scale: 1.65, rotate: 10 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 2.45, ease: "easeOut" }}
+        className="absolute inset-[-22%] rounded-full blur-2xl"
+        style={{ background: `radial-gradient(circle at 50% 50%, ${color}, transparent 58%)` }}
+      />
+      <motion.div
+        initial={{ opacity: 0, x: "-28vw", scaleX: 0.4 }}
+        animate={{ opacity: [0, 0.68, 0], x: "120vw", scaleX: [0.4, 1.25, 0.7] }}
+        transition={{ duration: 1.22, ease: IMPACT_EASE }}
+        className="absolute left-0 top-1/2 h-[34vh] w-[42vw] -translate-y-1/2 skew-x-[-14deg] blur-xl"
+        style={{ background: `linear-gradient(90deg, transparent, ${color}88, rgba(255,255,255,0.35), transparent)` }}
+      />
+    </>
   );
 }
 
 function Spotlight({ event }: { event: OverlayEngagementEvent }) {
   return (
     <motion.div
-      initial={{ opacity: 0, y: -18, scale: 0.94 }}
-      animate={{ opacity: 1, y: 0, scale: 1 }}
-      exit={{ opacity: 0, y: -12 }}
-      className="absolute left-1/2 top-[112px] w-[72%] -translate-x-1/2 rounded-2xl border border-white/18 bg-black/70 p-3 text-center shadow-[0_20px_44px_rgba(0,0,0,0.58)] backdrop-blur"
+      initial={{ opacity: 0, y: -22, scale: 0.92, filter: "blur(8px)" }}
+      animate={{ opacity: 1, y: 0, scale: 1, filter: "blur(0px)" }}
+      exit={{ opacity: 0, y: -12, filter: "blur(4px)" }}
+      transition={{ duration: 0.38, ease: FX_EASE }}
+      className="absolute left-1/2 top-[110px] w-[min(76%,760px)] -translate-x-1/2 overflow-hidden rounded-2xl p-3.5 text-center shadow-[0_24px_60px_rgba(0,0,0,0.62)] backdrop-blur-xl"
+      style={{
+        background: "linear-gradient(135deg, rgba(217,165,71,0.18), rgba(0,0,0,0.72) 42%, rgba(52,214,255,0.1))",
+        border: "1px solid rgba(255,255,255,0.16)",
+        boxShadow: "0 24px 60px rgba(0,0,0,0.62), 0 0 32px rgba(217,165,71,0.24), inset 0 1px 0 rgba(255,255,255,0.14)",
+      }}
     >
-      <div className="text-[10px] font-black uppercase tracking-[0.16em] text-[#d9a547]">Viewer Spotlight · {event.user}</div>
-      <div className="mt-1 text-lg font-black leading-tight text-white">{event.payload?.message || "W stream."}</div>
+      <motion.div
+        className="absolute inset-y-0 w-24 skew-x-[-18deg] bg-white/20"
+        initial={{ x: "-130%" }}
+        animate={{ x: "740%" }}
+        transition={{ duration: 1.05, delay: 0.1, ease: "easeOut" }}
+      />
+      <div className="relative text-[10px] font-black uppercase tracking-[0.18em] text-[#d9a547]">Viewer Spotlight · {event.user}</div>
+      <div className="relative mt-1 text-xl font-black leading-tight text-white drop-shadow-[0_3px_14px_rgba(0,0,0,0.8)]">{event.payload?.message || "W stream."}</div>
     </motion.div>
   );
 }
@@ -916,11 +1235,18 @@ function Spotlight({ event }: { event: OverlayEngagementEvent }) {
 function ClipBoost({ event }: { event: OverlayEngagementEvent }) {
   return (
     <motion.div
-      initial={{ opacity: 0, x: 32 }}
-      animate={{ opacity: 1, x: 0 }}
-      exit={{ opacity: 0, x: 24 }}
-      className="absolute right-2 top-[64px] rounded-xl border border-orange-300/40 bg-orange-500/14 px-3 py-2 text-right shadow-[0_0_24px_rgba(249,115,22,0.22)] backdrop-blur"
+      initial={{ opacity: 0, x: 38, scale: 0.9, filter: "blur(5px)" }}
+      animate={{ opacity: 1, x: 0, scale: 1, filter: "blur(0px)" }}
+      exit={{ opacity: 0, x: 24, filter: "blur(4px)" }}
+      transition={{ duration: 0.32, ease: FX_EASE }}
+      className="absolute right-2 top-[64px] overflow-hidden rounded-2xl px-3.5 py-2.5 text-right shadow-[0_18px_44px_rgba(0,0,0,0.48)] backdrop-blur-xl"
+      style={{
+        background: "linear-gradient(135deg, rgba(249,115,22,0.26), rgba(0,0,0,0.66))",
+        border: "1px solid rgba(253,186,116,0.42)",
+        boxShadow: "0 18px 44px rgba(0,0,0,0.48), 0 0 26px rgba(249,115,22,0.26)",
+      }}
     >
+      <motion.div className="absolute inset-y-0 left-0 w-1 bg-orange-200" animate={{ opacity: [0.4, 1, 0.4] }} transition={{ duration: 0.72, repeat: 2 }} />
       <div className="text-[10px] font-black uppercase tracking-[0.14em] text-orange-200">Clip Boost</div>
       <div className="text-sm font-black text-white">{event.user} marked this</div>
     </motion.div>
@@ -930,17 +1256,28 @@ function ClipBoost({ event }: { event: OverlayEngagementEvent }) {
 function Soundwave({ event }: { event: OverlayEngagementEvent }) {
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: 12 }}
-      className="absolute bottom-[58px] left-1/2 flex -translate-x-1/2 items-end gap-1 rounded-full border border-violet-300/35 bg-violet-500/15 px-4 py-2 backdrop-blur"
+      initial={{ opacity: 0, y: 22, scale: 0.92, filter: "blur(6px)" }}
+      animate={{ opacity: 1, y: 0, scale: 1, filter: "blur(0px)" }}
+      exit={{ opacity: 0, y: 12, filter: "blur(4px)" }}
+      transition={{ duration: 0.32, ease: FX_EASE }}
+      className="absolute bottom-[58px] left-1/2 flex -translate-x-1/2 items-end gap-1 overflow-hidden rounded-full px-5 py-2.5 backdrop-blur-xl"
+      style={{
+        background: "linear-gradient(135deg, rgba(167,139,250,0.24), rgba(0,0,0,0.58))",
+        border: "1px solid rgba(196,181,253,0.38)",
+        boxShadow: "0 18px 44px rgba(0,0,0,0.48), 0 0 28px rgba(167,139,250,0.3)",
+      }}
     >
+      <motion.div
+        className="absolute inset-[-40%] rounded-full bg-violet-300/20 blur-xl"
+        animate={{ scale: [0.8, 1.2, 0.9], opacity: [0.25, 0.55, 0.2] }}
+        transition={{ duration: 0.72, repeat: 3, ease: "easeInOut" }}
+      />
       {Array.from({ length: 18 }, (_, i) => (
         <motion.span
           key={`${event.id}-${i}`}
-          className="block w-1 rounded-full bg-violet-200"
-          animate={{ height: [8, 26 + ((i * 7) % 24), 10] }}
-          transition={{ duration: 0.7, repeat: 3, delay: i * 0.025 }}
+          className="relative block w-1 rounded-full bg-violet-100 shadow-[0_0_12px_rgba(196,181,253,0.72)]"
+          animate={{ height: [8, 30 + ((i * 7) % 28), 12, 24 + ((i * 5) % 18), 8] }}
+          transition={{ duration: 0.86, repeat: 3, delay: i * 0.02, ease: "easeInOut" }}
         />
       ))}
     </motion.div>
