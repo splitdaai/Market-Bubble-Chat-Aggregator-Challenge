@@ -406,7 +406,8 @@ export type OverlayActionKind =
   | "clip"
   | "soundwave"
   | "spotlight"
-  | "boss";
+  | "boss"
+  | "clear";
 
 export interface OverlayEngagementEvent {
   id: string;

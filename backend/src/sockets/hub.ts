@@ -102,10 +102,11 @@ export function bindHub(
     return clean || "market-bubble-live";
   };
   const overlayTopic = (room: string) => `overlay:${room}`;
-  const overlayKinds = new Set<OverlayActionKind>(["vote", "emote", "ticker", "color", "clip", "soundwave", "spotlight", "boss"]);
+  const overlayKinds = new Set<OverlayActionKind>(["vote", "emote", "ticker", "color", "clip", "soundwave", "spotlight", "boss", "clear"]);
   const overlayHeroActions = new Set(["charging-bull", "bear-slash"]);
   const overlayKindCooldownMs: Partial<Record<OverlayActionKind, number>> = {
     boss: 250,
+    clear: 150,
     clip: 800,
     color: 650,
     emote: 350,
@@ -123,7 +124,8 @@ export function bindHub(
     const room = overlayRoom(event.room);
     const cost = Number.isFinite(event.cost) ? Math.max(0, Math.min(10_000, Math.round(event.cost))) : 0;
     const damage = Number.isFinite(event.payload?.damage) ? Math.max(0, Math.min(100, Math.round(event.payload!.damage!))) : undefined;
-    const count = Number.isFinite(event.payload?.count) ? Math.max(1, Math.min(10_000, Math.round(event.payload!.count!))) : undefined;
+    const countValue = event.payload?.count;
+    const count = typeof countValue === "number" && Number.isFinite(countValue) ? Math.max(1, Math.min(10_000, Math.round(countValue))) : undefined;
     const color = typeof event.payload?.color === "string" && /^#[0-9a-fA-F]{6}$/.test(event.payload.color) ? event.payload.color : undefined;
     const side = event.payload?.side === "bull" || event.payload?.side === "bear" ? event.payload.side : undefined;
 
@@ -287,6 +289,12 @@ export function bindHub(
   return {
     broadcastStatus,
     addConnector,
-    stop: () => clearInterval(statsTimer),
+    stop: () => {
+      clearInterval(statsTimer);
+      for (const bucket of overlayVoteBuckets.values()) {
+        if (bucket.timer) clearTimeout(bucket.timer);
+      }
+      overlayVoteBuckets.clear();
+    },
   };
 }

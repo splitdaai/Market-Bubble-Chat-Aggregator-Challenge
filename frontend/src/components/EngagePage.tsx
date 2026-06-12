@@ -18,6 +18,13 @@ const SIDE_BY_ACTION: Record<string, "bull" | "bear"> = {
   "bear-vote": "bear",
   "bear-slash": "bear",
 };
+const EMOTE_BY_ACTION: Record<string, string> = {
+  "ansem-emote": "ANSEM",
+  "banks-emote": "BANKS",
+  "nelk-emote": "NELK",
+  "happy-dad-emote": "HAPPY DAD",
+  "polymarket-emote": "POLY",
+};
 
 function storedNumber(key: string, fallback: number): number {
   try {
@@ -73,12 +80,13 @@ export function EngagePage() {
   }, []);
 
   const fire = (action: OverlayActionDef) => {
-    if (Date.now() < sendLockedUntil.current) return;
+    const isClearAction = action.id === "clear-overlay";
+    if (!isClearAction && Date.now() < sendLockedUntil.current) return;
     if (!canAfford(balance, action)) {
       setLast(`Need ${compact(action.cost - balance)} more Bubble Bucks for ${action.label}.`);
       return;
     }
-    lockSend();
+    if (!isClearAction) lockSend();
     const next = spendBucks(balance, action);
     saveBalance(next);
     // Record the spend in the persistent BB ledger so the analytics page tracks
@@ -99,7 +107,7 @@ export function EngagePage() {
       payload: {
         side: SIDE_BY_ACTION[action.id],
         ticker,
-        emote,
+        emote: EMOTE_BY_ACTION[action.id] ?? emote,
         color: action.id === "mood-wave" ? color : action.accent,
         message: message.trim().slice(0, 72),
         damage: action.id === "whale-storm" ? 30 : action.id === "boss-attack" ? 18 : action.id === "bear-slash" ? 24 : 8,
@@ -130,7 +138,7 @@ export function EngagePage() {
                 <Sparkles size={14} /> Market Bubble Live Layer
               </div>
               <h1 className="max-w-xl text-5xl font-black leading-[0.92] tracking-normal text-white sm:text-6xl">
-                Spend Bubble Bits. Move the overlay.
+                Spend Bubble Bucks. Move the overlay.
               </h1>
               <p className="mt-4 max-w-lg text-[15px] leading-6 text-white/62">
                 Scan from the stream, pick a clean effect, and spend Bubble Bucks to trigger controlled on-screen moments.
@@ -177,7 +185,8 @@ export function EngagePage() {
           <div className="grid gap-3 sm:grid-cols-2">
             {OVERLAY_ACTIONS.map((action, i) => {
               const ok = canAfford(balance, action);
-              const disabled = !ok || isSending;
+              const isClearAction = action.id === "clear-overlay";
+              const disabled = !ok || (isSending && !isClearAction);
               return (
                 <motion.button
                   key={action.id}
@@ -187,7 +196,7 @@ export function EngagePage() {
                   onClick={() => fire(action)}
                   disabled={disabled}
                   className="group relative min-h-[132px] overflow-hidden rounded-2xl border p-4 text-left transition disabled:cursor-not-allowed disabled:opacity-42"
-                  style={{ borderColor: ok && !isSending ? `${action.accent}66` : "rgba(255,255,255,0.1)", background: ok && !isSending ? `linear-gradient(140deg, ${action.accent}18, rgba(255,255,255,0.035))` : "rgba(255,255,255,0.025)" }}
+                  style={{ borderColor: ok && (!isSending || isClearAction) ? `${action.accent}66` : "rgba(255,255,255,0.1)", background: ok && (!isSending || isClearAction) ? `linear-gradient(140deg, ${action.accent}18, rgba(255,255,255,0.035))` : "rgba(255,255,255,0.025)" }}
                 >
                   <div className="absolute -right-8 -top-8 h-24 w-24 rounded-full blur-2xl transition group-hover:scale-125" style={{ background: `${action.accent}33` }} />
                   <div className="relative flex items-start justify-between gap-3">
@@ -199,9 +208,9 @@ export function EngagePage() {
                       {action.cost ? `${action.cost} BB` : "Free"}
                     </div>
                   </div>
-                  <div className="relative mt-4 inline-flex items-center gap-1.5 text-[12px] font-black uppercase tracking-[0.12em]" style={{ color: ok && !isSending ? action.accent : "rgba(255,255,255,0.45)" }}>
+                  <div className="relative mt-4 inline-flex items-center gap-1.5 text-[12px] font-black uppercase tracking-[0.12em]" style={{ color: ok && (!isSending || isClearAction) ? action.accent : "rgba(255,255,255,0.45)" }}>
                     {action.kind === "spotlight" ? <MessageSquareText size={14} /> : <Zap size={14} />}
-                    {isSending ? "Cooling down" : ok ? action.cta : "Need more BB"}
+                    {isSending && !isClearAction ? "Cooling down" : ok ? action.cta : "Need more BB"}
                   </div>
                 </motion.button>
               );

@@ -32,7 +32,7 @@ export function EngagementQr({ room }: { room: string }) {
       <img src={qrImageUrl(url, 92)} alt="Scan to control the Market Bubble overlay" className="h-[58px] w-[58px] rounded-md bg-white p-1" />
       <div className="hidden pr-1 sm:block">
         <div className="text-[9px] font-black uppercase leading-tight tracking-[0.14em] text-[#d9a547]">Scan to play</div>
-        <div className="mt-0.5 max-w-[72px] text-[10px] font-bold leading-tight text-white/70">Spend Bubble Bits</div>
+        <div className="mt-0.5 max-w-[72px] text-[10px] font-bold leading-tight text-white/70">Spend Bubble Bucks</div>
       </div>
     </div>
   );
@@ -47,6 +47,20 @@ export function OverlayEngagementLayer({ room }: { room: string }) {
   const pendingEvents = useRef<OverlayEngagementEvent[]>([]);
   const flushTimer = useRef<number | null>(null);
   const lastVisualAt = useRef(new Map<string, number>());
+
+  const clearOverlay = useCallback(() => {
+    if (flushTimer.current !== null) {
+      window.clearTimeout(flushTimer.current);
+      flushTimer.current = null;
+    }
+    pendingEvents.current = [];
+    lastVisualAt.current.clear();
+    setEvents([]);
+    setVotes({ bull: 1, bear: 1 });
+    setBoss(100);
+    setMeterPulse(null);
+    setMeterVisible(false);
+  }, []);
 
   const flushPendingEvents = useCallback(() => {
     flushTimer.current = null;
@@ -100,6 +114,10 @@ export function OverlayEngagementLayer({ room }: { room: string }) {
 
   useEffect(() => {
     const unsub = subscribeOverlayEvents(room, (event) => {
+      if (event.kind === "clear" || event.actionId === "clear-overlay") {
+        clearOverlay();
+        return;
+      }
       pendingEvents.current.push(event);
       if (pendingEvents.current.length > 160) {
         pendingEvents.current.splice(0, pendingEvents.current.length - 160);
@@ -114,7 +132,7 @@ export function OverlayEngagementLayer({ room }: { room: string }) {
       }
       pendingEvents.current = [];
     };
-  }, [room, scheduleFlush]);
+  }, [clearOverlay, room, scheduleFlush]);
 
   useEffect(() => {
     if (!meterPulse) return;
@@ -391,7 +409,8 @@ function TickerTape({ events }: { events: OverlayEngagementEvent[] }) {
 
 function EmoteBurst({ event }: { event: OverlayEngagementEvent }) {
   const emote = event.payload?.emote ?? "🫧";
-  const count = event.actionId === "whale-storm" ? 34 : 18;
+  const branded = brandedEmote(event.actionId);
+  const count = event.actionId === "whale-storm" ? 34 : branded ? 20 : 18;
   return (
     <>
       {Array.from({ length: count }, (_, i) => {
@@ -409,11 +428,46 @@ function EmoteBurst({ event }: { event: OverlayEngagementEvent }) {
             className="absolute font-black drop-shadow-[0_3px_10px_rgba(0,0,0,0.65)]"
             style={{ left: `${left}%`, fontSize: size }}
           >
-            {emote}
+            {branded ? <BrandedEmoteChip brand={branded} seed={seed} /> : emote}
           </motion.span>
         );
       })}
     </>
+  );
+}
+
+type BrandedEmote = { text: string; sub: string; bg: string; fg: string; glow: string; mark: string };
+
+function brandedEmote(actionId: string): BrandedEmote | null {
+  switch (actionId) {
+    case "ansem-emote":
+      return { text: "ANSEM", sub: "SOL", bg: "linear-gradient(135deg,#1b1204,#f59e0b)", fg: "#fff7ed", glow: "rgba(245,158,11,0.58)", mark: "A" };
+    case "banks-emote":
+      return { text: "BANKS", sub: "LIVE", bg: "linear-gradient(135deg,#04131d,#38bdf8)", fg: "#e0f7ff", glow: "rgba(56,189,248,0.58)", mark: "B" };
+    case "nelk-emote":
+      return { text: "NELK", sub: "FULL SEND", bg: "linear-gradient(135deg,#050505,#f8fafc)", fg: "#050505", glow: "rgba(248,250,252,0.48)", mark: "N" };
+    case "happy-dad-emote":
+      return { text: "HAPPY DAD", sub: "HARD SELTZER", bg: "linear-gradient(135deg,#1a1402,#facc15)", fg: "#151005", glow: "rgba(250,204,21,0.54)", mark: "HD" };
+    case "polymarket-emote":
+      return { text: "POLYMARKET", sub: "ODDS", bg: "linear-gradient(135deg,#03131f,#34d6ff)", fg: "#e0faff", glow: "rgba(52,214,255,0.55)", mark: "P" };
+    default:
+      return null;
+  }
+}
+
+function BrandedEmoteChip({ brand, seed }: { brand: BrandedEmote; seed: number }) {
+  const tilt = (seed % 18) - 9;
+  return (
+    <span
+      className="inline-flex min-w-[74px] items-center gap-1.5 rounded-full border border-white/35 px-2.5 py-1 align-middle shadow-[0_10px_24px_rgba(0,0,0,0.38)]"
+      style={{ background: brand.bg, color: brand.fg, boxShadow: `0 10px 24px rgba(0,0,0,0.38), 0 0 22px ${brand.glow}`, transform: `rotate(${tilt}deg)` }}
+    >
+      <span className="grid h-5 min-w-5 place-items-center rounded-full bg-white/90 px-1 text-[9px] font-black leading-none text-black">{brand.mark}</span>
+      <span className="leading-none">
+        <span className="block whitespace-nowrap text-[11px] font-black tracking-normal">{brand.text}</span>
+        <span className="block whitespace-nowrap text-[7px] font-black uppercase tracking-[0.12em] opacity-72">{brand.sub}</span>
+      </span>
+    </span>
   );
 }
 
@@ -489,6 +543,7 @@ function eventCount(event: OverlayEngagementEvent): number {
 }
 
 function shouldRenderEvent(event: OverlayEngagementEvent, now: number, lastVisualAt: Map<string, number>): boolean {
+  if (event.kind === "clear") return false;
   const isHero = HERO_ACTION_IDS.has(event.actionId);
   if (event.kind === "vote" && !isHero) return false;
 
