@@ -20,6 +20,11 @@ import type { ChatMessage, ModerationRequest, ModerationResult } from "../../sha
 
 const PSCP_HEADERS = { "Content-Type": "application/json", Referer: "https://x.com/", Origin: "https://x.com", "User-Agent": X_UA };
 const ID_RE = /^[A-Za-z0-9]+$/;
+const LIVE_HISTORY_FIRST_POLL_MS = 500;
+const LIVE_HISTORY_POLL_MS = 750;
+const LIVE_HISTORY_ERROR_RETRY_MS = 1500;
+const LIVE_REST_CACHE_MS = 750;
+const LIVE_WS_RECONNECT_MS = 1200;
 
 interface ChatAccess { endpoint: string; accessToken: string; roomId: string; replay: boolean; title: string; state: string }
 
@@ -110,7 +115,7 @@ export async function broadcastChatBatch(id: string): Promise<{ title: string; m
     cursor = page.cursor;
   }
   const out = [...dedup.values()].sort((a, b) => a.t - b.t);
-  restCache.set(id, { exp: Date.now() + (access.replay ? 30 * 60_000 : 2500), title: access.title, msgs: out });
+  restCache.set(id, { exp: Date.now() + (access.replay ? 30 * 60_000 : LIVE_REST_CACHE_MS), title: access.title, msgs: out });
   return { title: access.title, messages: out };
 }
 
@@ -147,7 +152,7 @@ export class XBroadcastChatConnector extends BaseConnector {
         this.setStatus({ connected: true });
         return;
       }
-      this.scheduleHistoryPoll(access, 2500);
+      this.scheduleHistoryPoll(access, LIVE_HISTORY_FIRST_POLL_MS);
       this.connectWs(access);
     } catch (e) {
       this.setStatus({ connected: false, error: String(e) });
@@ -164,7 +169,7 @@ export class XBroadcastChatConnector extends BaseConnector {
     }
   }
 
-  private scheduleHistoryPoll(access: ChatAccess, delay = 3000) {
+  private scheduleHistoryPoll(access: ChatAccess, delay = LIVE_HISTORY_POLL_MS) {
     if (this.stopped) return;
     if (this.historyTimer) clearTimeout(this.historyTimer);
     this.historyTimer = setTimeout(() => void this.pollHistory(access), delay);
@@ -178,7 +183,7 @@ export class XBroadcastChatConnector extends BaseConnector {
     } catch (e) {
       this.setStatus({ connected: false, error: `history_poll_failed: ${e instanceof Error ? e.message : String(e)}` });
     } finally {
-      this.scheduleHistoryPoll(access, 3000);
+      this.scheduleHistoryPoll(access, this.status().connected ? LIVE_HISTORY_POLL_MS : LIVE_HISTORY_ERROR_RETRY_MS);
     }
   }
 
@@ -195,7 +200,7 @@ export class XBroadcastChatConnector extends BaseConnector {
     this.ws.on("close", () => {
       if (this.stopped) return;
       this.setStatus({ connected: this.status().connected, error: "socket_closed_history_polling" });
-      this.reconnectTimer = setTimeout(() => this.connectWs(access), 4000);
+      this.reconnectTimer = setTimeout(() => this.connectWs(access), LIVE_WS_RECONNECT_MS);
     });
     this.ws.on("error", (e) => this.setStatus({ connected: false, error: String(e) }));
   }

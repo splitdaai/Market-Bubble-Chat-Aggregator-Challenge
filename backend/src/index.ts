@@ -80,7 +80,7 @@ app.get("/api/x-hls", async (req, res) => {
 app.get("/api/x-broadcast-chat/:id", async (req, res) => {
   try {
     const data = await broadcastChatBatch(req.params.id);
-    res.set("Cache-Control", "public, max-age=300");
+    res.set("Cache-Control", "no-store");
     res.json(data);
   } catch {
     res.status(502).json({ error: "x chat fetch failed" });
