@@ -4,7 +4,8 @@ import { AnimatePresence, motion } from "framer-motion";
 import { engageUrl, qrImageUrl, subscribeOverlayEvents, type OverlayEngagementEvent } from "@/lib/overlayEngagement";
 import { profileAlpha, profileCount, profileDuration } from "@/lib/overlayFx";
 import { useOverlayStore } from "@/store/overlayStore";
-import type { OverlayEffectProfile } from "@shared/types";
+import type { OverlayEffectProfile, OverlayElement } from "@shared/types";
+import { CustomOverlayEffect } from "./CustomOverlayEffect";
 
 const TTL = 9000;
 const METER_IDLE_MS = 5000;
@@ -159,6 +160,7 @@ export function OverlayEngagementLayer({ room }: { room: string }) {
   const latestSound = visible.find((e) => e.kind === "soundwave");
   const latestWave = visible.find((e) => e.kind === "color");
   const heroEvents = visible.filter((e) => HERO_ACTION_IDS.has(e.actionId)).slice(0, 2);
+  const customEvents = visible.filter((e) => e.payload?.customAsset).slice(0, 4);
   const bullPct = Math.round((votes.bull / (votes.bull + votes.bear)) * 100);
 
   return (
@@ -166,7 +168,8 @@ export function OverlayEngagementLayer({ room }: { room: string }) {
       <AnimatePresence initial={false}>
         {latestWave && profileEnabled(effectProfiles[latestWave.actionId]) && <ColorWave key={latestWave.id} event={latestWave} profile={effectProfiles[latestWave.actionId]} />}
         {heroEvents.filter((event) => profileEnabled(effectProfiles[event.actionId])).map((event) => <HeroEffect key={event.id} event={event} profile={effectProfiles[event.actionId]} />)}
-        {visible.filter((e) => e.kind === "emote" && profileEnabled(effectProfiles[e.actionId])).slice(0, 4).map((event) => <EmoteBurst key={event.id} event={event} profile={effectProfiles[event.actionId]} />)}
+        {customEvents.map((event) => <CustomTriggeredEffect key={event.id} event={event} />)}
+        {visible.filter((e) => e.kind === "emote" && !e.payload?.customAsset && profileEnabled(effectProfiles[e.actionId])).slice(0, 4).map((event) => <EmoteBurst key={event.id} event={event} profile={effectProfiles[event.actionId]} />)}
         {latestSpotlight && profileEnabled(effectProfiles[latestSpotlight.actionId]) && <Spotlight key={latestSpotlight.id} event={latestSpotlight} profile={effectProfiles[latestSpotlight.actionId]} />}
         {latestClip && profileEnabled(effectProfiles[latestClip.actionId]) && <ClipBoost key={latestClip.id} event={latestClip} profile={effectProfiles[latestClip.actionId]} />}
         {latestSound && profileEnabled(effectProfiles[latestSound.actionId]) && <Soundwave key={latestSound.id} event={latestSound} profile={effectProfiles[latestSound.actionId]} />}
@@ -184,6 +187,46 @@ export function OverlayEngagementLayer({ room }: { room: string }) {
       </AnimatePresence>
       {tickerEvents.length > 0 && <TickerTape events={tickerEvents.filter((event) => profileEnabled(effectProfiles[event.actionId]))} profile={effectProfiles["ticker-boost"]} />}
     </div>
+  );
+}
+
+function CustomTriggeredEffect({ event }: { event: OverlayEngagementEvent }) {
+  const asset = event.payload?.customAsset;
+  if (!asset) return null;
+  const seed = hash(event.id);
+  const size = Math.min(Math.max(asset.size, 120), 520);
+  const el: OverlayElement = {
+    id: `event-${event.id}`,
+    source: "custom",
+    x: 0,
+    y: 0,
+    scale: 1,
+    showLabel: false,
+    visible: true,
+    w: size,
+    h: size,
+    custom: { ...asset, size },
+  };
+
+  return (
+    <motion.div
+      className="absolute inset-0 grid place-items-center"
+      initial={{ opacity: 0, scale: 0.92, filter: "blur(8px)" }}
+      animate={{ opacity: 1, scale: 1, filter: "blur(0px)" }}
+      exit={{ opacity: 0, scale: 0.96, filter: "blur(5px)" }}
+      transition={{ duration: 0.36, ease: FX_EASE }}
+      style={{ x: `${(seed % 17) - 8}vw`, y: `${(seed % 13) - 6}vh` }}
+    >
+      <CustomOverlayEffect el={el} />
+      <motion.div
+        className="absolute bottom-[15%] rounded-full border border-white/14 bg-black/48 px-3 py-1 text-[11px] font-black uppercase tracking-[0.14em] text-white/78 shadow-[0_10px_32px_rgba(0,0,0,0.45)] backdrop-blur-md"
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: [0, 1, 1, 0], y: [10, 0, 0, -8] }}
+        transition={{ duration: 2.4, ease: "easeOut" }}
+      >
+        {event.label}
+      </motion.div>
+    </motion.div>
   );
 }
 

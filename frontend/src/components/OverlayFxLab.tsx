@@ -1,7 +1,7 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { ImagePlus, Loader2, Play, RotateCcw, SlidersHorizontal, Sparkles, Trash2, Upload, Wand2, X } from "lucide-react";
-import type { OverlayCustomAnimation, OverlayCustomAsset, OverlayCustomEffect, OverlayEffectMotion, OverlayEffectProfile } from "@shared/types";
+import type { OverlayCustomActionButton, OverlayCustomAnimation, OverlayCustomAsset, OverlayCustomEffect, OverlayEffectMotion, OverlayEffectProfile } from "@shared/types";
 import { ENGAGE_ROOM, OVERLAY_ACTIONS, publishOverlayEvent } from "@/lib/overlayEngagement";
 import { defaultOverlayEffectProfile } from "@/lib/overlayFx";
 import { useOverlayStore } from "@/store/overlayStore";
@@ -43,6 +43,9 @@ export function OverlayFxLab({ onClose }: { onClose: () => void }) {
   const addCustomAsset = useOverlayStore((s) => s.addCustomAsset);
   const updateCustomAsset = useOverlayStore((s) => s.updateCustomAsset);
   const removeCustomAsset = useOverlayStore((s) => s.removeCustomAsset);
+  const customButtons = useOverlayStore((s) => s.customButtons);
+  const upsertCustomButton = useOverlayStore((s) => s.upsertCustomButton);
+  const removeCustomButton = useOverlayStore((s) => s.removeCustomButton);
   const updateEffectProfile = useOverlayStore((s) => s.updateEffectProfile);
   const resetEffectProfile = useOverlayStore((s) => s.resetEffectProfile);
   const resetEffectProfiles = useOverlayStore((s) => s.resetEffectProfiles);
@@ -53,10 +56,13 @@ export function OverlayFxLab({ onClose }: { onClose: () => void }) {
   const [threshold, setThreshold] = useState(42);
   const [feather, setFeather] = useState(22);
   const [tab, setTab] = useState<"builtins" | "custom">("builtins");
+  const [buttonLabel, setButtonLabel] = useState("");
+  const [buttonCost, setButtonCost] = useState(25);
 
   const action = OVERLAY_ACTIONS.find((a) => a.id === selectedAction) ?? OVERLAY_ACTIONS[0];
   const profile = effectProfiles[action.id] ?? defaultOverlayEffectProfile(action.id);
   const asset = customAssets.find((a) => a.id === selectedAsset) ?? customAssets[0] ?? null;
+  const savedButton = asset ? customButtons.find((button) => button.assetId === asset.id) ?? null : null;
 
   const actionGroups = useMemo(() => {
     const hero = OVERLAY_ACTIONS.filter((a) => ["charging-bull", "bear-slash", "chart-pump", "chart-dump"].includes(a.id));
@@ -74,6 +80,17 @@ export function OverlayFxLab({ onClose }: { onClose: () => void }) {
     if (!asset) return;
     updateCustomAsset(asset.id, patch);
   };
+
+  useEffect(() => {
+    if (!asset) {
+      setButtonLabel("");
+      setButtonCost(25);
+      return;
+    }
+    const existing = customButtons.find((button) => button.assetId === asset.id);
+    setButtonLabel(existing?.label ?? asset.name);
+    setButtonCost(existing?.cost ?? 25);
+  }, [asset?.id, asset?.name, customButtons]);
 
   const previewAction = () => {
     publishOverlayEvent({
@@ -143,46 +160,71 @@ export function OverlayFxLab({ onClose }: { onClose: () => void }) {
     }
   };
 
+  const saveAssetButton = () => {
+    if (!asset) return;
+    const now = Date.now();
+    const label = (buttonLabel.trim() || asset.name).slice(0, 28);
+    const button: OverlayCustomActionButton = {
+      id: savedButton?.id ?? `custom-button-${asset.id}`,
+      assetId: asset.id,
+      label,
+      cost: Math.max(0, Math.min(999, Math.round(buttonCost))),
+      accent: asset.accent,
+      createdAt: savedButton?.createdAt ?? now,
+      updatedAt: now,
+    };
+    upsertCustomButton(button);
+    push({ message: `${label} saved as an overlay button`, tone: "ok" });
+  };
+
+  const removeAssetButton = () => {
+    if (!savedButton) return;
+    removeCustomButton(savedButton.id);
+    push({ message: "Custom overlay button removed", tone: "ok" });
+  };
+
   return (
-    <div className="pointer-events-auto fixed inset-0 z-[260] bg-black/62 p-4 backdrop-blur-md">
+    <div className="pointer-events-auto fixed inset-0 z-[260] bg-black/62 p-0 backdrop-blur-md sm:p-4">
       <motion.div
         initial={{ opacity: 0, y: 16, scale: 0.98, filter: "blur(6px)" }}
         animate={{ opacity: 1, y: 0, scale: 1, filter: "blur(0px)" }}
         exit={{ opacity: 0, y: 10, filter: "blur(4px)" }}
         transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
-        className="mx-auto flex h-[min(880px,calc(100vh-32px))] max-w-6xl flex-col overflow-hidden rounded-2xl border border-white/12 bg-[#070a09]/96 shadow-[0_30px_120px_rgba(0,0,0,0.78)]"
+        className="mx-auto flex h-[100dvh] w-screen max-w-6xl flex-col overflow-hidden border border-white/12 bg-[#070a09]/96 shadow-[0_30px_120px_rgba(0,0,0,0.78)] sm:h-[min(880px,calc(100vh-32px))] sm:w-auto sm:rounded-2xl"
       >
-        <header className="flex shrink-0 items-center gap-3 border-b border-white/10 px-4 py-3">
-          <div className="grid h-10 w-10 place-items-center rounded-xl border border-[#16e6a4]/35 bg-[#16e6a4]/12 text-[#16e6a4]">
-            <Wand2 size={19} />
-          </div>
-          <div>
-            <div className="text-sm font-black uppercase tracking-[0.18em] text-[#16e6a4]">Overlay FX Lab</div>
-            <div className="text-xs font-semibold text-white/48">Tune built-ins, build custom transparent PNG overlays, preview on the live layer.</div>
-          </div>
-          <div className="ml-auto flex items-center gap-2">
-            <button onClick={() => setTab("builtins")} className={tabButton(tab === "builtins")}><SlidersHorizontal size={14} /> Built-ins</button>
-            <button onClick={() => setTab("custom")} className={tabButton(tab === "custom")}><ImagePlus size={14} /> Custom PNG</button>
-            <button onClick={onClose} className="grid h-9 w-9 place-items-center rounded-lg text-white/55 transition-[color,background-color] hover:bg-white/10 hover:text-white" title="Close FX Lab">
+        <header className="shrink-0 border-b border-white/10 px-3 py-2.5 sm:px-4 sm:py-3">
+          <div className="flex items-center gap-3">
+            <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-[#16e6a4]/35 bg-[#16e6a4]/12 text-[#16e6a4] sm:h-10 sm:w-10">
+              <Wand2 size={19} />
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="truncate text-xs font-black uppercase tracking-[0.16em] text-[#16e6a4] sm:text-sm sm:tracking-[0.18em]">Overlay FX Lab</div>
+              <div className="hidden text-xs font-semibold text-white/48 sm:block">Tune built-ins, build custom transparent PNG overlays, preview on the live layer.</div>
+            </div>
+            <button onClick={onClose} className="grid h-10 w-10 shrink-0 place-items-center rounded-lg text-white/62 transition-[color,background-color] hover:bg-white/10 hover:text-white" title="Close FX Lab">
               <X size={18} />
             </button>
+          </div>
+          <div className="mt-2 grid grid-cols-2 gap-2 sm:ml-12 sm:mt-0 sm:flex sm:justify-end">
+            <button onClick={() => setTab("builtins")} className={tabButton(tab === "builtins")}><SlidersHorizontal size={14} /> Built-ins</button>
+            <button onClick={() => setTab("custom")} className={tabButton(tab === "custom")}><ImagePlus size={14} /> Custom PNG</button>
           </div>
         </header>
 
         {tab === "builtins" ? (
-          <div className="grid min-h-0 flex-1 grid-cols-[280px_1fr] overflow-hidden">
-            <aside className="min-h-0 overflow-y-auto border-r border-white/10 p-3">
+          <div className="flex min-h-0 flex-1 flex-col overflow-hidden lg:grid lg:grid-cols-[280px_1fr]">
+            <aside className="shrink-0 overflow-x-auto border-b border-white/10 p-2.5 lg:min-h-0 lg:overflow-y-auto lg:border-b-0 lg:border-r lg:p-3">
               {actionGroups.map((group) => (
-                <div key={group.label} className="mb-4">
+                <div key={group.label} className="mb-2 inline-block align-top last:mb-0 lg:mb-4 lg:block">
                   <div className="mb-2 px-1 text-[10px] font-black uppercase tracking-[0.16em] text-white/38">{group.label} effects</div>
-                  <div className="space-y-1.5">
+                  <div className="flex gap-1.5 pr-2 lg:block lg:space-y-1.5 lg:pr-0">
                     {group.actions.map((a) => {
                       const active = a.id === action.id;
                       return (
                         <button
                           key={a.id}
                           onClick={() => setSelectedAction(a.id)}
-                          className={`flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left transition-[background-color,color,box-shadow] ${
+                          className={`flex min-w-[132px] items-center gap-2 rounded-xl px-3 py-2 text-left transition-[background-color,color,box-shadow] lg:w-full lg:min-w-0 ${
                             active ? "bg-white/10 text-white shadow-[inset_0_0_0_1px_rgba(255,255,255,0.14)]" : "text-white/58 hover:bg-white/[0.06] hover:text-white"
                           }`}
                         >
@@ -196,17 +238,17 @@ export function OverlayFxLab({ onClose }: { onClose: () => void }) {
               ))}
             </aside>
 
-            <section className="min-h-0 overflow-y-auto p-5">
+            <section className="min-h-0 flex-1 overflow-y-auto p-3 sm:p-5">
               <div className="grid gap-5 lg:grid-cols-[1fr_320px]">
                 <div className="space-y-5">
                   <div className="rounded-2xl border border-white/10 bg-white/[0.035] p-4">
-                    <div className="flex items-start gap-3">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
                       <div className="mt-1 h-4 w-4 rounded-full shadow-[0_0_22px_currentColor]" style={{ color: profile.accent ?? action.accent, background: profile.accent ?? action.accent }} />
                       <div className="min-w-0">
-                        <h2 className="text-2xl font-black leading-tight text-white">{action.label}</h2>
+                        <h2 className="text-xl font-black leading-tight text-white sm:text-2xl">{action.label}</h2>
                         <p className="mt-1 text-sm font-medium leading-6 text-white/52">{action.description}</p>
                       </div>
-                      <button onClick={previewAction} className="ml-auto inline-flex h-10 items-center gap-2 rounded-xl bg-[#16e6a4] px-3 text-sm font-black text-black transition-[scale,filter] hover:brightness-110 active:scale-[0.96]">
+                      <button onClick={previewAction} className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-[#16e6a4] px-3 text-sm font-black text-black transition-[scale,filter] hover:brightness-110 active:scale-[0.96] sm:ml-auto sm:h-10">
                         <Play size={15} /> Preview
                       </button>
                     </div>
@@ -225,10 +267,10 @@ export function OverlayFxLab({ onClose }: { onClose: () => void }) {
                   <ColorSwatches label="Accent Override" value={profile.accent ?? action.accent} onChange={(accent) => patchProfile({ accent })} />
 
                   <div className="flex flex-wrap items-center gap-2">
-                    <button onClick={() => resetEffectProfile(action.id)} className="inline-flex items-center gap-2 rounded-xl border border-white/12 px-3 py-2 text-sm font-bold text-white/70 transition-[background-color,color] hover:bg-white/8 hover:text-white">
+                    <button onClick={() => resetEffectProfile(action.id)} className="inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl border border-white/12 px-3 py-2 text-sm font-bold text-white/70 transition-[background-color,color] hover:bg-white/[0.08] hover:text-white sm:flex-none">
                       <RotateCcw size={15} /> Reset this effect
                     </button>
-                    <button onClick={resetEffectProfiles} className="inline-flex items-center gap-2 rounded-xl border border-red-300/20 px-3 py-2 text-sm font-bold text-red-200 transition-[background-color] hover:bg-red-500/10">
+                    <button onClick={resetEffectProfiles} className="inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl border border-red-300/20 px-3 py-2 text-sm font-bold text-red-200 transition-[background-color] hover:bg-red-500/10 sm:flex-none">
                       <RotateCcw size={15} /> Reset all built-ins
                     </button>
                   </div>
@@ -239,22 +281,22 @@ export function OverlayFxLab({ onClose }: { onClose: () => void }) {
             </section>
           </div>
         ) : (
-          <div className="grid min-h-0 flex-1 grid-cols-[320px_1fr] overflow-hidden">
-            <aside className="min-h-0 overflow-y-auto border-r border-white/10 p-3">
+          <div className="flex min-h-0 flex-1 flex-col overflow-hidden lg:grid lg:grid-cols-[320px_1fr]">
+            <aside className="shrink-0 overflow-x-auto border-b border-white/10 p-2.5 lg:min-h-0 lg:overflow-y-auto lg:border-b-0 lg:border-r lg:p-3">
               <input ref={inputRef} type="file" accept="image/*" className="hidden" onChange={(e) => void handleUpload(e.target.files?.[0])} />
               <button
                 onClick={() => inputRef.current?.click()}
                 disabled={processing}
-                className="mb-3 flex w-full items-center justify-center gap-2 rounded-2xl border border-[#16e6a4]/35 bg-[#16e6a4]/12 px-4 py-4 text-sm font-black text-[#16e6a4] transition-[scale,filter] hover:brightness-110 active:scale-[0.96] disabled:opacity-60"
+                className="mb-2 flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl border border-[#16e6a4]/35 bg-[#16e6a4]/12 px-4 py-3 text-sm font-black text-[#16e6a4] transition-[scale,filter] hover:brightness-110 active:scale-[0.96] disabled:opacity-60 lg:mb-3 lg:py-4"
               >
                 {processing ? <Loader2 size={17} className="animate-spin" /> : <Upload size={17} />} Upload and cut out
               </button>
-              <div className="space-y-1.5">
+              <div className="flex gap-1.5 lg:block lg:space-y-1.5">
                 {customAssets.map((a) => (
                   <button
                     key={a.id}
                     onClick={() => setSelectedAsset(a.id)}
-                    className={`flex w-full items-center gap-2 rounded-xl p-2 text-left transition-[background-color,color] ${asset?.id === a.id ? "bg-white/10 text-white" : "text-white/58 hover:bg-white/[0.06] hover:text-white"}`}
+                    className={`flex min-w-[150px] items-center gap-2 rounded-xl p-2 text-left transition-[background-color,color] lg:w-full lg:min-w-0 ${asset?.id === a.id ? "bg-white/10 text-white" : "text-white/58 hover:bg-white/[0.06] hover:text-white"}`}
                   >
                     <img src={a.src} alt="" className="h-10 w-10 rounded-lg bg-black/32 object-contain" />
                     <span className="min-w-0 flex-1 truncate text-sm font-bold">{a.name}</span>
@@ -263,15 +305,47 @@ export function OverlayFxLab({ onClose }: { onClose: () => void }) {
               </div>
             </aside>
 
-            <section className="min-h-0 overflow-y-auto p-5">
+            <section className="min-h-0 flex-1 overflow-y-auto p-3 sm:p-5">
               {asset ? (
                 <div className="grid gap-5 lg:grid-cols-[1fr_340px]">
                   <div className="space-y-4">
                     <div className="rounded-2xl border border-white/10 bg-white/[0.035] p-4">
                       <label className="block">
                         <span className="text-[10px] font-black uppercase tracking-[0.16em] text-white/42">Asset name</span>
-                        <input value={asset.name} onChange={(e) => patchAsset({ name: e.target.value })} className="mt-1 w-full bg-transparent text-2xl font-black text-white outline-none" />
+                        <input value={asset.name} onChange={(e) => patchAsset({ name: e.target.value })} className="mt-1 w-full bg-transparent text-xl font-black text-white outline-none sm:text-2xl" />
                       </label>
+                    </div>
+
+                    <div className="rounded-2xl border border-[#16e6a4]/20 bg-[#16e6a4]/[0.055] p-4">
+                      <div className="mb-3 flex items-center justify-between gap-3">
+                        <div>
+                          <div className="text-[10px] font-black uppercase tracking-[0.16em] text-[#16e6a4]">Overlay button</div>
+                          <div className="mt-0.5 text-xs font-bold text-white/46">{savedButton ? "Saved on the viewer button grid" : "Save this PNG as a tap-to-trigger action"}</div>
+                        </div>
+                        <div className={`rounded-full px-2 py-1 text-[10px] font-black uppercase tracking-[0.12em] ${savedButton ? "bg-[#16e6a4] text-black" : "bg-white/10 text-white/52"}`}>
+                          {savedButton ? "Live" : "Draft"}
+                        </div>
+                      </div>
+                      <div className="grid gap-2 sm:grid-cols-[1fr_110px]">
+                        <label className="rounded-xl border border-white/10 bg-black/20 p-3">
+                          <span className="text-[9px] font-black uppercase tracking-[0.14em] text-white/42">Button label</span>
+                          <input value={buttonLabel} onChange={(e) => setButtonLabel(e.target.value)} maxLength={28} className="mt-1 w-full bg-transparent text-base font-black text-white outline-none" />
+                        </label>
+                        <label className="rounded-xl border border-white/10 bg-black/20 p-3">
+                          <span className="text-[9px] font-black uppercase tracking-[0.14em] text-white/42">Cost</span>
+                          <input type="number" min={0} max={999} value={buttonCost} onChange={(e) => setButtonCost(Number(e.target.value))} className="mt-1 w-full bg-transparent text-base font-black tabular-nums text-white outline-none" />
+                        </label>
+                      </div>
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        <button onClick={saveAssetButton} className="inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-[#16e6a4] px-3 py-2 text-sm font-black text-black transition-[scale,filter] hover:brightness-110 active:scale-[0.96] sm:flex-none">
+                          <Sparkles size={15} /> {savedButton ? "Update button" : "Save as button"}
+                        </button>
+                        {savedButton && (
+                          <button onClick={removeAssetButton} className="inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl border border-red-300/20 px-3 py-2 text-sm font-bold text-red-200 transition-[background-color] hover:bg-red-500/10 sm:flex-none">
+                            <Trash2 size={15} /> Remove button
+                          </button>
+                        )}
+                      </div>
                     </div>
 
                     <div className="grid gap-3 sm:grid-cols-2">
@@ -288,23 +362,23 @@ export function OverlayFxLab({ onClose }: { onClose: () => void }) {
                     <ColorSwatches label="Glow Accent" value={asset.accent} onChange={(accent) => patchAsset({ accent })} />
 
                     <div className="flex flex-wrap items-center gap-2">
-                      <button onClick={rerunCutout} disabled={processing || !asset.originalSrc} className="inline-flex items-center gap-2 rounded-xl border border-[#16e6a4]/35 px-3 py-2 text-sm font-bold text-[#16e6a4] transition-[background-color] hover:bg-[#16e6a4]/10 disabled:opacity-50">
+                      <button onClick={rerunCutout} disabled={processing || !asset.originalSrc} className="inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl border border-[#16e6a4]/35 px-3 py-2 text-sm font-bold text-[#16e6a4] transition-[background-color] hover:bg-[#16e6a4]/10 disabled:opacity-50 sm:flex-none">
                         {processing ? <Loader2 size={15} className="animate-spin" /> : <Sparkles size={15} />} Rebuild cutout
                       </button>
-                      <button onClick={() => removeCustomAsset(asset.id)} className="inline-flex items-center gap-2 rounded-xl border border-red-300/20 px-3 py-2 text-sm font-bold text-red-200 transition-[background-color] hover:bg-red-500/10">
+                      <button onClick={() => removeCustomAsset(asset.id)} className="inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl border border-red-300/20 px-3 py-2 text-sm font-bold text-red-200 transition-[background-color] hover:bg-red-500/10 sm:flex-none">
                         <Trash2 size={15} /> Remove asset
                       </button>
                     </div>
                   </div>
 
-                  <div className="relative min-h-[420px] overflow-hidden rounded-2xl border border-white/10 bg-[radial-gradient(circle_at_50%_45%,rgba(22,230,164,0.14),transparent_38%),linear-gradient(135deg,rgba(255,255,255,0.06),rgba(255,255,255,0.02))] p-5">
+                  <div className="relative min-h-[260px] overflow-hidden rounded-2xl border border-white/10 bg-[radial-gradient(circle_at_50%_45%,rgba(22,230,164,0.14),transparent_38%),linear-gradient(135deg,rgba(255,255,255,0.06),rgba(255,255,255,0.02))] p-4 sm:min-h-[340px] sm:p-5 lg:min-h-[420px]">
                     <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(255,255,255,0.045)_1px,transparent_1px),linear-gradient(rgba(255,255,255,0.045)_1px,transparent_1px)] bg-[size:32px_32px]" />
-                    <div className="relative grid h-full min-h-[370px] place-items-center">
+                    <div className="relative grid h-full min-h-[220px] place-items-center sm:min-h-[290px] lg:min-h-[370px]">
                       <motion.img
                         src={asset.src}
                         alt={asset.name}
                         draggable={false}
-                        className="max-h-[320px] max-w-[280px] object-contain drop-shadow-[0_24px_36px_rgba(0,0,0,0.58)]"
+                        className="max-h-[220px] max-w-[220px] object-contain drop-shadow-[0_24px_36px_rgba(0,0,0,0.58)] sm:max-h-[300px] sm:max-w-[280px]"
                         animate={{ y: [0, -10, 0], rotate: [-2, 2, -2], scale: [1, 1.04, 1] }}
                         transition={{ duration: 2.2 / Math.max(0.35, asset.speed), repeat: Infinity, ease: "easeInOut" }}
                       />
@@ -312,10 +386,10 @@ export function OverlayFxLab({ onClose }: { onClose: () => void }) {
                   </div>
                 </div>
               ) : (
-                <div className="grid h-full min-h-[420px] place-items-center rounded-2xl border border-dashed border-white/14 bg-white/[0.025] text-center">
-                  <div>
+                <div className="grid h-full min-h-[360px] place-items-center rounded-2xl border border-dashed border-white/14 bg-white/[0.025] px-5 text-center sm:min-h-[420px]">
+                  <div className="max-w-sm">
                     <ImagePlus size={38} className="mx-auto text-white/34" />
-                    <div className="mt-3 text-xl font-black text-white">Upload an image to create a custom overlay asset.</div>
+                    <div className="mt-3 text-lg font-black text-white sm:text-xl">Upload an image to create a custom overlay asset.</div>
                     <div className="mt-1 text-sm font-medium text-white/48">The browser cutout pass turns edge-matched backgrounds transparent and stores the PNG locally.</div>
                   </div>
                 </div>
@@ -335,7 +409,7 @@ function Range({ label, value, min, max, step, suffix = "", onChange }: { label:
         {label}
         <b className="font-black text-white/78">{value.toFixed(step < 1 ? 2 : 0)}{suffix}</b>
       </span>
-      <input type="range" min={min} max={max} step={step} value={value} onChange={(e) => onChange(Number(e.target.value))} className="mt-3 w-full accent-[#16e6a4]" />
+      <input type="range" min={min} max={max} step={step} value={value} onChange={(e) => onChange(Number(e.target.value))} className="mt-3 h-8 w-full accent-[#16e6a4]" />
     </label>
   );
 }
@@ -346,7 +420,7 @@ function Segmented<T extends string>({ label, value, values, onChange }: { label
       <div className="mb-2 text-[10px] font-black uppercase tracking-[0.15em] text-white/42">{label}</div>
       <div className="flex flex-wrap gap-1.5">
         {values.map((item) => (
-          <button key={item.id} onClick={() => onChange(item.id)} className={`rounded-lg px-2.5 py-1.5 text-xs font-black transition-[background-color,color] ${value === item.id ? "bg-[#16e6a4] text-black" : "bg-white/[0.06] text-white/60 hover:text-white"}`}>
+          <button key={item.id} onClick={() => onChange(item.id)} className={`min-h-9 rounded-lg px-2.5 py-1.5 text-xs font-black transition-[background-color,color] ${value === item.id ? "bg-[#16e6a4] text-black" : "bg-white/[0.06] text-white/60 hover:text-white"}`}>
             {item.label}
           </button>
         ))}
@@ -369,7 +443,7 @@ function ColorSwatches({ label, value, onChange }: { label: string; value: strin
             title={color}
           />
         ))}
-        <input value={value} onChange={(e) => onChange(e.target.value)} className="h-8 w-28 rounded-lg border border-white/10 bg-black/24 px-2 text-xs font-bold text-white outline-none" />
+        <input value={value} onChange={(e) => onChange(e.target.value)} className="h-9 min-w-[120px] flex-1 rounded-lg border border-white/10 bg-black/24 px-2 text-xs font-bold text-white outline-none sm:flex-none" />
       </div>
     </div>
   );
@@ -378,7 +452,7 @@ function ColorSwatches({ label, value, onChange }: { label: string; value: strin
 function ProfilePreview({ action, profile }: { action: { label: string; accent: string }; profile: OverlayEffectProfile }) {
   const accent = profile.accent ?? action.accent;
   return (
-    <div className="relative min-h-[380px] overflow-hidden rounded-2xl border border-white/10 bg-[radial-gradient(circle_at_50%_42%,rgba(22,230,164,0.14),transparent_38%),linear-gradient(135deg,rgba(255,255,255,0.06),rgba(255,255,255,0.02))] p-5">
+    <div className="relative min-h-[260px] overflow-hidden rounded-2xl border border-white/10 bg-[radial-gradient(circle_at_50%_42%,rgba(22,230,164,0.14),transparent_38%),linear-gradient(135deg,rgba(255,255,255,0.06),rgba(255,255,255,0.02))] p-4 sm:min-h-[330px] sm:p-5 lg:min-h-[380px]">
       <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(255,255,255,0.045)_1px,transparent_1px),linear-gradient(rgba(255,255,255,0.045)_1px,transparent_1px)] bg-[size:32px_32px]" />
       <motion.div
         className="absolute left-1/2 top-1/2 h-40 w-40 -translate-x-1/2 -translate-y-1/2 rounded-full blur-2xl"
@@ -395,15 +469,15 @@ function ProfilePreview({ action, profile }: { action: { label: string; accent: 
           transition={{ duration: 1.2 * profile.durationScale, delay: i * 0.035, repeat: Infinity, repeatDelay: 1.2, ease: "easeOut" }}
         />
       ))}
-      <div className="relative grid h-full min-h-[330px] place-items-center">
+      <div className="relative grid h-full min-h-[220px] place-items-center sm:min-h-[280px] lg:min-h-[330px]">
         <motion.div
-          className="rounded-2xl border px-5 py-4 text-center shadow-[0_20px_60px_rgba(0,0,0,0.55)] backdrop-blur"
+          className="max-w-[86vw] rounded-2xl border px-4 py-3 text-center shadow-[0_20px_60px_rgba(0,0,0,0.55)] backdrop-blur sm:px-5 sm:py-4"
           style={{ borderColor: `${accent}66`, background: `linear-gradient(135deg, ${accent}22, rgba(0,0,0,0.62))`, filter: `blur(${profile.blur * 0.15}px)` }}
           animate={{ scale: [0.92, profile.scale, 0.96], rotate: [-2, 2, -1], y: [12, -10, 4] }}
           transition={{ duration: 1.8 * profile.durationScale, repeat: Infinity, repeatDelay: 0.4, ease: [0.16, 1, 0.3, 1] }}
         >
           <div className="text-[10px] font-black uppercase tracking-[0.2em]" style={{ color: accent }}>{profile.motion}</div>
-          <div className="mt-1 text-xl font-black uppercase tracking-[0.08em] text-white">{action.label}</div>
+          <div className="mt-1 text-base font-black uppercase tracking-[0.08em] text-white sm:text-xl">{action.label}</div>
         </motion.div>
       </div>
     </div>
@@ -411,7 +485,7 @@ function ProfilePreview({ action, profile }: { action: { label: string; accent: 
 }
 
 function tabButton(active: boolean): string {
-  return `inline-flex h-9 items-center gap-2 rounded-lg px-3 text-xs font-black transition-[background-color,color] ${active ? "bg-white text-black" : "bg-white/[0.06] text-white/62 hover:text-white"}`;
+  return `inline-flex h-10 items-center justify-center gap-2 rounded-lg px-3 text-xs font-black transition-[background-color,color] ${active ? "bg-white text-black" : "bg-white/[0.06] text-white/62 hover:text-white"}`;
 }
 
 function readFile(file: File): Promise<string> {

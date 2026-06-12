@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import type { OverlayCustomAsset, OverlayEffectProfile, OverlayElement, OverlaySource, OverlayMarketData } from "@shared/types";
+import type { OverlayCustomActionButton, OverlayCustomAsset, OverlayEffectProfile, OverlayElement, OverlaySource, OverlayMarketData } from "@shared/types";
 import { defaultOverlayEffectProfile, defaultOverlayEffectProfiles, normalizeOverlayEffectProfile } from "@/lib/overlayFx";
 
 /**
@@ -22,6 +22,7 @@ interface OverlayState {
   enabled: boolean; // overlay shown over the dashboard (edit/preview)
   elements: OverlayElement[];
   customAssets: OverlayCustomAsset[];
+  customButtons: OverlayCustomActionButton[];
   effectProfiles: Record<string, OverlayEffectProfile>;
 
   setEnabled: (v: boolean) => void;
@@ -32,6 +33,8 @@ interface OverlayState {
   addCustomAsset: (asset: OverlayCustomAsset) => void;
   updateCustomAsset: (id: string, patch: Partial<OverlayCustomAsset>) => void;
   removeCustomAsset: (id: string) => void;
+  upsertCustomButton: (button: OverlayCustomActionButton) => void;
+  removeCustomButton: (id: string) => void;
   updateEffectProfile: (actionId: string, patch: Partial<OverlayEffectProfile>) => void;
   resetEffectProfile: (actionId: string) => void;
   resetEffectProfiles: () => void;
@@ -48,6 +51,7 @@ export const useOverlayStore = create<OverlayState>()(
       enabled: false,
       elements: DEFAULTS,
       customAssets: [],
+      customButtons: [],
       effectProfiles: defaultOverlayEffectProfiles(),
 
       setEnabled: (enabled) => set({ enabled }),
@@ -99,8 +103,17 @@ export const useOverlayStore = create<OverlayState>()(
       removeCustomAsset: (id) =>
         set((s) => ({
           customAssets: s.customAssets.filter((asset) => asset.id !== id),
+          customButtons: s.customButtons.filter((button) => button.assetId !== id),
           elements: s.elements.filter((e) => e.custom?.id !== id),
         })),
+
+      upsertCustomButton: (button) =>
+        set((s) => ({
+          customButtons: [button, ...s.customButtons.filter((b) => b.id !== button.id && b.assetId !== button.assetId)].slice(0, 12),
+        })),
+
+      removeCustomButton: (id) =>
+        set((s) => ({ customButtons: s.customButtons.filter((button) => button.id !== id) })),
 
       updateEffectProfile: (actionId, patch) =>
         set((s) => {
@@ -148,6 +161,7 @@ export const useOverlayStore = create<OverlayState>()(
           ...current,
           ...saved,
           customAssets: saved?.customAssets ?? current.customAssets,
+          customButtons: saved?.customButtons ?? current.customButtons,
           elements: saved?.elements ?? current.elements,
           effectProfiles,
         };

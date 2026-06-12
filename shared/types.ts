@@ -418,6 +418,16 @@ export interface OverlayCustomAsset {
   createdAt: number;
 }
 
+export interface OverlayCustomActionButton {
+  id: string;
+  assetId: string;
+  label: string;
+  cost: number;
+  accent: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
 export type OverlayEffectMotion = "default" | "slower" | "snappy" | "cinematic" | "chaos";
 
 export interface OverlayEffectProfile {
@@ -484,6 +494,7 @@ export interface OverlayEngagementEvent {
     emote?: string;
     message?: string;
     color?: string;
+    customAsset?: OverlayCustomAsset;
     /** Aggregated event count for high-volume crowd actions. */
     count?: number;
   };

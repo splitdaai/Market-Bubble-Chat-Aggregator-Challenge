@@ -25,7 +25,9 @@ import {
 import { OVERLAY_ACTIONS, canAfford, publishOverlayEvent, roomFromSearch, spendBucks, type OverlayActionDef } from "@/lib/overlayEngagement";
 import { compact } from "@/lib/format";
 import { useBucksLedger } from "@/store/bucksLedgerStore";
+import { useOverlayStore } from "@/store/overlayStore";
 import { useToastStore } from "@/store/toastStore";
+import type { OverlayCustomAsset } from "@shared/types";
 import { OverlayFxLab } from "./OverlayFxLab";
 import { Toaster } from "./Toaster";
 
@@ -114,6 +116,11 @@ const ACTION_VISUALS: Record<string, { icon?: LucideIcon; image?: string; alt: s
   "clear-overlay": { icon: Eraser, alt: "Clear overlay" },
 };
 
+type EngageAction = OverlayActionDef & {
+  customAsset?: OverlayCustomAsset;
+  customButtonId?: string;
+};
+
 function storedNumber(key: string, fallback: number): number {
   try {
     const raw = localStorage.getItem(key);
@@ -143,10 +150,31 @@ export function EngagePage() {
   const [last, setLast] = useState<string>("Ready to move the overlay.");
   const [isSending, setIsSending] = useState(false);
   const [fxOpen, setFxOpen] = useState(false);
+  const customAssets = useOverlayStore((s) => s.customAssets);
+  const customButtons = useOverlayStore((s) => s.customButtons);
   const hasToasts = useToastStore((s) => s.toasts.length > 0);
   const sendLockedUntil = useRef(0);
   const balanceRef = useRef(balance);
   const releaseTimer = useRef<number | null>(null);
+  const engageActions = useMemo<EngageAction[]>(() => {
+    const custom: EngageAction[] = [];
+    for (const button of customButtons) {
+      const asset = customAssets.find((a) => a.id === button.assetId);
+      if (!asset) continue;
+      custom.push({
+        id: `custom-${button.id}`,
+        kind: "emote",
+        label: button.label,
+        cost: button.cost,
+        description: `Trigger ${asset.name} with its saved PNG animation.`,
+        cta: "Send custom",
+        accent: button.accent || asset.accent,
+        customAsset: asset,
+        customButtonId: button.id,
+      });
+    }
+    return [...OVERLAY_ACTIONS, ...custom];
+  }, [customAssets, customButtons]);
 
   const saveBalance = (n: number) => {
     balanceRef.current = n;
@@ -171,7 +199,7 @@ export function EngagePage() {
     if (releaseTimer.current !== null) window.clearTimeout(releaseTimer.current);
   }, []);
 
-  const fire = (action: OverlayActionDef) => {
+  const fire = (action: EngageAction) => {
     const now = Date.now();
     const isClearAction = action.id === "clear-overlay";
     if (!isClearAction && now < sendLockedUntil.current) {
@@ -195,6 +223,7 @@ export function EngagePage() {
         ticker,
         emote: EMOTE_BY_ACTION[action.id] ?? emote,
         color: action.id === "mood-wave" ? color : action.accent,
+        customAsset: action.customAsset,
         message: message.trim().slice(0, 72),
       },
     });
@@ -286,8 +315,8 @@ export function EngagePage() {
             </div>
           </div>
 
-          <div className="grid grid-cols-4 gap-2 sm:grid-cols-2 sm:gap-3 lg:grid-cols-3">
-            {OVERLAY_ACTIONS.map((action, i) => {
+          <div className="grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-3">
+            {engageActions.map((action, i) => {
               const ok = canAfford(balance, action);
               const isClearAction = action.id === "clear-overlay";
               const disabled = !ok || (isSending && !isClearAction);
@@ -300,7 +329,7 @@ export function EngagePage() {
                   onClick={() => fire(action)}
                   disabled={disabled}
                   title={`${action.label}: ${action.description}`}
-                  className="group relative min-h-[92px] overflow-hidden rounded-xl border p-2 text-center transition disabled:cursor-not-allowed disabled:opacity-42 sm:min-h-[132px] sm:rounded-2xl sm:p-4 sm:text-left"
+                  className="group relative min-h-[118px] overflow-hidden rounded-xl border p-2.5 text-center transition disabled:cursor-not-allowed disabled:opacity-42 sm:min-h-[132px] sm:rounded-2xl sm:p-4 sm:text-left"
                   style={{ borderColor: ok && (!isSending || isClearAction) ? `${action.accent}66` : "rgba(255,255,255,0.1)", background: ok && (!isSending || isClearAction) ? `linear-gradient(140deg, ${action.accent}18, rgba(255,255,255,0.035))` : "rgba(255,255,255,0.025)" }}
                 >
                   <div className="absolute -right-6 -top-6 h-16 w-16 rounded-full blur-2xl transition group-hover:scale-125 sm:-right-8 sm:-top-8 sm:h-24 sm:w-24" style={{ background: `${action.accent}33` }} />
@@ -340,8 +369,8 @@ export function EngagePage() {
   );
 }
 
-function ActionVisual({ action, emote, color, enabled }: { action: OverlayActionDef; emote: string; color: string; enabled: boolean }) {
-  const visual = ACTION_VISUALS[action.id] ?? { icon: Zap, alt: action.label };
+function ActionVisual({ action, emote, color, enabled }: { action: EngageAction; emote: string; color: string; enabled: boolean }) {
+  const visual = action.customAsset ? { image: action.customAsset.src, alt: action.label } : ACTION_VISUALS[action.id] ?? { icon: Zap, alt: action.label };
   const Icon = visual.icon;
   const tint = enabled ? action.accent : "rgba(255,255,255,0.42)";
   const dynamicText = action.id === "emote-burst" ? emote : visual.text;
