@@ -6,6 +6,7 @@ import { useToastStore } from "@/store/toastStore";
 import { OverlayChip } from "./OverlayChip";
 import { OverlayChat } from "./OverlayChat";
 import { OverlayMarket } from "./OverlayMarket";
+import { CustomOverlayEffect } from "./CustomOverlayEffect";
 import type { OverlaySource } from "@shared/types";
 import { useState } from "react";
 
@@ -110,7 +111,15 @@ export function OverlayLayer() {
                 <Trash2 size={11} />
               </button>
             )}
-            {el.source === "chat" ? <OverlayChat el={el} /> : el.source === "market" ? <OverlayMarket el={el} /> : <OverlayChip el={el} />}
+            {el.source === "chat" ? (
+              <OverlayChat el={el} />
+            ) : el.source === "market" ? (
+              <OverlayMarket el={el} />
+            ) : el.source === "custom" ? (
+              <CustomOverlayEffect el={el} editing />
+            ) : (
+              <OverlayChip el={el} />
+            )}
             {(el.source === "chat" || el.source === "market") && (
               <div
                 onPointerDown={(e) => onResizeDown(e, el.id, el.w ?? 320, el.h ?? 380)}

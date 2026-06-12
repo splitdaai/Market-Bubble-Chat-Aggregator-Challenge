@@ -4,6 +4,7 @@ import { useModeStore } from "@/store/modeStore";
 import { OverlayChip } from "./OverlayChip";
 import { OverlayChat } from "./OverlayChat";
 import { OverlayMarket } from "./OverlayMarket";
+import { CustomOverlayEffect } from "./CustomOverlayEffect";
 import { EngagementQr, OverlayEngagementLayer } from "./OverlayEngagementLayer";
 import { ENGAGE_ROOM } from "@/lib/overlayEngagement";
 
@@ -51,7 +52,15 @@ export function OverlayPage() {
     <div className="fixed inset-0">
       {elements.filter((el) => el.visible).map((el) => (
         <div key={el.id} className="absolute" style={{ left: el.x, top: el.y }}>
-          {el.source === "chat" ? <OverlayChat el={el} /> : el.source === "market" ? <OverlayMarket el={el} /> : <OverlayChip el={el} />}
+          {el.source === "chat" ? (
+            <OverlayChat el={el} />
+          ) : el.source === "market" ? (
+            <OverlayMarket el={el} />
+          ) : el.source === "custom" ? (
+            <CustomOverlayEffect el={el} />
+          ) : (
+            <OverlayChip el={el} />
+          )}
         </div>
       ))}
 
