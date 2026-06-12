@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { CSSProperties } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { engageUrl, qrImageUrl, subscribeOverlayEvents, type OverlayEngagementEvent } from "@/lib/overlayEngagement";
 
@@ -413,11 +414,11 @@ function ChartCandleBurst({ event, side }: { event: OverlayEngagementEvent; side
             }}
           />
           <motion.div
-            initial={{ y: blastYs[0], opacity: 0 }}
-            animate={{ y: blastYs, opacity: [0, 1, 0] }}
+            initial={{ y: blastYs[0], opacity: 0, scaleX: 0.38 }}
+            animate={{ y: blastYs, opacity: [0, 1, 0], scaleX: [0.38, 1.32, 0.7] }}
             transition={{ duration: 0.74, delay: 0.58, ease: "easeOut" }}
-            className="absolute left-1/2 h-20 w-20 -translate-x-1/2 rounded-full border border-white/35"
-            style={{ boxShadow: `0 0 42px ${glow}` }}
+            className="absolute left-1/2 h-[6px] w-40 -translate-x-1/2 rotate-[-18deg] rounded-sm bg-[linear-gradient(90deg,transparent,#fff,var(--candle-blast),transparent)]"
+            style={{ "--candle-blast": color, boxShadow: `0 0 34px ${glow}` } as CSSProperties}
           />
         </motion.div>
         {Array.from({ length: 24 }, (_, i) => {
