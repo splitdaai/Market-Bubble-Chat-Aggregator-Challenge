@@ -141,6 +141,14 @@ export function BroadcastView({ onOpenConnections }: { onOpenConnections?: () =>
     }
   }, [transparent]);
 
+  // `&mode=live|demo` pins the data source on load so an OBS Browser Source
+  // isn't at the mercy of whatever the Demo/Live toggle was last set to.
+  useEffect(() => {
+    const m = params.get("mode");
+    if (m === "live") useModeStore.getState().setDemo(false);
+    else if (m === "demo") useModeStore.getState().setDemo(true);
+  }, [params]);
+
   const totalViewers = snapshot.totals.viewers;
 
   // ── The chat panel itself (header + feed) ──
@@ -472,29 +480,66 @@ function clamp(n: number, lo: number, hi: number): number {
   return Math.max(lo, Math.min(hi, n));
 }
 
-/** "Copy OBS Source URL" pill on the stage preview — gives the operator the
- *  clean `?broadcast=1` URL (NOT the `&stage=1` preview URL) to paste into
- *  OBS as a Browser Source. */
+/** "Copy OBS URL" control on the stage preview — opens a tiny menu with two
+ *  clean `?broadcast=1` URLs to paste into OBS as a Browser Source:
+ *    • LIVE — `&mode=live`, pulls real connected-platform data
+ *    • DEMO — `&mode=demo`, the self-running mock firehose (no setup)
+ *  The `&mode=` param forces the mode on load so an OBS source isn't at the
+ *  mercy of whatever the toggle was last set to. */
 function CopyObsUrlButton() {
-  const [copied, setCopied] = useState(false);
-  const url = typeof window !== "undefined"
-    ? `${window.location.origin}${window.location.pathname}?broadcast=1`
-    : "";
-  const onCopy = async () => {
+  const [open, setOpen] = useState(false);
+  const [copied, setCopied] = useState<"live" | "demo" | null>(null);
+  const base = typeof window !== "undefined" ? `${window.location.origin}${window.location.pathname}` : "";
+  const urlFor = (mode: "live" | "demo") => `${base}?broadcast=1&mode=${mode}`;
+
+  const copy = async (mode: "live" | "demo") => {
     try {
-      await navigator.clipboard.writeText(url);
-      setCopied(true);
-      window.setTimeout(() => setCopied(false), 1800);
+      await navigator.clipboard.writeText(urlFor(mode));
+      setCopied(mode);
+      window.setTimeout(() => setCopied(null), 1600);
     } catch { /* ignore */ }
   };
+
   return (
-    <button
-      onClick={onCopy}
-      title="Copy the clean OBS Browser Source URL — paste it in OBS → Sources → + → Browser"
-      className="flex items-center gap-1.5 rounded-xl px-3 py-2 text-[13px] font-bold transition hover:brightness-125"
-      style={{ background: "#d9a547", color: "#14100a", boxShadow: "0 4px 14px rgba(217,165,71,0.35)" }}
-    >
-      {copied ? "✓ Copied" : "⧉ Copy OBS URL"}
-    </button>
+    <div className="relative">
+      <button
+        onClick={() => setOpen((v) => !v)}
+        title="Copy the OBS Browser Source URL — choose Live or Demo"
+        className="flex items-center gap-1.5 rounded-xl px-3 py-2 text-[13px] font-bold transition hover:brightness-125"
+        style={{ background: "#d9a547", color: "#14100a", boxShadow: "0 4px 14px rgba(217,165,71,0.35)" }}
+      >
+        ⧉ Copy OBS URL <span style={{ opacity: 0.7 }}>▾</span>
+      </button>
+
+      {open && (
+        <>
+          <div className="fixed inset-0 z-30" onClick={() => setOpen(false)} />
+          <div
+            className="absolute left-0 top-full z-40 mt-1.5 w-60 overflow-hidden rounded-xl text-[13px]"
+            style={{ background: "#14100a", border: "1px solid rgba(217,165,71,0.4)", boxShadow: "0 16px 40px rgba(0,0,0,0.7)" }}
+          >
+            <button
+              onClick={() => copy("live")}
+              className="flex w-full items-center gap-2 px-3 py-2.5 text-left transition hover:brightness-125"
+              style={{ color: "#86ffd5" }}
+            >
+              <span className="h-2 w-2 rounded-full" style={{ background: "#16e6a4" }} />
+              <span className="font-bold">{copied === "live" ? "✓ Copied Live URL" : "Copy LIVE URL"}</span>
+              <span className="ml-auto text-[10px] uppercase tracking-wider" style={{ color: "#9a8f7e" }}>real data</span>
+            </button>
+            <div style={{ height: 1, background: "rgba(217,165,71,0.18)" }} />
+            <button
+              onClick={() => copy("demo")}
+              className="flex w-full items-center gap-2 px-3 py-2.5 text-left transition hover:brightness-125"
+              style={{ color: "#e8c987" }}
+            >
+              <span className="h-2 w-2 rounded-full" style={{ background: "#d9a547" }} />
+              <span className="font-bold">{copied === "demo" ? "✓ Copied Demo URL" : "Copy DEMO URL"}</span>
+              <span className="ml-auto text-[10px] uppercase tracking-wider" style={{ color: "#9a8f7e" }}>mock</span>
+            </button>
+          </div>
+        </>
+      )}
+    </div>
   );
 }
