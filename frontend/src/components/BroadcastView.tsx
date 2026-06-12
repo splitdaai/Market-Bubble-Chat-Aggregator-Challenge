@@ -248,8 +248,10 @@ export function BroadcastView() {
 // with whatever scene they're going to use, and persists the result so it
 // holds across reloads.
 
-/** Measured off a real frame: just inside the tile's white border. */
-const DEFAULT_TILE = { left: 20.63, top: 5.1, width: 52.14, height: 57.7 };
+/** The operator-tuned layout that lines up cleanly with the center capture
+ *  tile in the show frame. Percentages are relative to the letterboxed 16:9
+ *  frame, so this tracks the video tile at every window size. */
+const DEFAULT_TILE = { left: 27.7, top: 5.9, width: 44.9, height: 59.4 };
 const TILE_KEY = "vibechat-broadcast-tile";
 
 interface Tile { left: number; top: number; width: number; height: number }
