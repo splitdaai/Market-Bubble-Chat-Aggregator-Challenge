@@ -209,7 +209,7 @@ export function Topbar({ onOpenTheme, onOpenConnections, onOpenFeatures }: { onO
           whileTap={{ scale: 0.95 }}
           href="/?broadcast=1&stage=1"
           title="The on-stream Chat Only panel (OBS center-screen)"
-          className="ml-1 flex items-center gap-1.5 rounded-xl border border-white/15 bg-white/[0.04] px-3 py-2 text-sm font-bold text-ink transition hover:border-gold/50 hover:text-gold"
+          className="ml-1 flex items-center gap-1.5 whitespace-nowrap rounded-xl border border-white/15 bg-white/[0.04] px-3 py-2 text-sm font-bold text-ink transition hover:border-gold/50 hover:text-gold"
         >
           <MessagesSquare size={16} /> <span className="hidden sm:inline">Chat Only</span>
         </motion.a>

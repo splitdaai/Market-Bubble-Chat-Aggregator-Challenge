@@ -34,7 +34,7 @@ const STEPS: { view: View; title: string; body: string }[] = [
   { view: "market", title: "Real markets, zero mockups", body: "Crypto + indices + commodities live (with automatic failover so the board never blanks), real Hyperliquid trader leaderboards & vaults by TVL, and real headlines from CoinDesk/Cointelegraph/Decrypt — sentiment-scored." },
   { view: "kol", title: "KOL smart-money tracker", body: "Top Hyperliquid wallets — filtered to accounts that are actually active. Click one: live account value chart, open positions, and recent fills with realized PnL. All on-chain, all real." },
   { view: "analytics", title: "The full revenue picture", body: "Viewers, watch time, chatters, new followers — plus every revenue stream connected: bits, subs, Kicks, Super Chats, memberships, crypto tips, and estimated ad revenue tied to ads actually shown." },
-  { view: "live", title: "Built for OBS", body: "Viewer overlay (browser source) and a full control dock (custom browser dock) — copyable URLs in Connections. Chat, odds and stats follow the host into the stream itself." },
+  { view: "live", title: "Built for OBS", body: "Hit \"Chat Only\" in the header — the aggregated chat as a broadcast-clean panel made to sit center-screen between the hosts, with per-streamer viewer counts (hover for the platform split). Plus a viewer overlay (browser source) and a full control dock — copyable URLs in Connections." },
   { view: "live", title: "Honest demo, real wiring", body: "Everything you just saw runs in demo without keys — and the live mode behind it is genuinely wired: anonymous Twitch/Kick readers, OAuth for YouTube/X, watch-any-channel, X-login chat + non-custodial tipping." },
 ];
 

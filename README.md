@@ -40,7 +40,8 @@ Mirror (S3): http://marketbubble-live-preview.s3-website-us-east-1.amazonaws.com
 | **Moderation** | Cross-platform timeout (stackable 1m/5m/15m/1h/1d, reduce/remove) + ban, from chat or the user card. |
 | **Giveaway Bot** | Run a giveaway across all platforms at once — pooled entries + animated winner draw. |
 | **Clips & Clip Radar** | Auto-detects clip-worthy chat-velocity spikes; capture clips with chat context (native-clip backend seam). |
-| **OBS** | Three browser-source routes: floating viewer/chat/market **overlay** (`?overlay=1`), a compact **dock** (`?dock=1`), plus a live **OBS WebSocket v5** client to add the source for you. |
+| **Chat Only (on-stream)** | The aggregated chat as a broadcast-clean panel built to sit **center-screen between the hosts** (`?broadcast=1`) — per-streamer viewer totals (hover for the platform split), On Air gold styling. "Chat Only" in the header previews it staged over the show frame. |
+| **OBS** | Four browser-source routes: the **Chat Only panel** (`?broadcast=1`), floating viewer/chat/market **overlay** (`?overlay=1`), a compact **dock** (`?dock=1`), plus a live **OBS WebSocket v5** client to add the source for you. |
 | **Visual editor** | Drag / drop / resize / snap-to-grid every panel; layout persists to localStorage. Theme editor with live CSS-variable theming. |
 | **Demo / Live** | One toggle flips the whole app between a self-contained mock firehose and real backend data. |
 
@@ -88,6 +89,7 @@ npm run dev                 # → http://localhost:4000
 Then set `VITE_BACKEND_URL=http://localhost:4000` for the frontend and toggle the app to **Live**. Each platform you want to connect needs a developer app registered + its Client ID/Secret in `backend/.env` (see the comments there for the exact callback URLs).
 
 **OBS browser sources** (paste into OBS → Sources → Browser):
+- Chat Only (center-screen panel): `<demo-url>/?broadcast=1` — options: `&bg=transparent`, `&platform=twitch,kick`, `&fontsize=18`
 - Overlay: `<demo-url>/?overlay=1`
 - Dock: `<demo-url>/?dock=1`
 
