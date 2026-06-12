@@ -136,12 +136,12 @@ export function BroadcastView() {
   // ── The chat panel itself (header + feed) ──
   const panel = (
     <div
-      className={`relative flex h-full flex-col overflow-hidden ${stage ? "rounded-2xl" : ""}`}
+      className={`relative flex h-full flex-col overflow-hidden ${stage ? "rounded-lg" : ""}`}
       style={{
         fontSize: fontPx,
         color: "#f3efe7",
         background: transparent ? "transparent" : "#080706",
-        ...(stage ? { border: "1px solid rgba(217,165,71,0.35)", boxShadow: "0 24px 80px rgba(0,0,0,0.8), 0 0 42px rgba(217,165,71,0.12)" } : {}),
+        ...(stage ? { border: "1px solid rgba(217,165,71,0.28)" } : {}),
       }}
     >
       {/* ── Header strip (On Air broadcast lower-third) ── */}
@@ -239,23 +239,33 @@ export function BroadcastView() {
   // ── Plain mode (real OBS source): the panel fills the viewport ──
   if (!stage) return <div className="h-screen">{panel}</div>;
 
-  // ── Stage mode (demo): blurred hosts backdrop, chat standing out center ──
+  // ── Stage mode (demo): the chat installed INTO the show frame — unblurred
+  // footage in a fixed 16:9 box, panel composited exactly over the center
+  // capture tile (measured off the actual frame: just inside its white border),
+  // so it reads as a real broadcast with the chat as a native source.
+  const TILE = { left: "20.63%", top: "5.1%", width: "52.14%", height: "57.7%" };
+
   return (
-    <div className="relative h-screen overflow-hidden" style={{ background: "#080706" }}>
-      {/* The actual show footage (Ansem & Banks on set), blurred to a backdrop.
-          Seeks past the intro slate so the hosts are on screen from frame 1. */}
-      <video
-        src="/stream-preview.mp4"
-        autoPlay
-        muted
-        loop
-        playsInline
-        onLoadedMetadata={(e) => { e.currentTarget.currentTime = 24; }}
-        className="absolute inset-0 h-full w-full object-cover"
-        style={{ filter: "blur(12px) brightness(1.05) contrast(1.05) saturate(1.05)", transform: "scale(1.08)" }}
-      />
-      {/* Warm vignette so the espresso panel reads as the focal point */}
-      <div className="absolute inset-0" style={{ background: "radial-gradient(ellipse at center, rgba(8,7,6,0.04) 36%, rgba(8,7,6,0.42) 100%)" }} />
+    <div className="relative flex h-screen items-center justify-center overflow-hidden" style={{ background: "#000" }}>
+      {/* 16:9 broadcast frame, letterboxed to the viewport */}
+      <div className="relative" style={{ aspectRatio: "16 / 9", width: "min(100vw, 177.78vh)" }}>
+        {/* The actual show footage (Ansem & Banks on set) — clean, no blur.
+            Seeks past the intro slate so the hosts are on screen from frame 1. */}
+        <video
+          src="/stream-preview.mp4"
+          autoPlay
+          muted
+          loop
+          playsInline
+          onLoadedMetadata={(e) => { e.currentTarget.currentTime = 24; }}
+          className="absolute inset-0 h-full w-full object-cover"
+        />
+
+        {/* The chat, installed over the center tile */}
+        <div className="absolute z-10 flex flex-col" style={TILE}>
+          {panel}
+        </div>
+      </div>
 
       {/* Back to the dashboard (Simple/Pro per saved mode) — demo chrome only,
           never rendered on the clean OBS route. */}
@@ -266,13 +276,6 @@ export function BroadcastView() {
       >
         ← Dashboard
       </a>
-
-      {/* The panel sits exactly over the show's center capture tile (between
-          the host cams, above the banner + ticker) so it reads as a native
-          part of the broadcast frame. */}
-      <div className="relative z-10 mx-auto flex flex-col" style={{ width: "clamp(560px, 52vw, 1280px)", maxWidth: "94vw", height: "66vh", marginTop: "1.2vh" }}>
-        {panel}
-      </div>
     </div>
   );
 }
