@@ -261,9 +261,7 @@ const BroadcastMessageRow = memo(function BroadcastMessageRow({ msg, deleted }: 
 
 // ── Stage mode (demo): the chat installed INTO the show frame — unblurred
 // footage in a fixed 16:9 box, panel composited over the center capture
-// tile. Edit mode lets the operator drag/resize the panel to line it up
-// with whatever scene they're going to use, and persists the result so it
-// holds across reloads.
+// tile. Position is loaded from the saved operator-tuned placement.
 
 /** Operator-tuned to seat the chat panel cleanly inside the show's white
  *  tile border — thin white frame visible on all four sides, no video
@@ -289,14 +287,10 @@ function loadTile(): Tile {
 }
 
 function StageView({ panel }: { panel: React.ReactNode }) {
-  const [tile, setTile] = useState<Tile>(() => loadTile());
-  const [edit, setEdit] = useState(false);
+  const [tile] = useState<Tile>(() => loadTile());
   const frameRef = useRef<HTMLDivElement>(null);
-  const tileRef = useRef<HTMLDivElement>(null);
-  const rafRef = useRef<number | null>(null);
-  const draftTileRef = useRef<Tile | null>(null);
 
-  // Persist on change (skip writes if equal to defaults so a "Reset" clears localStorage cleanly).
+  // Preserve existing tuned positions, but keep the stage preview locked for demos.
   useEffect(() => {
     try {
       const isDefault = tile.left === DEFAULT_TILE.left && tile.top === DEFAULT_TILE.top && tile.width === DEFAULT_TILE.width && tile.height === DEFAULT_TILE.height;
@@ -304,81 +298,6 @@ function StageView({ panel }: { panel: React.ReactNode }) {
       else localStorage.setItem(TILE_KEY, JSON.stringify(tile));
     } catch { /* ignore */ }
   }, [tile]);
-
-  // Pointer-driven drag + resize. We convert pixels → frame-relative percent
-  // so the saved position is resolution-independent.
-  const dragRef = useRef<{ mode: "move" | "resize"; sx: number; sy: number; t0: Tile; frameW: number; frameH: number } | null>(null);
-
-  function applyTileStyle(next: Tile) {
-    const el = tileRef.current;
-    if (!el) return;
-    el.style.left = `${next.left}%`;
-    el.style.top = `${next.top}%`;
-    el.style.width = `${next.width}%`;
-    el.style.height = `${next.height}%`;
-  }
-
-  function onPointerDown(mode: "move" | "resize") {
-    return (e: React.PointerEvent) => {
-      if (!edit) return;
-      e.preventDefault();
-      e.stopPropagation();
-      const frame = frameRef.current;
-      if (!frame) return;
-      const r = frame.getBoundingClientRect();
-      dragRef.current = { mode, sx: e.clientX, sy: e.clientY, t0: { ...tile }, frameW: r.width, frameH: r.height };
-      draftTileRef.current = { ...tile };
-      (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
-    };
-  }
-
-  useEffect(() => {
-    const onMove = (e: PointerEvent) => {
-      const d = dragRef.current;
-      if (!d) return;
-      const dxPct = ((e.clientX - d.sx) / d.frameW) * 100;
-      const dyPct = ((e.clientY - d.sy) / d.frameH) * 100;
-      const next = d.mode === "move"
-        ? {
-            left: clamp(d.t0.left + dxPct, 0, 100 - d.t0.width),
-            top: clamp(d.t0.top + dyPct, 0, 100 - d.t0.height),
-            width: d.t0.width,
-            height: d.t0.height,
-          }
-        : {
-            left: d.t0.left,
-            top: d.t0.top,
-            width: clamp(d.t0.width + dxPct, 12, 100 - d.t0.left),
-            height: clamp(d.t0.height + dyPct, 10, 100 - d.t0.top),
-          };
-      draftTileRef.current = next;
-      if (rafRef.current !== null) return;
-      rafRef.current = window.requestAnimationFrame(() => {
-        rafRef.current = null;
-        if (draftTileRef.current) applyTileStyle(draftTileRef.current);
-      });
-    };
-    const onUp = () => {
-      const next = draftTileRef.current;
-      dragRef.current = null;
-      draftTileRef.current = null;
-      if (rafRef.current !== null) {
-        window.cancelAnimationFrame(rafRef.current);
-        rafRef.current = null;
-      }
-      if (next) {
-        applyTileStyle(next);
-        setTile(next);
-      }
-    };
-    window.addEventListener("pointermove", onMove);
-    window.addEventListener("pointerup", onUp);
-    return () => {
-      window.removeEventListener("pointermove", onMove);
-      window.removeEventListener("pointerup", onUp);
-      if (rafRef.current !== null) window.cancelAnimationFrame(rafRef.current);
-    };
-  }, []);
 
   const tileStyle = {
     left: `${tile.left}%`,
@@ -405,37 +324,13 @@ function StageView({ panel }: { panel: React.ReactNode }) {
 
         {/* The chat, installed over the center tile */}
         <div
-          ref={tileRef}
           className="absolute z-10 flex flex-col"
           style={{
             ...tileStyle,
-            outline: edit ? "2px dashed #d9a547" : undefined,
-            outlineOffset: edit ? 2 : 0,
-            willChange: edit ? "left, top, width, height" : undefined,
             contain: "layout paint style",
           }}
         >
           {panel}
-
-          {/* Edit affordances — grip on top to drag, handle at bottom-right to resize. */}
-          {edit && (
-            <>
-              <div
-                onPointerDown={onPointerDown("move")}
-                title="Drag to reposition"
-                className="absolute -top-3 left-1/2 z-30 flex -translate-x-1/2 cursor-move items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-black uppercase tracking-[0.14em]"
-                style={{ background: "#d9a547", color: "#14100a", boxShadow: "0 4px 14px rgba(0,0,0,0.5)" }}
-              >
-                ⋮⋮ Drag
-              </div>
-              <div
-                onPointerDown={onPointerDown("resize")}
-                title="Drag to resize"
-                className="absolute -bottom-2 -right-2 z-30 h-6 w-6 cursor-nwse-resize rounded-md"
-                style={{ background: "#d9a547", border: "2px solid #14100a", boxShadow: "0 2px 8px rgba(0,0,0,0.5)" }}
-              />
-            </>
-          )}
         </div>
       </div>
 
@@ -451,34 +346,6 @@ function StageView({ panel }: { panel: React.ReactNode }) {
         <CopyObsUrlButton />
       </div>
 
-      {/* Edit toggle + (when editing) live coordinates + reset */}
-      <div className="absolute right-4 top-4 z-20 flex items-center gap-2">
-        {edit && (
-          <>
-            <span className="rounded-lg px-2.5 py-1 font-mono text-[11px]" style={{ background: "rgba(8,7,6,0.82)", border: "1px solid rgba(217,165,71,0.25)", color: "#e8c987", backdropFilter: "blur(6px)" }}>
-              {tile.left.toFixed(1)},{tile.top.toFixed(1)} · {tile.width.toFixed(1)}×{tile.height.toFixed(1)}
-            </span>
-            <button
-              onClick={() => setTile({ ...DEFAULT_TILE })}
-              className="rounded-xl px-3 py-2 text-[13px] font-bold transition hover:brightness-125"
-              style={{ background: "rgba(8,7,6,0.82)", border: "1px solid rgba(217,165,71,0.4)", color: "#e8c987", backdropFilter: "blur(6px)" }}
-            >
-              ↻ Reset
-            </button>
-          </>
-        )}
-        <button
-          onClick={() => setEdit((v) => !v)}
-          className="rounded-xl px-3 py-2 text-[13px] font-bold transition hover:brightness-125"
-          style={
-            edit
-              ? { background: "#d9a547", color: "#14100a", border: "1px solid #d9a547", boxShadow: "0 4px 14px rgba(217,165,71,0.35)" }
-              : { background: "rgba(8,7,6,0.82)", border: "1px solid rgba(217,165,71,0.4)", color: "#e8c987", backdropFilter: "blur(6px)" }
-          }
-        >
-          {edit ? "✓ Done" : "✎ Edit"}
-        </button>
-      </div>
     </div>
   );
 }

@@ -3,11 +3,11 @@ import { persist } from "zustand/middleware";
 import type { Platform } from "@shared/types";
 
 /**
- * Persisted Bubble Bits ledger.
+ * Persisted Bubble Bucks ledger.
  *
  * The live stats store only knows what's happened this session — on reload it
  * starts from zero. This store snapshots each viewer's lifetime activity to
- * localStorage and merges it back into balances so Bubble Bits survive
+ * localStorage and merges it back into balances so Bubble Bucks survive
  * reloads.
  *
  * When the backend lands, this is the seam where the server's authoritative
@@ -30,7 +30,7 @@ export interface LedgerEntry {
   donated: number;
   /** Lifetime subs (own + gifted). */
   subs: number;
-  /** Lifetime Bubble Bits spent (engagement actions, perks, tipping). */
+  /** Lifetime Bubble Bucks spent (engagement actions, perks, tipping). */
   spent: number;
 }
 
@@ -40,7 +40,7 @@ interface LedgerState {
   entries: Record<LedgerKey, LedgerEntry>;
   /** Merge a current-session row into the ledger (called every snapshot tick). */
   upsert: (platform: Platform, username: string, e: Partial<LedgerEntry>) => void;
-  /** Add Bubble Bits spend for a user (engagement actions, perks). */
+  /** Add Bubble Bucks spend for a user (engagement actions, perks). */
   addSpent: (platform: Platform, username: string, amount: number) => void;
   /** Get the merged view for a user (ledger-or-empty). */
   get: (platform: Platform, username: string) => LedgerEntry | null;

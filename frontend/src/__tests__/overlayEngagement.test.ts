@@ -2,10 +2,14 @@ import { describe, expect, it } from "vitest";
 import { actionById, canAfford, engageUrl, qrImageUrl, spendBucks } from "@/lib/overlayEngagement";
 
 describe("overlay engagement", () => {
-  it("gates actions by Bubble Bits balance", () => {
-    const action = actionById("boss-attack")!;
-    expect(canAfford(124, action)).toBe(false);
-    expect(canAfford(125, action)).toBe(true);
+  it("gates actions by Bubble Bucks balance", () => {
+    const action = actionById("chart-pump")!;
+    expect(canAfford(299, action)).toBe(false);
+    expect(canAfford(300, action)).toBe(true);
+  });
+
+  it("does not expose the removed boss action", () => {
+    expect(actionById("boss-attack")).toBeUndefined();
   });
 
   it("spends only when balance can cover the action", () => {

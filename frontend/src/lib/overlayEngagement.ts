@@ -40,6 +40,8 @@ export const OVERLAY_ACTIONS: OverlayActionDef[] = [
   { id: "bear-vote", kind: "vote", label: "Bear Vote", cost: 0, description: "Move the crowd meter red.", cta: "Bearish", accent: "#ff5c7a" },
   { id: "charging-bull", kind: "vote", label: "Charging Bull", cost: 350, description: "Send a hyper-real bull charging across the source.", cta: "Release bull", accent: "#16e6a4" },
   { id: "bear-slash", kind: "vote", label: "Bear Slash", cost: 350, description: "Rip the screen with a hyper-real bear claw attack.", cta: "Slash screen", accent: "#ff5c7a" },
+  { id: "chart-pump", kind: "vote", label: "Green Candle", cost: 300, description: "Launch a giant green candle through the chart.", cta: "Pump chart", accent: "#16e6a4" },
+  { id: "chart-dump", kind: "vote", label: "Red Candle", cost: 300, description: "Send a giant red candle crashing down.", cta: "Dump chart", accent: "#ff3f5f" },
   { id: "ticker-boost", kind: "ticker", label: "Ticker Boost", cost: 10, description: "Push your ticker onto the live tape.", cta: "Boost ticker", accent: "#34d6ff" },
   { id: "ansem-emote", kind: "emote", label: "Ansem Spam", cost: 0, description: "Pop custom Ansem emotes across the overlay.", cta: "Spam Ansem", accent: "#f59e0b" },
   { id: "banks-emote", kind: "emote", label: "Banks Spam", cost: 0, description: "Pop custom Banks emotes across the overlay.", cta: "Spam Banks", accent: "#38bdf8" },
@@ -51,7 +53,6 @@ export const OVERLAY_ACTIONS: OverlayActionDef[] = [
   { id: "clip-boost", kind: "clip", label: "Clip Boost", cost: 35, description: "Flag this moment for the producer.", cta: "Clip it", accent: "#f97316" },
   { id: "soundwave", kind: "soundwave", label: "Soundwave Hit", cost: 50, description: "Trigger a visual audio-reactive hit.", cta: "Hit wave", accent: "#a78bfa" },
   { id: "spotlight", kind: "spotlight", label: "Viewer Spotlight", cost: 75, description: "Put your one-line take on the overlay.", cta: "Spotlight", accent: "#f8fafc" },
-  { id: "boss-attack", kind: "boss", label: "Attack FUD", cost: 125, description: "Damage the FUD boss bar with Bubble Bucks.", cta: "Attack", accent: "#ef4444" },
   { id: "whale-storm", kind: "emote", label: "Whale Storm", cost: 250, description: "A heavier premium emote storm.", cta: "Whale storm", accent: "#67e8f9" },
   { id: "clear-overlay", kind: "clear", label: "Clear Overlay", cost: 0, description: "Testing control: instantly remove active overlay effects.", cta: "Clear now", accent: "#e5e7eb" },
 ];

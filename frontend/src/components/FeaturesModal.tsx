@@ -18,7 +18,7 @@ const FEATURES: Feature[] = [
   { icon: Activity, title: "Live Stats", desc: "Real-time viewers, watch time & message velocity, per platform & combined.", tint: "#22d3ee" },
   { icon: BarChart3, title: "Analytics", desc: "Historical sessions: revenue, subs as $, trend lines & time filters.", tint: "#a78bfa" },
   { icon: Trophy, title: "Leaderboards", desc: "Top chatters, spenders & sub-funders ranked across all platforms.", tint: "#fbbf24" },
-  { icon: Sparkles, title: "Bubble Bits", desc: "Watch-&-earn chat points — earned per minute watched, per message, per sub & per $ supported; ranked on the leaderboard.", tint: "#d9a547" },
+  { icon: Sparkles, title: "Bubble Bucks", desc: "Watch-&-earn chat points — earned per minute watched, per message, per sub & per $ supported; ranked on the leaderboard.", tint: "#d9a547" },
   { icon: Play, title: "Chat Only (on-stream)", desc: "The aggregated chat as a broadcast-clean panel for the center of the stream — per-streamer viewer counts, platform split on hover.", tint: "#d9a547" },
   { icon: Monitor, title: "OBS Integration", desc: "Drop Chat Only or a live overlay in as a browser source, or dock the full panel inside OBS.", tint: "#60a5fa" },
   { icon: Flame, title: "Polymarket", desc: "Live prediction markets — trending & breaking — placeable as an overlay.", tint: "#fb7185" },

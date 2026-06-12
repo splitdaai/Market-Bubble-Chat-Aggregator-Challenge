@@ -49,16 +49,16 @@ export function AccountModal({ open, onClose, onOpenDashboard }: { open: boolean
                 )}
               </div>
 
-              {/* Bubble Bits rank badge — let viewers show off their 1-20
+              {/* Bubble Bucks rank badge — let viewers show off their 1-20
                   badge in chat, or hide it if they don't want the flex. */}
               <div>
-                <div className="mb-1.5 text-[11px] font-bold uppercase tracking-wider text-muted">Bubble Bits rank badge</div>
+                <div className="mb-1.5 text-[11px] font-bold uppercase tracking-wider text-muted">Bubble Bucks rank badge</div>
                 <button
                   onClick={() => setShowMyBucksBadge(!showMyBucksBadge)}
                   className={`flex w-full items-center justify-between gap-2 rounded-xl border px-3 py-2.5 text-left transition ${
                     showMyBucksBadge ? "border-accent/50 bg-accent/10" : "border-white/12 bg-white/[0.03]"
                   }`}
-                  title="When you're in the top 20 Bubble Bits earners, your rank shows next to your name in chat"
+                  title="When you're in the top 20 Bubble Bucks earners, your rank shows next to your name in chat"
                 >
                   <div className="min-w-0 flex-1">
                     <div className="text-[13px] font-bold text-ink">

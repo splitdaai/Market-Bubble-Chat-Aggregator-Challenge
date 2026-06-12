@@ -1,5 +1,5 @@
 /**
- * Bubble Bits — the show's chat-points currency (watch & earn).
+ * Bubble Bucks — the show's chat-points currency (watch & earn).
  *
  * v1 derives balances live from the same per-chatter stats that power the
  * leaderboards, so it works in demo and live mode with zero extra plumbing:
@@ -43,7 +43,7 @@ export function watchMinutes(u: BucksSource, now = Date.now()): number {
   return Math.max(0, (end - u.first) / 60_000);
 }
 
-/** A user's Bubble Bits balance, derived from their chat activity. */
+/** A user's Bubble Bucks balance, derived from their chat activity. */
 export function bucksFor(u: BucksSource, now = Date.now()): number {
   return Math.round(
     watchMinutes(u, now) * BUCKS.perMinute +
@@ -53,13 +53,13 @@ export function bucksFor(u: BucksSource, now = Date.now()): number {
   );
 }
 
-/** A user's available Bubble Bits balance — earned minus spent. */
+/** A user's available Bubble Bucks balance — earned minus spent. */
 export function balanceFor(u: BucksSource & { spent?: number }, now = Date.now()): number {
   return Math.max(0, bucksFor(u, now) - (u.spent ?? 0));
 }
 
 /**
- * Compute the 1–N rank for each user by lifetime Bubble Bits earned.
+ * Compute the 1–N rank for each user by lifetime Bubble Bucks earned.
  * Returns a Map keyed by `platform:username.toLowerCase()`.
  *
  * Tied scores share the higher rank ("standard competition" / "1224" ranking),

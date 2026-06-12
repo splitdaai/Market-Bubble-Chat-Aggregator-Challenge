@@ -10,13 +10,15 @@ const USER_KEY = "market-bubble-engage-user";
 const DEFAULT_BALANCE = 1200;
 const SEND_COOLDOWN_MS = 450;
 const TICKERS = ["BTC", "ETH", "SOL", "HYPE", "DOGE", "XRP", "NVDA", "COIN", "MSTR", "POLY"];
-const EMOTES = ["🫧", "🚀", "🐂", "💎", "🔥", "W", "📈", "🟢", "👑", "⚡"];
+const EMOTES = ["🚀", "🐂", "💎", "🔥", "W", "📈", "🟢", "👑", "⚡"];
 const COLORS = ["#16e6a4", "#d9a547", "#34d6ff", "#f97316", "#a78bfa", "#ff5c7a"];
 const SIDE_BY_ACTION: Record<string, "bull" | "bear"> = {
   "bull-vote": "bull",
   "charging-bull": "bull",
+  "chart-pump": "bull",
   "bear-vote": "bear",
   "bear-slash": "bear",
+  "chart-dump": "bear",
 };
 const EMOTE_BY_ACTION: Record<string, string> = {
   "ansem-emote": "ANSEM",
@@ -110,7 +112,6 @@ export function EngagePage() {
         emote: EMOTE_BY_ACTION[action.id] ?? emote,
         color: action.id === "mood-wave" ? color : action.accent,
         message: message.trim().slice(0, 72),
-        damage: action.id === "whale-storm" ? 30 : action.id === "boss-attack" ? 18 : action.id === "bear-slash" ? 24 : 8,
       },
     });
     setLast(`${action.label} sent. ${compact(next)} BB left.`);
@@ -138,7 +139,7 @@ export function EngagePage() {
                 <Sparkles size={14} /> Market Bubble Live Layer
               </div>
               <h1 className="max-w-xl text-5xl font-black leading-[0.92] tracking-normal text-white sm:text-6xl">
-                Spend Bubble Bits. Move the overlay.
+                Spend Bubble Bucks. Move the overlay.
               </h1>
               <p className="mt-4 max-w-lg text-[15px] leading-6 text-white/62">
                 Scan from the stream, pick a clean effect, and spend Bubble Bucks to trigger controlled on-screen moments.

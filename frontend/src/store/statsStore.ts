@@ -74,12 +74,12 @@ export interface UserRow {
   name: string;
   platform: Platform;
   count: number;
-  /** First seen — start of the viewer's watch session (Bubble Bits accrual). */
+  /** First seen — start of the viewer's watch session (Bubble Bucks accrual). */
   first: number;
   last: number;
   donated: number;
   subs: number;
-  /** Lifetime Bubble Bits spent on engagement actions / perks. */
+  /** Lifetime Bubble Bucks spent on engagement actions / perks. */
   spent: number;
   channel?: string;
 }
@@ -341,7 +341,7 @@ export const useStatsStore = create<StatsState>((set, get) => ({
     set({ snapshot: emptySnapshot() });
   },
 
-  // listUsers merges the persisted Bubble Bits ledger into the current
+  // listUsers merges the persisted Bubble Bucks ledger into the current
   // session so each user's `first`, `count`, `donated`, `subs`, and `spent`
   // reflect their lifetime totals (not just what's happened since page load).
   listUsers: () => {
@@ -419,7 +419,7 @@ export const useStatsStore = create<StatsState>((set, get) => ({
         const acc = platAccounts.length ? pick(platAccounts) : null;
         // joined at a random point in the session so watch-time bucks look real
         chatters.set(`${p}:seed-${seq}`, { name, platform: p, count, first: Date.now() - (3 + Math.random() * (elapsedMin - 3)) * 60_000, last: Date.now() - Math.random() * 240_000, donated, subs, channel: acc?.displayName });
-        // Seed a believable Bubble Bits spend for some chatters — anchors the
+        // Seed a believable Bubble Bucks spend for some chatters — anchors the
         // analytics "Top Spenders" leaderboard without needing live spending.
         // Heavy chatters/supporters spend more, but never more than they've earned.
         if (Math.random() < 0.22) {
@@ -575,7 +575,7 @@ export const useStatsStore = create<StatsState>((set, get) => ({
     // ---- persist watch-time + messages so balances survive reloads ----
     // The ledger holds lifetime totals keyed by platform:username; every tick
     // we upsert each known chatter so refreshing the page never zeroes a
-    // viewer's Bubble Bits. When the backend lands this is the swap point.
+    // viewer's Bubble Bucks. When the backend lands this is the swap point.
     const ledger = useBucksLedger.getState();
     for (const c of chatters.values()) {
       ledger.upsert(c.platform, c.name, {

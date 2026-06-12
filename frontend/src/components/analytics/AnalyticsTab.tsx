@@ -216,7 +216,7 @@ export function AnalyticsTab() {
       {/* current / in-progress stream — live snapshot */}
       <CurrentStreamCard live={live} prev={prev} snap={snap} plat={plat} account={account} pace={pace} />
 
-      {/* Bubble Bits leaderboards: earners / spenders / current balances */}
+      {/* Bubble Bucks leaderboards: earners / spenders / current balances */}
       <BubbleBucksAnalytics />
 
       {/* per-stream AVERAGE across history (NOT a copy of the current stream) —

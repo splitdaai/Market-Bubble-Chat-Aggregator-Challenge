@@ -14,7 +14,7 @@ const LENSES: { id: Lens; label: string; desc: string; color: string }[] = [
 ];
 
 /**
- * Top-20 Bubble Bits leaderboards for the analytics page — three lenses:
+ * Top-20 Bubble Bucks leaderboards for the analytics page — three lenses:
  * earned (lifetime), spent (lifetime), and current balance (earned − spent).
  * Rows are clickable to open the viewer's profile card.
  */
@@ -56,7 +56,7 @@ export function BubbleBucksAnalytics() {
     <section className="mt-5 rounded-2xl border border-white/8 bg-white/[0.02] p-4">
       <div className="mb-3 flex flex-wrap items-baseline gap-x-3 gap-y-1">
         <h3 className="flex items-center gap-1.5 text-sm font-bold uppercase tracking-widest text-muted">
-          <span aria-hidden>🫧</span> Bubble Bits
+          <span aria-hidden>🫧</span> Bubble Bucks
         </h3>
         <span className="text-[11px] text-faint">
           {compact(totalEarned)} issued · {compact(totalSpent)} spent · {compact(Math.max(0, totalEarned - totalSpent))} circulating
@@ -86,7 +86,7 @@ export function BubbleBucksAnalytics() {
       <div key={renderKey} className="grid grid-cols-1 gap-1 md:grid-cols-2">
         {rows.length === 0 && (
           <div className="col-span-full grid place-items-center py-8 text-center text-[12px] text-muted">
-            No viewers have {lens === "earned" ? "earned" : lens === "spent" ? "spent" : "any balance in"} Bubble Bits yet.
+            No viewers have {lens === "earned" ? "earned" : lens === "spent" ? "spent" : "any balance in"} Bubble Bucks yet.
           </div>
         )}
         {rows.map((u, i) => {

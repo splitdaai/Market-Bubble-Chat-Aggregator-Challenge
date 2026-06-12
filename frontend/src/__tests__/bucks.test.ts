@@ -4,7 +4,7 @@ import { bucksFor, watchMinutes, BUCKS } from "@/lib/bucks";
 const NOW = 1_750_000_000_000;
 const min = (n: number) => n * 60_000;
 
-describe("Bubble Bits", () => {
+describe("Bubble Bucks", () => {
   it("awards per message, sub and dollar", () => {
     expect(bucksFor({ count: 10, donated: 0, subs: 0 })).toBe(10 * BUCKS.perMessage);
     expect(bucksFor({ count: 0, donated: 0, subs: 2 })).toBe(2 * BUCKS.perSub);

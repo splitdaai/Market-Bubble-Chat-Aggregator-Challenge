@@ -406,7 +406,6 @@ export type OverlayActionKind =
   | "clip"
   | "soundwave"
   | "spotlight"
-  | "boss"
   | "clear";
 
 export interface OverlayEngagementEvent {
@@ -424,7 +423,6 @@ export interface OverlayEngagementEvent {
     emote?: string;
     message?: string;
     color?: string;
-    damage?: number;
     /** Aggregated event count for high-volume crowd actions. */
     count?: number;
   };

@@ -5,7 +5,7 @@ import { bucksFor, computeRanks } from "@/lib/bucks";
 import type { Platform } from "@shared/types";
 
 /**
- * Map of user-key (`platform:username`) → 1-20 rank by lifetime Bubble Bits.
+ * Map of user-key (`platform:username`) → 1-20 rank by lifetime Bubble Bucks.
  * Memoized on a 5-second cadence so message renders don't re-sort the full
  * user list on every chat tick.
  */
@@ -28,7 +28,7 @@ export function useBucksRanks(): Map<string, number> {
 
 /**
  * Small numeric pill (#1 … #20) shown next to a username in chat when that
- * viewer is in the top-20 lifetime Bubble Bits earners. Top-3 get gold,
+ * viewer is in the top-20 lifetime Bubble Bucks earners. Top-3 get gold,
  * silver, and bronze treatments; 4-20 get a uniform gold-bordered chip.
  */
 export function BucksRankBadge({
@@ -61,7 +61,7 @@ export function BucksRankBadge({
 
   return (
     <span
-      title={`Bubble Bits rank · #${rank}`}
+      title={`Bubble Bucks rank · #${rank}`}
       className="ml-0.5 inline-flex shrink-0 items-center self-center rounded-full font-black tabular-nums"
       style={
         top3

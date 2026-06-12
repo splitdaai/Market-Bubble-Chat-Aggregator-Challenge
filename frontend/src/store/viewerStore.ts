@@ -20,7 +20,7 @@ interface ViewerState {
   verified: boolean;
   /** HMAC-signed identity token issued by the backend at Login-with-X. */
   chatToken: string | null;
-  /** Show MY Bubble Bits rank badge (#1–#20) next to my username in chat.
+  /** Show MY Bubble Bucks rank badge (#1–#20) next to my username in chat.
    *  Default ON so top-20 viewers flex automatically; off lets you opt out. */
   showMyBucksBadge: boolean;
   loginWithX: () => void;

@@ -216,7 +216,7 @@ export function UserCard() {
           <Stat icon={<Gift size={13} />} label="subs" value={String(row?.subs ?? 0)} />
           <Stat
             icon={<span className="text-[13px] leading-none">🫧</span>}
-            label="Bubble Bits"
+            label="Bubble Bucks"
             value={compact(bucksFor({ count: Math.max(userMessages.length, row?.count ?? 0), donated: row?.donated ?? 0, subs: row?.subs ?? 0, first: row?.first, last: row?.last }))}
           />
           <Stat icon={<Clock size={13} />} label="last" value={row ? fmtTime(row.last) : "—"} />
