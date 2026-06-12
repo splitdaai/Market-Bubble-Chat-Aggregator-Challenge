@@ -50,7 +50,7 @@ export function HlWalletModal({ trader, onClose }: { trader: HlTrader; onClose: 
   const [range, setRange] = useState("month");
   useEffect(() => {
     let on = true;
-    fetch(`${BACKEND}/api/hl-wallet?addr=${trader.addr}`).then((r) => r.json()).then((j) => { if (on && j.addr) setW(j); }).catch(() => {});
+    fetch(`${BACKEND}/api/hl-wallet?addr=${encodeURIComponent(trader.addr)}`).then((r) => r.json()).then((j) => { if (on && j.addr) setW(j); }).catch(() => {});
     return () => { on = false; };
   }, [trader.addr]);
   const series = w?.chart?.[range] ?? [];
@@ -122,7 +122,7 @@ export function HlWalletModal({ trader, onClose }: { trader: HlTrader; onClose: 
                   <span className={`w-16 text-right font-bold tabular-nums ${p.upnl >= 0 ? "text-up" : "text-down"}`}>{p.upnl >= 0 ? "+" : ""}{usd(p.upnl)}</span>
                 </div>
               ))}
-              {w && w.positions.length === 0 && <div className="py-4 text-center text-[11px] text-faint">No open positions (flat / closed).</div>}
+              {w && w.positions.length === 0 && <div className="py-4 text-center text-[11px] text-faint">No open positions right now. This wallet is flat; recent fills are still shown when Hyperliquid returns them.</div>}
               {!w && <div className="py-4 text-center text-[11px] text-faint">Loading…</div>}
             </div>
           </div>
@@ -149,7 +149,7 @@ export function HlWalletModal({ trader, onClose }: { trader: HlTrader; onClose: 
                   </div>
                 );
               })}
-              {w && w.fills.length === 0 && <div className="py-4 text-center text-[11px] text-faint">No recent fills.</div>}
+              {w && w.fills.length === 0 && <div className="py-4 text-center text-[11px] text-faint">No recent fills returned for this address. It may be inactive, a vault shell, or an agent wallet instead of the actual trading account.</div>}
               {!w && <div className="py-4 text-center text-[11px] text-faint">Loading…</div>}
             </div>
           </div>

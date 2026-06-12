@@ -68,6 +68,7 @@ type HyperliquidClearinghouseState = {
 type HyperliquidPortfolioEntry = [string, { pnlHistory?: [number, string][]; accountValueHistory?: [number, string][] }];
 type HyperliquidUserFill = { coin: string; side: string; sz: string; px: string; time: number; dir?: string; closedPnl?: string };
 type PolymarketProfitRow = { proxyWallet: string; amount: number; name?: string; pseudonym?: string };
+const THIRTY_DAYS_MS = 30 * 24 * 60 * 60_000;
 
 const isCompleteMarket = (c: CoinGeckoMarket): c is CoinGeckoMarket & {
   symbol: string;
@@ -337,9 +338,13 @@ export async function getLeaderboards() {
       });
       if (probed.filter((p) => p.perpValue >= 10_000).length >= 50) break; // enough active wallets
     }
-    const active = probed.filter((p) => p.perpValue >= 10_000).sort((a, b) => b.m.pnl - a.m.pnl).slice(0, 50);
-    // Fallback: if probing surfaced too few, top up with the raw PnL ranking.
-    const finalRows = active.length >= 20 ? active : ranked.slice(0, 50).map(({ r, m }) => ({ r, m, perpValue: +r.accountValue, hasPositions: false }));
+    const active = probed
+      .filter((p) => p.perpValue >= 10_000)
+      .sort((a, b) => Number(b.hasPositions) - Number(a.hasPositions) || b.m.pnl - a.m.pnl)
+      .slice(0, 50);
+    // Do not top up with raw leaderboard rows. Those can be vault shells, agent
+    // wallets, or inactive accounts, which open to empty positions/history.
+    const finalRows = active;
     data.hyperliquid = finalRows.map(({ r, m, perpValue }) => ({
       name: shortIfAddr(r.displayName || r.ethAddress),
       addr: r.ethAddress,
@@ -395,7 +400,7 @@ export async function getHlWallet(addr: string) {
     const [cs, pf, uf] = await Promise.all([
       post<HyperliquidClearinghouseState>({ type: "clearinghouseState", user: addr }),
       post<HyperliquidPortfolioEntry[]>({ type: "portfolio", user: addr }),
-      post<HyperliquidUserFill[]>({ type: "userFills", user: addr }),
+      post<HyperliquidUserFill[]>({ type: "userFills", user: addr, aggregateByTime: true }),
     ]);
     out.accountValue = +(cs?.marginSummary?.accountValue ?? 0);
     out.positions = (cs?.assetPositions ?? []).map((p) => {
@@ -419,7 +424,17 @@ export async function getHlWallet(addr: string) {
         if (s.length && Math.abs(s[s.length - 1] - out.accountValue) > out.accountValue * 0.0005) s.push(out.accountValue);
       }
     }
-    const fillsRaw = uf ?? [];
+    let fillsRaw = uf ?? [];
+    if (fillsRaw.length === 0) {
+      try {
+        fillsRaw = await post<HyperliquidUserFill[]>({
+          type: "userFillsByTime",
+          user: addr,
+          startTime: Date.now() - THIRTY_DAYS_MS,
+          aggregateByTime: true,
+        });
+      } catch { /* leave empty */ }
+    }
     out.fills = fillsRaw.slice(0, 40).map((f) => ({ coin: f.coin, buy: f.side === "B", sz: +f.sz, px: +f.px, t: f.time, dir: f.dir ?? "", closedPnl: +(f.closedPnl ?? 0) }));
     // Win rate over closing trades (fills that realized PnL).
     const closings = fillsRaw.filter((f) => +(f.closedPnl ?? 0) !== 0);
