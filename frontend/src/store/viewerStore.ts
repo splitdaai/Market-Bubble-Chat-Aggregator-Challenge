@@ -20,9 +20,13 @@ interface ViewerState {
   verified: boolean;
   /** HMAC-signed identity token issued by the backend at Login-with-X. */
   chatToken: string | null;
+  /** Show MY Bubble Bits rank badge (#1–#20) next to my username in chat.
+   *  Default ON so top-20 viewers flex automatically; off lets you opt out. */
+  showMyBucksBadge: boolean;
   loginWithX: () => void;
   connectX: (handle: string, name?: string) => void;
   disconnectX: () => void;
+  setShowMyBucksBadge: (v: boolean) => void;
 }
 
 export const useViewerStore = create<ViewerState>()(
@@ -33,6 +37,7 @@ export const useViewerStore = create<ViewerState>()(
       xAvatar: null,
       verified: false,
       chatToken: null,
+      showMyBucksBadge: true,
 
       loginWithX: () => {
         const w = 600;
@@ -67,6 +72,8 @@ export const useViewerStore = create<ViewerState>()(
       },
 
       disconnectX: () => set({ xHandle: null, xName: null, xAvatar: null, verified: false, chatToken: null }),
+
+      setShowMyBucksBadge: (v) => set({ showMyBucksBadge: v }),
     }),
     { name: "vibechat-viewer" },
   ),

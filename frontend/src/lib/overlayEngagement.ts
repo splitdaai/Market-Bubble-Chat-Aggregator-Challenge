@@ -38,13 +38,15 @@ function overlayTransport(): OverlaySocket | null {
 export const OVERLAY_ACTIONS: OverlayActionDef[] = [
   { id: "bull-vote", kind: "vote", label: "Bull Vote", cost: 0, description: "Move the crowd meter green.", cta: "Bullish", accent: "#16e6a4" },
   { id: "bear-vote", kind: "vote", label: "Bear Vote", cost: 0, description: "Move the crowd meter red.", cta: "Bearish", accent: "#ff5c7a" },
+  { id: "charging-bull", kind: "vote", label: "Charging Bull", cost: 350, description: "Send a hyper-real bull charging across the source.", cta: "Release bull", accent: "#16e6a4" },
+  { id: "bear-slash", kind: "vote", label: "Bear Slash", cost: 350, description: "Rip the screen with a hyper-real bear claw attack.", cta: "Slash screen", accent: "#ff5c7a" },
   { id: "ticker-boost", kind: "ticker", label: "Ticker Boost", cost: 10, description: "Push your ticker onto the live tape.", cta: "Boost ticker", accent: "#34d6ff" },
   { id: "emote-burst", kind: "emote", label: "Emote Burst", cost: 15, description: "Fire a clean emote burst across the panel.", cta: "Burst emotes", accent: "#facc15" },
   { id: "mood-wave", kind: "color", label: "Market Mood Wave", cost: 25, description: "Send a color wash through the overlay.", cta: "Send wave", accent: "#d9a547" },
   { id: "clip-boost", kind: "clip", label: "Clip Boost", cost: 35, description: "Flag this moment for the producer.", cta: "Clip it", accent: "#f97316" },
   { id: "soundwave", kind: "soundwave", label: "Soundwave Hit", cost: 50, description: "Trigger a visual audio-reactive hit.", cta: "Hit wave", accent: "#a78bfa" },
   { id: "spotlight", kind: "spotlight", label: "Viewer Spotlight", cost: 75, description: "Put your one-line take on the overlay.", cta: "Spotlight", accent: "#f8fafc" },
-  { id: "boss-attack", kind: "boss", label: "Attack FUD", cost: 125, description: "Damage the FUD boss bar with Bubble Bucks.", cta: "Attack", accent: "#ef4444" },
+  { id: "boss-attack", kind: "boss", label: "Attack FUD", cost: 125, description: "Damage the FUD boss bar with Bubble Bits.", cta: "Attack", accent: "#ef4444" },
   { id: "whale-storm", kind: "emote", label: "Whale Storm", cost: 250, description: "A heavier premium emote storm.", cta: "Whale storm", accent: "#67e8f9" },
 ];
 

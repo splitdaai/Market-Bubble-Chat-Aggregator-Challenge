@@ -47,6 +47,11 @@ export function bindHub(
   const chatRate = new Map<string, number[]>();
   // Per-socket timestamps for public overlay actions (12 effects / 10s).
   const overlayRate = new WeakMap<object, number[]>();
+  // Room-level pressure control keeps one OBS browser source smooth even when
+  // many phones scan the same QR code at once.
+  const overlayRoomRate = new Map<string, number[]>();
+  const overlayActionLast = new Map<string, number>();
+  const overlayVoteBuckets = new Map<string, { bull: number; bear: number; timer: ReturnType<typeof setTimeout> | null }>();
 
   const broadcastStatus = () => io.emit("status", [...statuses.values()]);
 
@@ -98,6 +103,16 @@ export function bindHub(
   };
   const overlayTopic = (room: string) => `overlay:${room}`;
   const overlayKinds = new Set<OverlayActionKind>(["vote", "emote", "ticker", "color", "clip", "soundwave", "spotlight", "boss"]);
+  const overlayHeroActions = new Set(["charging-bull", "bear-slash"]);
+  const overlayKindCooldownMs: Partial<Record<OverlayActionKind, number>> = {
+    boss: 250,
+    clip: 800,
+    color: 650,
+    emote: 350,
+    soundwave: 700,
+    spotlight: 900,
+    ticker: 100,
+  };
   const cleanText = (value: unknown, fallback: string, max = 80) =>
     String(value ?? fallback)
       .replace(/[\x00-\x1f\x7f]/g, "")
@@ -108,6 +123,7 @@ export function bindHub(
     const room = overlayRoom(event.room);
     const cost = Number.isFinite(event.cost) ? Math.max(0, Math.min(10_000, Math.round(event.cost))) : 0;
     const damage = Number.isFinite(event.payload?.damage) ? Math.max(0, Math.min(100, Math.round(event.payload!.damage!))) : undefined;
+    const count = Number.isFinite(event.payload?.count) ? Math.max(1, Math.min(10_000, Math.round(event.payload!.count!))) : undefined;
     const color = typeof event.payload?.color === "string" && /^#[0-9a-fA-F]{6}$/.test(event.payload.color) ? event.payload.color : undefined;
     const side = event.payload?.side === "bull" || event.payload?.side === "bear" ? event.payload.side : undefined;
 
@@ -127,6 +143,7 @@ export function bindHub(
         message: cleanText(event.payload?.message, "", 72),
         color,
         damage,
+        count,
       },
     };
   };
@@ -137,6 +154,56 @@ export function bindHub(
     hist.push(now);
     overlayRate.set(socketKey, hist);
     return true;
+  };
+  const allowOverlayBroadcast = (event: OverlayEngagementEvent) => {
+    const now = Date.now();
+    const hist = (overlayRoomRate.get(event.room) ?? []).filter((t) => now - t < 1000);
+    if (hist.length >= 30) {
+      overlayRoomRate.set(event.room, hist);
+      return false;
+    }
+
+    const isHero = overlayHeroActions.has(event.actionId);
+    const cooldown = isHero ? 2400 : overlayKindCooldownMs[event.kind] ?? 150;
+    const key = `${event.room}:${isHero ? "hero" : event.kind}:${isHero ? "animal" : event.actionId}`;
+    const last = overlayActionLast.get(key) ?? 0;
+    if (now - last < cooldown) return false;
+
+    hist.push(now);
+    overlayRoomRate.set(event.room, hist);
+    overlayActionLast.set(key, now);
+    return true;
+  };
+  const emitVoteAggregate = (room: string, side: "bull" | "bear", count: number) => {
+    if (count <= 0) return;
+    const now = Date.now();
+    io.to(overlayTopic(room)).emit("overlay:action", {
+      id: `vote:${room}:${side}:${now}`,
+      room,
+      actionId: `crowd-${side}-pressure`,
+      kind: "vote",
+      label: side === "bull" ? "Bull Pressure" : "Bear Pressure",
+      user: "crowd",
+      cost: 0,
+      at: now,
+      payload: { side, count },
+    });
+  };
+  const queueOverlayVote = (room: string, side: "bull" | "bear") => {
+    let bucket = overlayVoteBuckets.get(room);
+    if (!bucket) {
+      bucket = { bull: 0, bear: 0, timer: null };
+      overlayVoteBuckets.set(room, bucket);
+    }
+    bucket[side] += 1;
+    if (bucket.timer) return;
+    bucket.timer = setTimeout(() => {
+      const next = overlayVoteBuckets.get(room);
+      if (!next) return;
+      emitVoteAggregate(room, "bull", next.bull);
+      emitVoteAggregate(room, "bear", next.bear);
+      overlayVoteBuckets.delete(room);
+    }, 120);
   };
 
   io.on("connection", (socket) => {
@@ -162,7 +229,16 @@ export function bindHub(
       if (!allowOverlayAction(socket)) return;
       const clean = cleanOverlayAction(event);
       if (!clean) return;
-      io.to(overlayTopic(clean.room)).emit("overlay:action", clean);
+      const side = clean.payload?.side;
+      if (side === "bull" || side === "bear") {
+        queueOverlayVote(clean.room, side);
+      }
+      if (clean.kind === "vote" && !overlayHeroActions.has(clean.actionId)) return;
+      const visual = overlayHeroActions.has(clean.actionId)
+        ? { ...clean, payload: { ...clean.payload, side: undefined } }
+        : clean;
+      if (!allowOverlayBroadcast(visual)) return;
+      io.to(overlayTopic(visual.room)).emit("overlay:action", visual);
     });
 
     // Login-with-X shared chat: a verified viewer posts into the unified feed.

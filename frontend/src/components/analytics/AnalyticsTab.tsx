@@ -10,6 +10,7 @@ import {
 } from "@/lib/analytics";
 import { TrendChart, Sparkline, DeltaBadge } from "./charts";
 import { SourceBadge, platformColor, platformLabel } from "../SourceBadge";
+import { BubbleBucksAnalytics } from "./BubbleBucksAnalytics";
 import { useActivePlatforms } from "@/hooks/useActivePlatforms";
 import { elapsed } from "@/lib/format";
 import { subRevenue, adRevenue } from "@/lib/revenue";
@@ -214,6 +215,9 @@ export function AnalyticsTab() {
 
       {/* current / in-progress stream — live snapshot */}
       <CurrentStreamCard live={live} prev={prev} snap={snap} plat={plat} account={account} pace={pace} />
+
+      {/* Bubble Bits leaderboards: earners / spenders / current balances */}
+      <BubbleBucksAnalytics />
 
       {/* per-stream AVERAGE across history (NOT a copy of the current stream) —
           the delta shows how the live stream compares to your norm. */}

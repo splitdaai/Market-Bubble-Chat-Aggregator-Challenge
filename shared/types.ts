@@ -424,6 +424,8 @@ export interface OverlayEngagementEvent {
     message?: string;
     color?: string;
     damage?: number;
+    /** Aggregated event count for high-volume crowd actions. */
+    count?: number;
   };
 }
 

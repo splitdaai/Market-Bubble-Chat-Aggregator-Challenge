@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { actionById, canAfford, engageUrl, qrImageUrl, spendBucks } from "@/lib/overlayEngagement";
 
 describe("overlay engagement", () => {
-  it("gates actions by Bubble Bucks balance", () => {
+  it("gates actions by Bubble Bits balance", () => {
     const action = actionById("boss-attack")!;
     expect(canAfford(124, action)).toBe(false);
     expect(canAfford(125, action)).toBe(true);

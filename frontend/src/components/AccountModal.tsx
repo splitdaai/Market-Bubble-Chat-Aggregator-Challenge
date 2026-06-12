@@ -9,7 +9,7 @@ import { WalletButtons } from "./WalletButtons";
 const trunc = (a: string) => a.slice(0, 6) + "…" + a.slice(-4);
 
 export function AccountModal({ open, onClose, onOpenDashboard }: { open: boolean; onClose: () => void; onOpenDashboard?: () => void }) {
-  const { xHandle, xName, xAvatar, verified, loginWithX, disconnectX } = useViewerStore();
+  const { xHandle, xName, xAvatar, verified, loginWithX, disconnectX, showMyBucksBadge, setShowMyBucksBadge } = useViewerStore();
   const address = useWalletStore((s) => s.address);
   const chainId = useWalletStore((s) => s.chainId);
   const walletName = useWalletStore((s) => s.wallet);
@@ -47,6 +47,36 @@ export function AccountModal({ open, onClose, onOpenDashboard }: { open: boolean
                     Login with X to chat
                   </button>
                 )}
+              </div>
+
+              {/* Bubble Bits rank badge — let viewers show off their 1-20
+                  badge in chat, or hide it if they don't want the flex. */}
+              <div>
+                <div className="mb-1.5 text-[11px] font-bold uppercase tracking-wider text-muted">Bubble Bits rank badge</div>
+                <button
+                  onClick={() => setShowMyBucksBadge(!showMyBucksBadge)}
+                  className={`flex w-full items-center justify-between gap-2 rounded-xl border px-3 py-2.5 text-left transition ${
+                    showMyBucksBadge ? "border-accent/50 bg-accent/10" : "border-white/12 bg-white/[0.03]"
+                  }`}
+                  title="When you're in the top 20 Bubble Bits earners, your rank shows next to your name in chat"
+                >
+                  <div className="min-w-0 flex-1">
+                    <div className="text-[13px] font-bold text-ink">
+                      {showMyBucksBadge ? "Show my rank in chat" : "Hide my rank in chat"}
+                    </div>
+                    <div className="text-[11px] leading-tight text-muted">
+                      Top-20 only · #1–#3 get gold / silver / bronze
+                    </div>
+                  </div>
+                  <span
+                    className="grid h-7 w-12 shrink-0 place-items-center rounded-full font-mono text-[10px] font-black tracking-wider"
+                    style={showMyBucksBadge
+                      ? { background: "linear-gradient(180deg, #f4d27a, #d9a547)", color: "#14100a", boxShadow: "0 0 12px rgba(217,165,71,0.45)" }
+                      : { background: "rgba(255,255,255,0.05)", color: "rgba(243,239,231,0.45)" }}
+                  >
+                    {showMyBucksBadge ? "ON" : "OFF"}
+                  </span>
+                </button>
               </div>
 
               {/* Wallet */}

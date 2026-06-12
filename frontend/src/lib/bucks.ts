@@ -1,5 +1,5 @@
 /**
- * Bubble Bucks — the show's chat-points currency (watch & earn).
+ * Bubble Bits — the show's chat-points currency (watch & earn).
  *
  * v1 derives balances live from the same per-chatter stats that power the
  * leaderboards, so it works in demo and live mode with zero extra plumbing:
@@ -43,7 +43,7 @@ export function watchMinutes(u: BucksSource, now = Date.now()): number {
   return Math.max(0, (end - u.first) / 60_000);
 }
 
-/** A user's Bubble Bucks balance, derived from their chat activity. */
+/** A user's Bubble Bits balance, derived from their chat activity. */
 export function bucksFor(u: BucksSource, now = Date.now()): number {
   return Math.round(
     watchMinutes(u, now) * BUCKS.perMinute +
@@ -51,4 +51,34 @@ export function bucksFor(u: BucksSource, now = Date.now()): number {
     u.subs * BUCKS.perSub +
     u.donated * BUCKS.perDollar,
   );
+}
+
+/** A user's available Bubble Bits balance — earned minus spent. */
+export function balanceFor(u: BucksSource & { spent?: number }, now = Date.now()): number {
+  return Math.max(0, bucksFor(u, now) - (u.spent ?? 0));
+}
+
+/**
+ * Compute the 1–N rank for each user by lifetime Bubble Bits earned.
+ * Returns a Map keyed by `platform:username.toLowerCase()`.
+ *
+ * Tied scores share the higher rank ("standard competition" / "1224" ranking),
+ * so two viewers tied for the top slot are both #1 and the next is #3.
+ */
+export function computeRanks(
+  rows: { platform: string; name: string; key?: string; bucks: number }[],
+  limit = 20,
+): Map<string, number> {
+  const sorted = rows.slice().sort((a, b) => b.bucks - a.bucks).slice(0, limit);
+  const out = new Map<string, number>();
+  let lastBucks = -1;
+  let lastRank = 0;
+  sorted.forEach((row, i) => {
+    const rank = row.bucks === lastBucks ? lastRank : i + 1;
+    lastBucks = row.bucks;
+    lastRank = rank;
+    const key = row.key ?? `${row.platform}:${row.name.toLowerCase()}`;
+    out.set(key, rank);
+  });
+  return out;
 }

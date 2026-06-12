@@ -1,15 +1,23 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { ArrowLeft, BadgeCheck, Coins, MessageSquareText, Radio, Sparkles, Zap } from "lucide-react";
 import { OVERLAY_ACTIONS, canAfford, publishOverlayEvent, roomFromSearch, spendBucks, type OverlayActionDef } from "@/lib/overlayEngagement";
 import { compact } from "@/lib/format";
+import { useBucksLedger } from "@/store/bucksLedgerStore";
 
 const BALANCE_KEY = "market-bubble-engage-balance";
 const USER_KEY = "market-bubble-engage-user";
-const DEFAULT_BALANCE = 650;
+const DEFAULT_BALANCE = 1200;
+const SEND_COOLDOWN_MS = 450;
 const TICKERS = ["BTC", "ETH", "SOL", "HYPE", "DOGE", "XRP", "NVDA", "COIN", "MSTR", "POLY"];
 const EMOTES = ["🫧", "🚀", "🐂", "💎", "🔥", "W", "📈", "🟢", "👑", "⚡"];
 const COLORS = ["#16e6a4", "#d9a547", "#34d6ff", "#f97316", "#a78bfa", "#ff5c7a"];
+const SIDE_BY_ACTION: Record<string, "bull" | "bear"> = {
+  "bull-vote": "bull",
+  "charging-bull": "bull",
+  "bear-vote": "bear",
+  "bear-slash": "bear",
+};
 
 function storedNumber(key: string, fallback: number): number {
   try {
@@ -38,6 +46,9 @@ export function EngagePage() {
   const [color, setColor] = useState(COLORS[0]);
   const [message, setMessage] = useState("W stream. Run it up.");
   const [last, setLast] = useState<string>("Ready to move the overlay.");
+  const [isSending, setIsSending] = useState(false);
+  const sendLockedUntil = useRef(0);
+  const releaseTimer = useRef<number | null>(null);
 
   const saveBalance = (n: number) => {
     setBalance(n);
@@ -47,14 +58,37 @@ export function EngagePage() {
     setUser(next);
     try { localStorage.setItem(USER_KEY, next); } catch { /* ignore */ }
   };
+  const lockSend = () => {
+    sendLockedUntil.current = Date.now() + SEND_COOLDOWN_MS;
+    setIsSending(true);
+    if (releaseTimer.current !== null) window.clearTimeout(releaseTimer.current);
+    releaseTimer.current = window.setTimeout(() => {
+      releaseTimer.current = null;
+      setIsSending(false);
+    }, SEND_COOLDOWN_MS);
+  };
+
+  useEffect(() => () => {
+    if (releaseTimer.current !== null) window.clearTimeout(releaseTimer.current);
+  }, []);
 
   const fire = (action: OverlayActionDef) => {
+    if (Date.now() < sendLockedUntil.current) return;
     if (!canAfford(balance, action)) {
       setLast(`Need ${compact(action.cost - balance)} more Bubble Bucks for ${action.label}.`);
       return;
     }
+    lockSend();
     const next = spendBucks(balance, action);
     saveBalance(next);
+    // Record the spend in the persistent BB ledger so the analytics page tracks
+    // lifetime spending per viewer. Engage-page viewers identify by their X
+    // handle (the only platform that can route an anonymous QR scan back to a
+    // real account here); guest viewers fall back to "@bubbleguest".
+    if (action.cost > 0) {
+      const handle = (user.trim() || "bubbleguest").replace(/^@/, "");
+      useBucksLedger.getState().addSpent("x", handle, action.cost);
+    }
     publishOverlayEvent({
       room,
       actionId: action.id,
@@ -63,12 +97,12 @@ export function EngagePage() {
       user: user.trim() || "bubbleguest",
       cost: action.cost,
       payload: {
-        side: action.id === "bull-vote" ? "bull" : action.id === "bear-vote" ? "bear" : undefined,
+        side: SIDE_BY_ACTION[action.id],
         ticker,
         emote,
-        color,
+        color: action.id === "mood-wave" ? color : action.accent,
         message: message.trim().slice(0, 72),
-        damage: action.id === "whale-storm" ? 30 : action.id === "boss-attack" ? 18 : 8,
+        damage: action.id === "whale-storm" ? 30 : action.id === "boss-attack" ? 18 : action.id === "bear-slash" ? 24 : 8,
       },
     });
     setLast(`${action.label} sent. ${compact(next)} BB left.`);
@@ -112,8 +146,8 @@ export function EngagePage() {
                   </div>
                   <div className="mt-1 text-[12px] font-bold text-white/45">Bubble Bucks</div>
                 </div>
-                <button onClick={() => earn(75)} className="rounded-xl bg-[#d9a547] px-4 py-3 text-[13px] font-black text-[#14100a] shadow-[0_0_24px_rgba(217,165,71,0.35)] transition hover:brightness-110">
-                  +75 demo BB
+                <button onClick={() => earn(250)} className="rounded-xl bg-[#d9a547] px-4 py-3 text-[13px] font-black text-[#14100a] shadow-[0_0_24px_rgba(217,165,71,0.35)] transition-transform hover:brightness-110 active:scale-[0.96]">
+                  +250 demo BB
                 </button>
               </div>
 
@@ -143,6 +177,7 @@ export function EngagePage() {
           <div className="grid gap-3 sm:grid-cols-2">
             {OVERLAY_ACTIONS.map((action, i) => {
               const ok = canAfford(balance, action);
+              const disabled = !ok || isSending;
               return (
                 <motion.button
                   key={action.id}
@@ -150,9 +185,9 @@ export function EngagePage() {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: i * 0.035 }}
                   onClick={() => fire(action)}
-                  disabled={!ok}
+                  disabled={disabled}
                   className="group relative min-h-[132px] overflow-hidden rounded-2xl border p-4 text-left transition disabled:cursor-not-allowed disabled:opacity-42"
-                  style={{ borderColor: ok ? `${action.accent}66` : "rgba(255,255,255,0.1)", background: ok ? `linear-gradient(140deg, ${action.accent}18, rgba(255,255,255,0.035))` : "rgba(255,255,255,0.025)" }}
+                  style={{ borderColor: ok && !isSending ? `${action.accent}66` : "rgba(255,255,255,0.1)", background: ok && !isSending ? `linear-gradient(140deg, ${action.accent}18, rgba(255,255,255,0.035))` : "rgba(255,255,255,0.025)" }}
                 >
                   <div className="absolute -right-8 -top-8 h-24 w-24 rounded-full blur-2xl transition group-hover:scale-125" style={{ background: `${action.accent}33` }} />
                   <div className="relative flex items-start justify-between gap-3">
@@ -164,9 +199,9 @@ export function EngagePage() {
                       {action.cost ? `${action.cost} BB` : "Free"}
                     </div>
                   </div>
-                  <div className="relative mt-4 inline-flex items-center gap-1.5 text-[12px] font-black uppercase tracking-[0.12em]" style={{ color: ok ? action.accent : "rgba(255,255,255,0.45)" }}>
+                  <div className="relative mt-4 inline-flex items-center gap-1.5 text-[12px] font-black uppercase tracking-[0.12em]" style={{ color: ok && !isSending ? action.accent : "rgba(255,255,255,0.45)" }}>
                     {action.kind === "spotlight" ? <MessageSquareText size={14} /> : <Zap size={14} />}
-                    {ok ? action.cta : "Need more BB"}
+                    {isSending ? "Cooling down" : ok ? action.cta : "Need more BB"}
                   </div>
                 </motion.button>
               );

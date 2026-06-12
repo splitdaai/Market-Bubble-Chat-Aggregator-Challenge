@@ -5,6 +5,7 @@ import type { ChatMessage, ModerationAction } from "@shared/types";
 import { SourceBadge, platformColor } from "./SourceBadge";
 import { Shield, Star, Crown, BadgeCheck, Gem, Wallet } from "lucide-react";
 import { ModMenu } from "./ModMenu";
+import { BucksRankBadge } from "./BucksRankBadge";
 import { useUserCardStore } from "@/store/userCardStore";
 import { useModerationStore } from "@/store/moderationStore";
 import { useModeStore } from "@/store/modeStore";
@@ -102,6 +103,7 @@ function MessageInner({ msg, deleted, onModerate }: Props) {
             >
               {msg.username}
             </button>
+            <BucksRankBadge platform={msg.platform} username={msg.username} />
             {/* hover → where this viewer is coming from (platform + which streamer's chat) */}
             <span className="pointer-events-none absolute bottom-full left-0 z-40 mb-1 hidden whitespace-nowrap rounded-lg border border-white/10 bg-[#0b0b0b] px-2 py-1 text-[10px] leading-tight shadow-xl group-hover/u:block">
               <span className="flex items-center gap-1">

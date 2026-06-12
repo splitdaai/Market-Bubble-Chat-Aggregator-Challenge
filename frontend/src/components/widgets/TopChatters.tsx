@@ -24,7 +24,7 @@ const RANGES: { key: RangeKey; label: string }[] = [
 const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
   { id: "chatters", label: "Chatters", icon: <MessageSquare size={12} /> },
   { id: "subs", label: "Subs", icon: <Gift size={12} /> },
-  { id: "bucks", label: "Bucks", icon: <span className="text-[12px] leading-none">🫧</span> },
+  { id: "bucks", label: "Bits", icon: <span className="text-[12px] leading-none">🫧</span> },
 ];
 
 interface Row {
@@ -52,7 +52,7 @@ export function TopChatters() {
   const f = RANGE_FACTOR[range];
   const sc = (n: number) => compact(Math.round(n * f));
 
-  // Bubble Bucks: 1/msg + 100/sub + 5/$ — the show's watch-&-earn currency.
+  // Bubble Bits: 1/msg + 100/sub + 5/$ — the show's watch-&-earn currency.
   const bucksRows: Row[] =
     tab === "bucks"
       ? listUsers()
@@ -120,7 +120,7 @@ export function TopChatters() {
       <div className="vc-scroll flex-1 space-y-1 overflow-y-auto">
         {rows.length === 0 && (
           <div className="grid h-full place-items-center text-center text-[11px] text-muted opacity-70">
-            {tab === "subs" ? "No subs yet" : tab === "bucks" ? "No Bubble Bucks earned yet" : "tallying chatters…"}
+            {tab === "subs" ? "No subs yet" : tab === "bucks" ? "No Bubble Bits earned yet" : "tallying chatters…"}
           </div>
         )}
         {rows.map((r, i) => (

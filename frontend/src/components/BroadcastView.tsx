@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useMemo } from "react";
+import { memo, useCallback, useEffect, useRef, useState, useMemo } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useChatStore } from "@/store/chatStore";
 import { useStatsStore } from "@/store/statsStore";
@@ -12,7 +12,7 @@ import { moderate } from "@/lib/api";
 import { LiveTimer } from "./LiveTimer";
 import { EngagementQr, OverlayEngagementLayer } from "./OverlayEngagementLayer";
 import { ENGAGE_ROOM } from "@/lib/overlayEngagement";
-import type { Platform } from "@shared/types";
+import type { ChatMessage, ModerationAction, Platform } from "@shared/types";
 
 /**
  * OBS Browser Source: center-screen broadcast panel ("Chat Only").
@@ -32,6 +32,8 @@ import type { Platform } from "@shared/types";
  */
 
 const SCROLL_THRESHOLD = 120; // px from bottom before we consider it "scrolled up"
+const DEFAULT_MESSAGE_LIMIT = 120;
+const MAX_MESSAGE_LIMIT = 220;
 
 /** Per-streamer viewer chip — hover reveals that streamer's platform split. */
 function StreamerChip({ name, viewers, breakdown }: { name: string; viewers: number; breakdown: { platform: Platform; viewers: number }[] }) {
@@ -75,6 +77,7 @@ export function BroadcastView() {
   const room = params.get("room") || ENGAGE_ROOM;
   const showQr = params.get("qr") !== "0";
   const fontPx = parseInt(params.get("fontsize") ?? "15", 10) || 15;
+  const messageLimit = clamp(parseInt(params.get("messages") ?? `${DEFAULT_MESSAGE_LIMIT}`, 10) || DEFAULT_MESSAGE_LIMIT, 30, MAX_MESSAGE_LIMIT);
   const platformFilter = useMemo<Platform[] | null>(() => {
     const raw = params.get("platform");
     if (!raw) return null;
@@ -85,13 +88,15 @@ export function BroadcastView() {
   const activePlatforms = platformFilter ?? ALL;
 
   const visible = useMemo(
-    () =>
-      messages.filter(
+    () => {
+      const filtered = messages.filter(
         (m) =>
           enabled[m.platform] &&
           activePlatforms.includes(m.platform as Platform),
-      ),
-    [messages, enabled, activePlatforms],
+      );
+      return filtered.length > messageLimit ? filtered.slice(-messageLimit) : filtered;
+    },
+    [messages, enabled, activePlatforms, messageLimit],
   );
 
   // Per-streamer totals (Ansem / Banks / Market Bubble) + platform split each.
@@ -200,20 +205,11 @@ export function BroadcastView() {
             linger in flow and mash into the incoming ones. */}
         <div className="flex min-h-full flex-col justify-end">
           {visible.map((msg) => (
-            <motion.div
+            <BroadcastMessageRow
               key={msg.id}
-              initial={{ opacity: 0, y: 6 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.18 }}
-            >
-              <Message
-                msg={msg}
-                deleted={deleted.has(msg.id)}
-                onModerate={(action) =>
-                  moderate({ platform: msg.platform, username: msg.username, action })
-                }
-              />
-            </motion.div>
+              msg={msg}
+              deleted={deleted.has(msg.id)}
+            />
           ))}
         </div>
       </div>
@@ -248,6 +244,21 @@ export function BroadcastView() {
   return <StageView panel={panel} />;
 }
 
+const BroadcastMessageRow = memo(function BroadcastMessageRow({ msg, deleted }: { msg: ChatMessage; deleted: boolean }) {
+  const onModerate = useCallback(
+    (action: ModerationAction) => {
+      moderate({ platform: msg.platform, username: msg.username, action });
+    },
+    [msg.platform, msg.username],
+  );
+
+  return (
+    <div style={{ contentVisibility: "auto", containIntrinsicSize: "36px" }}>
+      <Message msg={msg} deleted={deleted} onModerate={onModerate} />
+    </div>
+  );
+});
+
 // ── Stage mode (demo): the chat installed INTO the show frame — unblurred
 // footage in a fixed 16:9 box, panel composited over the center capture
 // tile. Edit mode lets the operator drag/resize the panel to line it up
@@ -281,6 +292,9 @@ function StageView({ panel }: { panel: React.ReactNode }) {
   const [tile, setTile] = useState<Tile>(() => loadTile());
   const [edit, setEdit] = useState(false);
   const frameRef = useRef<HTMLDivElement>(null);
+  const tileRef = useRef<HTMLDivElement>(null);
+  const rafRef = useRef<number | null>(null);
+  const draftTileRef = useRef<Tile | null>(null);
 
   // Persist on change (skip writes if equal to defaults so a "Reset" clears localStorage cleanly).
   useEffect(() => {
@@ -295,6 +309,15 @@ function StageView({ panel }: { panel: React.ReactNode }) {
   // so the saved position is resolution-independent.
   const dragRef = useRef<{ mode: "move" | "resize"; sx: number; sy: number; t0: Tile; frameW: number; frameH: number } | null>(null);
 
+  function applyTileStyle(next: Tile) {
+    const el = tileRef.current;
+    if (!el) return;
+    el.style.left = `${next.left}%`;
+    el.style.top = `${next.top}%`;
+    el.style.width = `${next.width}%`;
+    el.style.height = `${next.height}%`;
+  }
+
   function onPointerDown(mode: "move" | "resize") {
     return (e: React.PointerEvent) => {
       if (!edit) return;
@@ -304,6 +327,7 @@ function StageView({ panel }: { panel: React.ReactNode }) {
       if (!frame) return;
       const r = frame.getBoundingClientRect();
       dragRef.current = { mode, sx: e.clientX, sy: e.clientY, t0: { ...tile }, frameW: r.width, frameH: r.height };
+      draftTileRef.current = { ...tile };
       (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
     };
   }
@@ -314,26 +338,46 @@ function StageView({ panel }: { panel: React.ReactNode }) {
       if (!d) return;
       const dxPct = ((e.clientX - d.sx) / d.frameW) * 100;
       const dyPct = ((e.clientY - d.sy) / d.frameH) * 100;
-      if (d.mode === "move") {
-        setTile({
-          left: clamp(d.t0.left + dxPct, 0, 100 - d.t0.width),
-          top: clamp(d.t0.top + dyPct, 0, 100 - d.t0.height),
-          width: d.t0.width,
-          height: d.t0.height,
-        });
-      } else {
-        setTile({
-          left: d.t0.left,
-          top: d.t0.top,
-          width: clamp(d.t0.width + dxPct, 12, 100 - d.t0.left),
-          height: clamp(d.t0.height + dyPct, 10, 100 - d.t0.top),
-        });
+      const next = d.mode === "move"
+        ? {
+            left: clamp(d.t0.left + dxPct, 0, 100 - d.t0.width),
+            top: clamp(d.t0.top + dyPct, 0, 100 - d.t0.height),
+            width: d.t0.width,
+            height: d.t0.height,
+          }
+        : {
+            left: d.t0.left,
+            top: d.t0.top,
+            width: clamp(d.t0.width + dxPct, 12, 100 - d.t0.left),
+            height: clamp(d.t0.height + dyPct, 10, 100 - d.t0.top),
+          };
+      draftTileRef.current = next;
+      if (rafRef.current !== null) return;
+      rafRef.current = window.requestAnimationFrame(() => {
+        rafRef.current = null;
+        if (draftTileRef.current) applyTileStyle(draftTileRef.current);
+      });
+    };
+    const onUp = () => {
+      const next = draftTileRef.current;
+      dragRef.current = null;
+      draftTileRef.current = null;
+      if (rafRef.current !== null) {
+        window.cancelAnimationFrame(rafRef.current);
+        rafRef.current = null;
+      }
+      if (next) {
+        applyTileStyle(next);
+        setTile(next);
       }
     };
-    const onUp = () => { dragRef.current = null; };
     window.addEventListener("pointermove", onMove);
     window.addEventListener("pointerup", onUp);
-    return () => { window.removeEventListener("pointermove", onMove); window.removeEventListener("pointerup", onUp); };
+    return () => {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+      if (rafRef.current !== null) window.cancelAnimationFrame(rafRef.current);
+    };
   }, []);
 
   const tileStyle = {
@@ -360,7 +404,17 @@ function StageView({ panel }: { panel: React.ReactNode }) {
         />
 
         {/* The chat, installed over the center tile */}
-        <div className="absolute z-10 flex flex-col" style={{ ...tileStyle, outline: edit ? "2px dashed #d9a547" : undefined, outlineOffset: edit ? 2 : 0 }}>
+        <div
+          ref={tileRef}
+          className="absolute z-10 flex flex-col"
+          style={{
+            ...tileStyle,
+            outline: edit ? "2px dashed #d9a547" : undefined,
+            outlineOffset: edit ? 2 : 0,
+            willChange: edit ? "left, top, width, height" : undefined,
+            contain: "layout paint style",
+          }}
+        >
           {panel}
 
           {/* Edit affordances — grip on top to drag, handle at bottom-right to resize. */}

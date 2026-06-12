@@ -72,11 +72,13 @@ export interface UserRow {
   name: string;
   platform: Platform;
   count: number;
-  /** First seen — start of the viewer's watch session (Bubble Bucks accrual). */
+  /** First seen — start of the viewer's watch session (Bubble Bits accrual). */
   first: number;
   last: number;
   donated: number;
   subs: number;
+  /** Lifetime Bubble Bits spent on engagement actions / perks. */
+  spent: number;
   channel?: string;
 }
 
@@ -319,22 +321,26 @@ export const useStatsStore = create<StatsState>((set, get) => ({
     set({ snapshot: emptySnapshot() });
   },
 
-  // listUsers merges the persisted Bubble Bucks ledger into the current
-  // session so each user's `first`, `count`, `donated` and `subs` reflect
-  // their lifetime totals (not just what's happened since page load).
+  // listUsers merges the persisted Bubble Bits ledger into the current
+  // session so each user's `first`, `count`, `donated`, `subs`, and `spent`
+  // reflect their lifetime totals (not just what's happened since page load).
   listUsers: () => {
     const ledger = useBucksLedger.getState().entries;
     return [...chatters.values()].map((c) => {
       const key = `${c.platform}:${c.name.toLowerCase()}`;
       const l = ledger[key];
-      if (!l) return c;
+      // ChatterInfo lacks `spent` — it's a ledger-only field. Default to 0
+      // and let the ledger override.
+      const base: UserRow = { ...c, spent: 0 };
+      if (!l) return base;
       return {
-        ...c,
+        ...base,
         first: Math.min(c.first, l.first),
         last: Math.max(c.last, l.last),
         count: Math.max(c.count, l.count),
         donated: Math.max(c.donated, l.donated),
         subs: Math.max(c.subs, l.subs),
+        spent: l.spent ?? 0,
       };
     });
   },
@@ -393,6 +399,14 @@ export const useStatsStore = create<StatsState>((set, get) => ({
         const acc = platAccounts.length ? pick(platAccounts) : null;
         // joined at a random point in the session so watch-time bucks look real
         chatters.set(`${p}:seed-${seq}`, { name, platform: p, count, first: Date.now() - (3 + Math.random() * (elapsedMin - 3)) * 60_000, last: Date.now() - Math.random() * 240_000, donated, subs, channel: acc?.displayName });
+        // Seed a believable Bubble Bits spend for some chatters — anchors the
+        // analytics "Top Spenders" leaderboard without needing live spending.
+        // Heavy chatters/supporters spend more, but never more than they've earned.
+        if (Math.random() < 0.22) {
+          const earned = count + subs * 100 + donated * 5; // mirrors bucksFor() w/o watch-time
+          const spend = Math.floor(earned * (0.05 + Math.random() * 0.55));
+          if (spend > 0) useBucksLedger.getState().upsert(p, name, { spent: spend });
+        }
 
         if (acc) {
           const bucket = byAccount.get(acc.id) ?? { platform: p, messages: 0, chatters: new Set<string>(), donated: 0, subs: 0 };
@@ -541,7 +555,7 @@ export const useStatsStore = create<StatsState>((set, get) => ({
     // ---- persist watch-time + messages so balances survive reloads ----
     // The ledger holds lifetime totals keyed by platform:username; every tick
     // we upsert each known chatter so refreshing the page never zeroes a
-    // viewer's Bubble Bucks. When the backend lands this is the swap point.
+    // viewer's Bubble Bits. When the backend lands this is the swap point.
     const ledger = useBucksLedger.getState();
     for (const c of chatters.values()) {
       ledger.upsert(c.platform, c.name, {
