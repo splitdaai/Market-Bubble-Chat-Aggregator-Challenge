@@ -7,6 +7,8 @@ const TTL = 9000;
 const METER_IDLE_MS = 5000;
 const EVENT_FLUSH_MS = 80;
 const MAX_EVENT_HISTORY = 16;
+const MAX_PENDING_EVENTS = 72;
+const MAX_FLUSH_EVENTS = 36;
 const HERO_COOLDOWN_MS = 2400;
 const AUDIO_COOLDOWN_MS = 2200;
 const HERO_ACTION_IDS = new Set(["charging-bull", "bear-slash", "chart-pump", "chart-dump"]);
@@ -60,9 +62,9 @@ export function OverlayEngagementLayer({ room }: { room: string }) {
     setMeterVisible(false);
   }, []);
 
-  const flushPendingEvents = useCallback(() => {
+  const flushPendingEvents = useCallback(function flushPendingEvents() {
     flushTimer.current = null;
-    const batch = pendingEvents.current.splice(0, pendingEvents.current.length);
+    const batch = pendingEvents.current.splice(0, Math.min(pendingEvents.current.length, MAX_FLUSH_EVENTS));
     if (!batch.length) return;
 
     const now = Date.now();
@@ -96,6 +98,9 @@ export function OverlayEngagementLayer({ room }: { room: string }) {
       if (hero) playOverlayHeroSfx(hero);
       setEvents((prev) => [...visualEvents.reverse(), ...prev].slice(0, MAX_EVENT_HISTORY));
     }
+    if (pendingEvents.current.length && flushTimer.current === null) {
+      flushTimer.current = window.setTimeout(flushPendingEvents, EVENT_FLUSH_MS);
+    }
   }, []);
 
   const scheduleFlush = useCallback(() => {
@@ -110,8 +115,8 @@ export function OverlayEngagementLayer({ room }: { room: string }) {
         return;
       }
       pendingEvents.current.push(event);
-      if (pendingEvents.current.length > 160) {
-        pendingEvents.current.splice(0, pendingEvents.current.length - 160);
+      if (pendingEvents.current.length > MAX_PENDING_EVENTS) {
+        pendingEvents.current.splice(0, pendingEvents.current.length - MAX_PENDING_EVENTS);
       }
       scheduleFlush();
     });

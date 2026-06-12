@@ -1,10 +1,12 @@
 import tmi from "tmi.js";
 import { BaseConnector } from "./types.ts";
-import type { ChatMessage, ModerationRequest, ModerationResult, Badge, ChatEvent } from "../../../shared/types.ts";
+import type { ChatMessage, ModerationRequest, ModerationResult, Badge, ChatEvent, Emote } from "../../../shared/types.ts";
 
 /** Twitch sub plan → USD-equivalent for the donor leaderboard. */
 const SUB_USD: Record<string, number> = { Prime: 5, "1000": 5, "2000": 10, "3000": 25 };
 const SUB_TIER: Record<string, string> = { Prime: "Prime", "1000": "Tier 1", "2000": "Tier 2", "3000": "Tier 3" };
+const TWITCH_EMOTE_URL = (id: string) => `https://static-cdn.jtvnw.net/emoticons/v2/${id}/default/dark/2.0`;
+const DEBUG_EMOTES = process.env.DEBUG_EMOTES === "1" || process.env.DEBUG_EMOTES === "true";
 
 /**
  * Twitch connector via tmi.js (IRC-over-WebSocket).
@@ -83,6 +85,8 @@ export class TwitchConnector extends BaseConnector {
 
     const bits = Number(tags.bits ?? 0);
     const event: ChatEvent | undefined = bits > 0 ? { kind: "bits", amount: bits / 100, label: `${bits} bits` } : undefined;
+    const emotes = extractTwitchEmotes(message, tags.emotes);
+    logTwitchEmoteDebug(this.channel, message, tags.emotes, emotes);
     return {
       id: `twitch:${tags.id ?? Date.now()}`,
       nativeId: tags.id,
@@ -92,6 +96,7 @@ export class TwitchConnector extends BaseConnector {
       message,
       timestamp: Date.now(),
       badges,
+      emotes: emotes.length ? emotes : undefined,
       hype: bits > 0,
       event,
     };
@@ -125,4 +130,34 @@ export class TwitchConnector extends BaseConnector {
       return { ok: false, request: req, error: String(e) };
     }
   }
+}
+
+function logTwitchEmoteDebug(channel: string, message: string, tagsEmotes: tmi.ChatUserstate["emotes"], emotes: Emote[]) {
+  if (!DEBUG_EMOTES || (!tagsEmotes && emotes.length === 0)) return;
+  console.log("[emotes:twitch]", JSON.stringify({
+    channel,
+    message,
+    tagIds: Object.keys(tagsEmotes ?? {}),
+    rawRanges: tagsEmotes ?? {},
+    resolved: emotes,
+  }));
+}
+
+function extractTwitchEmotes(message: string, tagsEmotes: tmi.ChatUserstate["emotes"]): Emote[] {
+  const byCode = new Map<string, string>();
+  if (!tagsEmotes) return [];
+
+  for (const [id, ranges] of Object.entries(tagsEmotes)) {
+    if (!id || !Array.isArray(ranges)) continue;
+    for (const range of ranges) {
+      const [startRaw, endRaw] = String(range).split("-");
+      const start = Number(startRaw);
+      const end = Number(endRaw);
+      if (!Number.isInteger(start) || !Number.isInteger(end) || start < 0 || end < start) continue;
+      const code = message.slice(start, end + 1).trim();
+      if (code) byCode.set(code, TWITCH_EMOTE_URL(id));
+    }
+  }
+
+  return [...byCode.entries()].map(([code, url]) => ({ code, url }));
 }

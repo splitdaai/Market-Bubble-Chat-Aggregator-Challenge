@@ -91,8 +91,13 @@ export function useChatConnection() {
     // Emotes are visual enhancement, not first paint. Let the dashboard become
     // interactive before opening several third-party emote requests.
     const loadEmotes = () => {
-      initEmotes(useConnectionsStore.getState().accounts.filter((a) => a.platform === "twitch").map((a) => a.handle));
+      const accounts = useConnectionsStore.getState().accounts;
+      initEmotes(
+        accounts.filter((a) => a.platform === "twitch").map((a) => a.handle),
+        accounts.filter((a) => a.platform === "kick").map((a) => a.handle),
+      );
     };
+    const unsubscribeEmoteAccounts = useConnectionsStore.subscribe(loadEmotes);
     const cancelEmoteLoad = (() => {
       if ("requestIdleCallback" in window) {
         const idleId = window.requestIdleCallback(loadEmotes, { timeout: 3500 });
@@ -124,7 +129,10 @@ export function useChatConnection() {
     // OAuth-authed accounts (live mode) replace the local demo account list —
     // even an empty list, so the demo channels don't leak into live mode.
     // (`conn.raw` only exists for the real backend socket, never in demo.)
-    conn.raw?.on("accounts", (accs) => useConnectionsStore.getState().setAccounts(accs));
+    conn.raw?.on("accounts", (accs) => {
+      useConnectionsStore.getState().setAccounts(accs);
+      loadEmotes();
+    });
 
     // Tip registry (live mode): handle → EVM address for every viewer who
     // registered a tip wallet. Feeds viewerWallet(), which is what puts the 💰
@@ -146,6 +154,7 @@ export function useChatConnection() {
       if (timeoutId !== null) window.clearTimeout(timeoutId);
       queuedMessages = [];
       cancelEmoteLoad();
+      unsubscribeEmoteAccounts();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [demo]);

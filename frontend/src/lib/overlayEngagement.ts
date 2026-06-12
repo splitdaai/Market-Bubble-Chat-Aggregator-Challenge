@@ -25,6 +25,22 @@ const STORAGE_KEY = "market-bubble-overlay-engage-event";
 type OverlaySocket = Socket<ServerToClientEvents, ClientToServerEvents>;
 let overlaySocket: OverlaySocket | null = null;
 
+const CLIENT_ROOM_WINDOW_MS = 10_000;
+const CLIENT_ROOM_LIMIT = 12;
+const HERO_ACTION_IDS = new Set(["charging-bull", "bear-slash", "chart-pump", "chart-dump"]);
+const CLIENT_KIND_COOLDOWNS: Partial<Record<OverlayActionKind, number>> = {
+  clear: 350,
+  clip: 800,
+  color: 650,
+  emote: 420,
+  soundwave: 700,
+  spotlight: 900,
+  ticker: 140,
+};
+
+const clientRoomRate = new Map<string, number[]>();
+const clientActionLast = new Map<string, number>();
+
 function overlayTransport(): OverlaySocket | null {
   const existing = getSocket() as OverlaySocket | null;
   if (existing) return existing;
@@ -47,6 +63,14 @@ export const OVERLAY_ACTIONS: OverlayActionDef[] = [
   { id: "happy-dad-emote", kind: "emote", label: "Happy Dad Spam", cost: 0, description: "Pop Happy Dad emotes across the overlay.", cta: "Spam Happy Dad", accent: "#facc15" },
   { id: "polymarket-emote", kind: "emote", label: "Polymarket Spam", cost: 0, description: "Pop prediction-market emotes across the overlay.", cta: "Spam Poly", accent: "#34d6ff" },
   { id: "emote-burst", kind: "emote", label: "Emote Burst", cost: 15, description: "Fire a clean emote burst across the panel.", cta: "Burst emotes", accent: "#facc15" },
+  { id: "wagmi-meme", kind: "emote", label: "WAGMI", cost: 0, description: "Flood the overlay with WAGMI energy.", cta: "Send WAGMI", accent: "#16e6a4" },
+  { id: "ngmi-meme", kind: "emote", label: "NGMI", cost: 0, description: "Drop a bearish NGMI meme burst.", cta: "Send NGMI", accent: "#ff5c7a" },
+  { id: "cope-meme", kind: "emote", label: "COPE", cost: 0, description: "Send a clean COPE meme burst.", cta: "Send COPE", accent: "#a78bfa" },
+  { id: "send-it-meme", kind: "emote", label: "SEND IT", cost: 5, description: "Push a SEND IT meme wave across the source.", cta: "Send it", accent: "#f97316" },
+  { id: "diamond-hands-meme", kind: "emote", label: "Diamond Hands", cost: 10, description: "Rain diamond-hands energy over the overlay.", cta: "Diamond hands", accent: "#34d6ff" },
+  { id: "laser-eyes-meme", kind: "emote", label: "Laser Eyes", cost: 10, description: "Flash laser-eyes conviction on stream.", cta: "Laser eyes", accent: "#ef4444" },
+  { id: "moon-meme", kind: "emote", label: "To The Moon", cost: 15, description: "Launch a moon-mission meme burst.", cta: "Moon it", accent: "#facc15" },
+  { id: "dogecoin-meme", kind: "emote", label: "Dogecoin", cost: 15, description: "Send DOGE energy across the stream.", cta: "Send DOGE", accent: "#d9a547" },
   { id: "mood-wave", kind: "color", label: "Market Mood Wave", cost: 25, description: "Send a color wash through the overlay.", cta: "Send wave", accent: "#d9a547" },
   { id: "clip-boost", kind: "clip", label: "Clip Boost", cost: 35, description: "Flag this moment for the producer.", cta: "Clip it", accent: "#f97316" },
   { id: "soundwave", kind: "soundwave", label: "Soundwave Hit", cost: 50, description: "Trigger a visual audio-reactive hit.", cta: "Hit wave", accent: "#a78bfa" },
@@ -80,12 +104,48 @@ export function qrImageUrl(data: string, size = 132): string {
   return `https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&margin=6&data=${encodeURIComponent(data)}`;
 }
 
-export function publishOverlayEvent(event: Omit<OverlayEngagementEvent, "id" | "at">): OverlayEngagementEvent {
+function clientActionKey(event: Pick<OverlayEngagementEvent, "room" | "actionId" | "kind">): string {
+  const isHero = HERO_ACTION_IDS.has(event.actionId);
+  return `${event.room}:${isHero ? "hero" : event.kind}:${isHero ? "visual" : event.actionId}`;
+}
+
+function clientCooldownMs(event: Pick<OverlayEngagementEvent, "actionId" | "kind">): number {
+  return HERO_ACTION_IDS.has(event.actionId) ? 2400 : CLIENT_KIND_COOLDOWNS[event.kind] ?? 250;
+}
+
+export function resetOverlayPublishGate(): void {
+  clientRoomRate.clear();
+  clientActionLast.clear();
+}
+
+export function canPublishOverlayEvent(event: Pick<OverlayEngagementEvent, "room" | "actionId" | "kind">, now = Date.now()): boolean {
+  const hist = (clientRoomRate.get(event.room) ?? []).filter((t) => now - t < CLIENT_ROOM_WINDOW_MS);
+  if (hist.length >= CLIENT_ROOM_LIMIT) {
+    clientRoomRate.set(event.room, hist);
+    return false;
+  }
+
+  const key = clientActionKey(event);
+  const last = clientActionLast.get(key) ?? 0;
+  if (now - last < clientCooldownMs(event)) {
+    clientRoomRate.set(event.room, hist);
+    return false;
+  }
+
+  hist.push(now);
+  clientRoomRate.set(event.room, hist);
+  clientActionLast.set(key, now);
+  return true;
+}
+
+export function publishOverlayEvent(event: Omit<OverlayEngagementEvent, "id" | "at">): OverlayEngagementEvent | null {
   const full: OverlayEngagementEvent = {
     ...event,
     id: typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`,
     at: Date.now(),
   };
+
+  if (!canPublishOverlayEvent(full, full.at)) return null;
 
   try {
     const channel = new BroadcastChannel(CHANNEL);

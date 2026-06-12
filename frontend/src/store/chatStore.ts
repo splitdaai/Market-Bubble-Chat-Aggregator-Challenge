@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import type { ChatMessage, ConnectionStatus, Platform } from "@shared/types";
 import { moderate } from "@/lib/automod";
+import { registerEmotes } from "@/lib/emotes";
 
 /** Hard cap so the live feed never leaks memory during a long stream. */
 const MAX_MESSAGES = 300;
@@ -115,6 +116,7 @@ function appendMessages(s: ChatState, rawMessages: ChatMessage[]): Partial<ChatS
     if (mod.blocked) continue;
 
     const m = mod.text === rawMsg.message ? rawMsg : { ...rawMsg, message: mod.text };
+    registerEmotes(m.emotes);
     accepted.push(m);
 
     // Append to the user's own history (capped per user).

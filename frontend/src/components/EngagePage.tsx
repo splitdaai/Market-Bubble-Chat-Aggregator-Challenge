@@ -1,6 +1,26 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
-import { ArrowLeft, BadgeCheck, Coins, MessageSquareText, Radio, Sparkles, Zap } from "lucide-react";
+import {
+  ArrowDownRight,
+  ArrowLeft,
+  ArrowUpRight,
+  BadgeCheck,
+  Clapperboard,
+  Coins,
+  Eraser,
+  Eye,
+  Gem,
+  Hash,
+  MessageSquareText,
+  Palette,
+  Radio,
+  Rocket,
+  Smile,
+  Sparkles,
+  Volume2,
+  Zap,
+  type LucideIcon,
+} from "lucide-react";
 import { OVERLAY_ACTIONS, canAfford, publishOverlayEvent, roomFromSearch, spendBucks, type OverlayActionDef } from "@/lib/overlayEngagement";
 import { compact } from "@/lib/format";
 import { useBucksLedger } from "@/store/bucksLedgerStore";
@@ -8,6 +28,8 @@ import { useBucksLedger } from "@/store/bucksLedgerStore";
 const BALANCE_KEY = "market-bubble-engage-balance";
 const USER_KEY = "market-bubble-engage-user";
 const DEFAULT_BALANCE = 1200;
+const DEFAULT_DISPLAY_NAME = "SplitDaWig";
+const DEFAULT_SPOTLIGHT_TAKE = "is Building. 🧱";
 const SEND_COOLDOWN_MS = 450;
 const TICKERS = ["BTC", "ETH", "SOL", "HYPE", "DOGE", "XRP", "NVDA", "COIN", "MSTR", "POLY"];
 const EMOTES = ["🚀", "🐂", "💎", "🔥", "W", "📈", "🟢", "👑", "⚡"];
@@ -24,6 +46,14 @@ const EMOTE_BY_ACTION: Record<string, string> = {
   "nelk-emote": "NELK",
   "happy-dad-emote": "HAPPY DAD",
   "polymarket-emote": "POLY",
+  "wagmi-meme": "WAGMI",
+  "ngmi-meme": "NGMI",
+  "cope-meme": "COPE",
+  "send-it-meme": "SEND IT",
+  "diamond-hands-meme": "💎🙌",
+  "laser-eyes-meme": "LASER EYES",
+  "moon-meme": "MOON",
+  "dogecoin-meme": "DOGE",
 };
 const MOBILE_ACTION_LABELS: Record<string, string> = {
   "charging-bull": "Bull",
@@ -37,12 +67,47 @@ const MOBILE_ACTION_LABELS: Record<string, string> = {
   "happy-dad-emote": "Happy",
   "polymarket-emote": "Poly",
   "emote-burst": "Emotes",
+  "wagmi-meme": "WAGMI",
+  "ngmi-meme": "NGMI",
+  "cope-meme": "COPE",
+  "send-it-meme": "SEND",
+  "diamond-hands-meme": "💎🙌",
+  "laser-eyes-meme": "Laser",
+  "moon-meme": "Moon",
+  "dogecoin-meme": "DOGE",
   "mood-wave": "Mood",
   "clip-boost": "Clip",
   "soundwave": "Wave",
   "spotlight": "Spot",
   "whale-storm": "Whale",
   "clear-overlay": "Clear",
+};
+const ACTION_VISUALS: Record<string, { icon?: LucideIcon; image?: string; alt: string; wide?: boolean; text?: string }> = {
+  "charging-bull": { image: "/overlay-vfx/charging-bull.png", alt: "Charging bull effect" },
+  "bear-slash": { image: "/overlay-vfx/bear-slash.png", alt: "Bear slash effect" },
+  "chart-pump": { icon: ArrowUpRight, alt: "Green candle chart pump", text: "UP" },
+  "chart-dump": { icon: ArrowDownRight, alt: "Red candle chart dump", text: "DOWN" },
+  "ticker-boost": { icon: Hash, alt: "Ticker boost" },
+  "ansem-emote": { image: "/overlay-emotes/ansem.png", alt: "Ansem emote" },
+  "banks-emote": { image: "/overlay-emotes/banks.png", alt: "Banks emote" },
+  "nelk-emote": { image: "/overlay-emotes/nelk.png", alt: "NELK emote", wide: true },
+  "happy-dad-emote": { image: "/overlay-emotes/happy-dad.svg", alt: "Happy Dad emote", wide: true },
+  "polymarket-emote": { image: "/overlay-emotes/polymarket.svg", alt: "Polymarket emote" },
+  "emote-burst": { icon: Smile, alt: "Selected emote burst" },
+  "wagmi-meme": { icon: ArrowUpRight, alt: "WAGMI meme burst", text: "WAGMI" },
+  "ngmi-meme": { icon: ArrowDownRight, alt: "NGMI meme burst", text: "NGMI" },
+  "cope-meme": { icon: Smile, alt: "COPE meme burst", text: "COPE" },
+  "send-it-meme": { icon: Zap, alt: "SEND IT meme burst", text: "SEND" },
+  "diamond-hands-meme": { icon: Gem, alt: "Diamond hands meme burst", text: "💎🙌" },
+  "laser-eyes-meme": { icon: Eye, alt: "Laser eyes meme burst", text: "LASER" },
+  "moon-meme": { icon: Rocket, alt: "To the moon meme burst", text: "MOON" },
+  "dogecoin-meme": { icon: Coins, alt: "Dogecoin meme burst", text: "DOGE" },
+  "mood-wave": { icon: Palette, alt: "Color mood wave" },
+  "clip-boost": { icon: Clapperboard, alt: "Clip boost" },
+  soundwave: { icon: Volume2, alt: "Soundwave hit" },
+  spotlight: { icon: MessageSquareText, alt: "Viewer spotlight" },
+  "whale-storm": { icon: Gem, alt: "Whale storm", text: "WHALE" },
+  "clear-overlay": { icon: Eraser, alt: "Clear overlay" },
 };
 
 function storedNumber(key: string, fallback: number): number {
@@ -58,9 +123,9 @@ function storedNumber(key: string, fallback: number): number {
 function storedUser(): string {
   try {
     const raw = localStorage.getItem(USER_KEY);
-    if (raw) return raw;
+    if (raw && !/^bubble\d{4}$/i.test(raw) && raw.toLowerCase() !== "bubbleguest") return raw;
   } catch { /* ignore */ }
-  return `bubble${Math.floor(1000 + Math.random() * 9000)}`;
+  return DEFAULT_DISPLAY_NAME;
 }
 
 export function EngagePage() {
@@ -70,13 +135,15 @@ export function EngagePage() {
   const [ticker, setTicker] = useState(TICKERS[0]);
   const [emote, setEmote] = useState(EMOTES[0]);
   const [color, setColor] = useState(COLORS[0]);
-  const [message, setMessage] = useState("W stream. Run it up.");
+  const [message, setMessage] = useState(DEFAULT_SPOTLIGHT_TAKE);
   const [last, setLast] = useState<string>("Ready to move the overlay.");
   const [isSending, setIsSending] = useState(false);
   const sendLockedUntil = useRef(0);
+  const balanceRef = useRef(balance);
   const releaseTimer = useRef<number | null>(null);
 
   const saveBalance = (n: number) => {
+    balanceRef.current = n;
     setBalance(n);
     try { localStorage.setItem(BALANCE_KEY, String(n)); } catch { /* ignore */ }
   };
@@ -99,29 +166,23 @@ export function EngagePage() {
   }, []);
 
   const fire = (action: OverlayActionDef) => {
+    const now = Date.now();
     const isClearAction = action.id === "clear-overlay";
-    if (!isClearAction && Date.now() < sendLockedUntil.current) return;
-    if (!canAfford(balance, action)) {
-      setLast(`Need ${compact(action.cost - balance)} more Bubble Bucks for ${action.label}.`);
+    if (!isClearAction && now < sendLockedUntil.current) {
+      setLast("Easy. The overlay is cooling down for a beat.");
       return;
     }
-    if (!isClearAction) lockSend();
-    const next = spendBucks(balance, action);
-    saveBalance(next);
-    // Record the spend in the persistent BB ledger so the analytics page tracks
-    // lifetime spending per viewer. Engage-page viewers identify by their X
-    // handle (the only platform that can route an anonymous QR scan back to a
-    // real account here); guest viewers fall back to "@bubbleguest".
-    if (action.cost > 0) {
-      const handle = (user.trim() || "bubbleguest").replace(/^@/, "");
-      useBucksLedger.getState().addSpent("x", handle, action.cost);
+    const currentBalance = balanceRef.current;
+    if (!canAfford(currentBalance, action)) {
+      setLast(`Need ${compact(action.cost - currentBalance)} more Bubble Bucks for ${action.label}.`);
+      return;
     }
-    publishOverlayEvent({
+    const published = publishOverlayEvent({
       room,
       actionId: action.id,
       kind: action.kind,
       label: action.label,
-      user: user.trim() || "bubbleguest",
+      user: user.trim() || DEFAULT_DISPLAY_NAME,
       cost: action.cost,
       payload: {
         side: SIDE_BY_ACTION[action.id],
@@ -131,13 +192,29 @@ export function EngagePage() {
         message: message.trim().slice(0, 72),
       },
     });
+    if (!published) {
+      if (!isClearAction) lockSend();
+      setLast("Overlay is protecting the stream from spam. Try again in a moment.");
+      return;
+    }
+    if (!isClearAction) lockSend();
+    const next = spendBucks(currentBalance, action);
+    saveBalance(next);
+    // Record the spend in the persistent BB ledger so the analytics page tracks
+    // lifetime spending per viewer. Engage-page viewers identify by their X
+    // handle (the only platform that can route an anonymous QR scan back to a
+    // real account here); guest viewers fall back to "@bubbleguest".
+    if (action.cost > 0) {
+      const handle = (user.trim() || DEFAULT_DISPLAY_NAME).replace(/^@/, "");
+      useBucksLedger.getState().addSpent("x", handle, action.cost);
+    }
     setLast(`${action.label} sent. ${compact(next)} BB left.`);
   };
 
-  const earn = (n: number) => saveBalance(balance + n);
+  const earn = (n: number) => saveBalance(balanceRef.current + n);
 
   return (
-    <div className="min-h-screen overflow-hidden bg-[#080706] text-[#f3efe7]">
+    <div className="min-h-screen overflow-x-hidden bg-[#080706] text-[#f3efe7]">
       <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_20%_12%,rgba(217,165,71,0.22),transparent_32%),radial-gradient(circle_at_78%_20%,rgba(22,230,164,0.14),transparent_30%),linear-gradient(180deg,#080706,#120d07)]" />
       <main className="relative z-10 mx-auto flex min-h-screen max-w-6xl flex-col px-4 py-5 sm:px-6">
         <header className="flex flex-wrap items-center gap-3">
@@ -200,7 +277,7 @@ export function EngagePage() {
             </div>
           </div>
 
-          <div className="grid grid-cols-4 gap-2 sm:grid-cols-2 sm:gap-3">
+          <div className="grid grid-cols-4 gap-2 sm:grid-cols-2 sm:gap-3 lg:grid-cols-3">
             {OVERLAY_ACTIONS.map((action, i) => {
               const ok = canAfford(balance, action);
               const isClearAction = action.id === "clear-overlay";
@@ -220,12 +297,15 @@ export function EngagePage() {
                   <div className="absolute -right-6 -top-6 h-16 w-16 rounded-full blur-2xl transition group-hover:scale-125 sm:-right-8 sm:-top-8 sm:h-24 sm:w-24" style={{ background: `${action.accent}33` }} />
                   <div className="relative flex h-full flex-col items-center justify-between gap-2 sm:block">
                     <div className="flex w-full items-start justify-center gap-1 sm:justify-between sm:gap-3">
-                      <div className="min-w-0">
+                      <div className="flex min-w-0 flex-col items-center gap-1.5 sm:flex-row sm:items-start sm:gap-3">
+                        <ActionVisual action={action} emote={emote} color={color} enabled={ok && (!isSending || isClearAction)} />
+                        <div className="min-w-0">
                         <div className="text-[11px] font-black leading-tight text-white sm:text-lg">
                           <span className="sm:hidden">{MOBILE_ACTION_LABELS[action.id] ?? action.label}</span>
                           <span className="hidden sm:inline">{action.label}</span>
                         </div>
                         <p className="mt-1 hidden text-[12px] leading-5 text-white/55 sm:block">{action.description}</p>
+                      </div>
                       </div>
                       <div className="hidden shrink-0 rounded-full px-2.5 py-1 text-[12px] font-black tabular-nums sm:block" style={{ color: action.accent, background: `${action.accent}18`, border: `1px solid ${action.accent}55` }}>
                         {action.cost ? `${action.cost} BB` : "Free"}
@@ -244,6 +324,41 @@ export function EngagePage() {
         </section>
       </main>
     </div>
+  );
+}
+
+function ActionVisual({ action, emote, color, enabled }: { action: OverlayActionDef; emote: string; color: string; enabled: boolean }) {
+  const visual = ACTION_VISUALS[action.id] ?? { icon: Zap, alt: action.label };
+  const Icon = visual.icon;
+  const tint = enabled ? action.accent : "rgba(255,255,255,0.42)";
+  const dynamicText = action.id === "emote-burst" ? emote : visual.text;
+
+  return (
+    <span
+      className="grid h-9 w-9 shrink-0 place-items-center overflow-hidden rounded-lg border sm:h-12 sm:w-12 sm:rounded-xl"
+      style={{
+        borderColor: enabled ? `${action.accent}66` : "rgba(255,255,255,0.12)",
+        background: action.id === "mood-wave"
+          ? `linear-gradient(135deg, ${color}, rgba(255,255,255,0.08))`
+          : `linear-gradient(135deg, ${action.accent}22, rgba(255,255,255,0.05))`,
+        boxShadow: enabled ? `0 0 20px ${action.accent}22` : "none",
+      }}
+      aria-label={visual.alt}
+    >
+      {visual.image ? (
+        <img
+          src={visual.image}
+          alt=""
+          draggable={false}
+          className={`select-none object-contain ${visual.wide ? "h-6 w-8 sm:h-8 sm:w-11" : "h-8 w-8 sm:h-11 sm:w-11"}`}
+        />
+      ) : (
+        <span className="flex flex-col items-center justify-center leading-none">
+          {Icon ? <Icon size={dynamicText ? 15 : 20} className="sm:h-6 sm:w-6" style={{ color: tint }} /> : null}
+          {dynamicText ? <span className="mt-0.5 max-w-[42px] truncate text-[7px] font-black tracking-normal sm:text-[8px]" style={{ color: tint }}>{dynamicText}</span> : null}
+        </span>
+      )}
+    </span>
   );
 }
 

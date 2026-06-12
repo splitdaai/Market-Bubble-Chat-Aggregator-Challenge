@@ -2,7 +2,7 @@ import WebSocket from "ws";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { BaseConnector } from "./types.ts";
-import type { ChatMessage, ModerationRequest, ModerationResult, Badge } from "../../../shared/types.ts";
+import type { ChatMessage, ModerationRequest, ModerationResult, Badge, Emote } from "../../../shared/types.ts";
 
 const execFileP = promisify(execFile);
 
@@ -19,11 +19,31 @@ const PUSHER_URL = `wss://ws-us2.pusher.com/app/${PUSHER_KEY}?protocol=7&client=
 
 const BROWSER_UA =
   "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36";
+const DEBUG_EMOTES = process.env.DEBUG_EMOTES === "1" || process.env.DEBUG_EMOTES === "true";
+
+type UnknownRecord = Record<string, unknown>;
+
+interface KickChatPayload {
+  id: string | number;
+  content: string;
+  sender: { username: string; identity?: { color?: string; badges?: { type: string; text: string }[] } };
+  emotes?: unknown;
+  metadata?: unknown;
+  message?: unknown;
+}
+
+interface KickChannelResolve {
+  chatroomId: number;
+  emotes: Emote[];
+}
+
+const KICK_EMOTE_TOKEN_RE = /\[emote:([^\]:]+):([^\]]+)\]/g;
 
 export class KickConnector extends BaseConnector {
   readonly platform = "kick" as const;
   private ws: WebSocket | null = null;
   private chatroomId: number | null = null;
+  private channelEmotes = new Map<string, string>();
   private stopped = false;
 
   constructor(private slug: string, private bearer?: string) {
@@ -32,7 +52,8 @@ export class KickConnector extends BaseConnector {
 
   async start() {
     this.stopped = false;
-    this.chatroomId = await this.resolveChatroomId(this.slug);
+    const resolved = await this.resolveChannel(this.slug);
+    this.chatroomId = resolved?.chatroomId ?? null;
     if (!this.chatroomId) {
       // Don't give up forever — Cloudflare can be flaky; retry the whole resolve.
       this.setStatus({ connected: false, error: "channel_not_found" });
@@ -40,6 +61,7 @@ export class KickConnector extends BaseConnector {
       if (!this.stopped) setTimeout(() => void this.start(), 30_000);
       return;
     }
+    this.channelEmotes = new Map((resolved?.emotes ?? []).map((emote) => [emote.code, emote.url]));
     console.log(`✓ kick:${this.slug} resolved chatroom ${this.chatroomId}`);
     this.connectSocket();
   }
@@ -53,7 +75,7 @@ export class KickConnector extends BaseConnector {
    * 200, so we resolve via curl and only fall back to fetch where curl is absent
    * (and, on some networks, not blocked). A few attempts smooth over flakiness.
    */
-  private async resolveChatroomId(slug: string): Promise<number | null> {
+  private async resolveChannel(slug: string): Promise<KickChannelResolve | null> {
     const url = `https://kick.com/api/v2/channels/${slug}`;
     for (let attempt = 0; attempt < 3 && !this.stopped; attempt++) {
       // 1) curl — passes Cloudflare on servers where Node's fetch is blocked
@@ -63,8 +85,9 @@ export class KickConnector extends BaseConnector {
           ["-s", "--max-time", "10", "-H", `User-Agent: ${BROWSER_UA}`, "-H", "Accept: application/json", "-H", "Accept-Language: en-US,en;q=0.9", url],
           { maxBuffer: 4 * 1024 * 1024 },
         );
-        const id = JSON.parse(stdout)?.chatroom?.id;
-        if (typeof id === "number") return id;
+        const data = JSON.parse(stdout) as unknown;
+        const id = asRecord(asRecord(data)?.chatroom)?.id;
+        if (typeof id === "number") return { chatroomId: id, emotes: extractKickEmotesFromUnknown(data) };
       } catch {
         /* curl missing/failed/non-JSON — try fetch, then retry */
       }
@@ -72,8 +95,9 @@ export class KickConnector extends BaseConnector {
       try {
         const res = await fetch(url, { headers: { Accept: "application/json", "User-Agent": BROWSER_UA, "Accept-Language": "en-US,en;q=0.9" } });
         if (res.ok) {
-          const data = (await res.json()) as { chatroom?: { id: number } };
-          if (typeof data.chatroom?.id === "number") return data.chatroom.id;
+          const data = await res.json() as unknown;
+          const id = asRecord(asRecord(data)?.chatroom)?.id;
+          if (typeof id === "number") return { chatroomId: id, emotes: extractKickEmotesFromUnknown(data) };
         }
       } catch {
         /* ignore and retry */
@@ -148,26 +172,29 @@ export class KickConnector extends BaseConnector {
     this.ws.on("error", (e) => this.setStatus({ connected: false, error: String(e) }));
   }
 
-  private normalize(d: {
-    id: string;
-    content: string;
-    sender: { username: string; identity?: { color?: string; badges?: { type: string; text: string }[] } };
-  }): ChatMessage {
+  private normalize(d: KickChatPayload): ChatMessage {
     const badges: Badge[] =
       d.sender.identity?.badges?.map((b) => ({
         type: (b.type === "moderator" ? "moderator" : b.type === "subscriber" ? "subscriber" : "og") as Badge["type"],
         label: b.text,
       })) ?? [];
+    const message = cleanKickContent(d.content);
+    const emotes = mergeEmotes(
+      extractKickEmotes(d),
+      resolveTextEmotes(message, this.channelEmotes),
+    );
+    logKickEmoteDebug(this.slug, d, message, emotes, this.channelEmotes.size);
     return {
       id: `kick:${d.id}`,
-      nativeId: d.id,
+      nativeId: String(d.id),
       platform: "kick",
       username: d.sender.username,
       color: d.sender.identity?.color,
-      message: d.content,
+      message,
       timestamp: Date.now(),
       badges,
-      hype: /gift|sub|host|raid/i.test(d.content),
+      emotes: emotes.length ? emotes : undefined,
+      hype: /gift|sub|host|raid/i.test(message),
     };
   }
 
@@ -188,4 +215,199 @@ export class KickConnector extends BaseConnector {
       return { ok: false, request: req, error: String(e) };
     }
   }
+}
+
+function cleanKickContent(content: string): string {
+  return content.replace(KICK_EMOTE_TOKEN_RE, "$2");
+}
+
+function extractKickEmotes(payload: KickChatPayload): Emote[] {
+  const refsFromContent = [...payload.content.matchAll(KICK_EMOTE_TOKEN_RE)]
+    .map((match) => ({ id: cleanCode(match[1]), code: cleanCode(match[2]) }))
+    .filter((ref): ref is { id: string; code: string } => Boolean(ref.id && ref.code));
+  const candidates = [
+    payload.emotes,
+    parseMaybeJson(payload.metadata),
+    asRecord(parseMaybeJson(payload.metadata))?.emotes,
+    asRecord(parseMaybeJson(payload.message))?.emotes,
+  ];
+
+  const byCode = new Map<string, string>();
+  for (const ref of refsFromContent) {
+    const url = kickEmoteUrlFromId(ref.id);
+    if (url) byCode.set(ref.code, url);
+  }
+  let fallbackCodeIndex = 0;
+  for (const record of candidates.flatMap((candidate) => collectEmoteRecords(candidate))) {
+    const code =
+      cleanCode(record.name) ??
+      cleanCode(record.code) ??
+      cleanCode(record.slug) ??
+      cleanCode(record.text) ??
+      refsFromContent[fallbackCodeIndex]?.code ??
+      cleanCode(record.id);
+    const url = findUrl(record);
+    fallbackCodeIndex += 1;
+    if (code && url) byCode.set(code, url);
+  }
+
+  return [...byCode.entries()].map(([code, url]) => ({ code, url }));
+}
+
+function kickEmoteUrlFromId(id: string): string | null {
+  return /^\d+$/.test(id) ? `https://files.kick.com/emotes/${id}/fullsize` : null;
+}
+
+function extractKickEmotesFromUnknown(value: unknown): Emote[] {
+  const byCode = new Map<string, string>();
+  for (const record of collectEmoteRecords(value)) {
+    const code = cleanCode(record.name) ?? cleanCode(record.code) ?? cleanCode(record.slug) ?? cleanCode(record.text);
+    const url = findUrl(record);
+    if (code && url) byCode.set(code, url);
+  }
+  return [...byCode.entries()].map(([code, url]) => ({ code, url }));
+}
+
+function resolveTextEmotes(message: string, emoteMap: Map<string, string>): Emote[] {
+  if (emoteMap.size === 0) return [];
+  const byCode = new Map<string, string>();
+  for (const rawToken of message.split(/\s+/)) {
+    const code = cleanCode(rawToken);
+    const url = code ? emoteMap.get(code) : undefined;
+    if (code && url) byCode.set(code, url);
+  }
+  return [...byCode.entries()].map(([code, url]) => ({ code, url }));
+}
+
+function mergeEmotes(...groups: Emote[][]): Emote[] {
+  const byCode = new Map<string, string>();
+  for (const group of groups) {
+    for (const emote of group) {
+      const code = cleanCode(emote.code);
+      const url = cleanUrl(emote.url);
+      if (code && url) byCode.set(code, url);
+    }
+  }
+  return [...byCode.entries()].map(([code, url]) => ({ code, url }));
+}
+
+function collectEmoteRecords(value: unknown, depth = 0): UnknownRecord[] {
+  if (!value || depth > 5) return [];
+  if (Array.isArray(value)) return value.flatMap((item) => collectEmoteRecords(item, depth + 1));
+  const record = asRecord(value);
+  if (!record) return [];
+
+  const isEmote = Boolean(
+    (cleanCode(record.name) || cleanCode(record.code) || cleanCode(record.slug) || cleanCode(record.text) || cleanCode(record.id)) &&
+    findUrl(record),
+  );
+
+  return [
+    ...(isEmote ? [record] : []),
+    ...collectEmoteRecords(record.emotes, depth + 1),
+    ...collectEmoteRecords(record.subscriber_emotes, depth + 1),
+    ...collectEmoteRecords(record.channel_emotes, depth + 1),
+    ...collectEmoteRecords(record.chatroom, depth + 1),
+    ...collectEmoteRecords(record.emote_set, depth + 1),
+    ...collectEmoteRecords(record.data, depth + 1),
+  ];
+}
+
+function findUrl(value: unknown, depth = 0): string | null {
+  if (depth > 4) return null;
+  const direct = cleanUrl(value);
+  if (direct) return direct;
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      const url = findUrl(item, depth + 1);
+      if (url) return url;
+    }
+    return null;
+  }
+  const record = asRecord(value);
+  if (!record) return null;
+  for (const key of ["url", "src", "image", "image_url", "static_url", "animated_url", "emote_url", "cdn_url", "asset_url", "url_static", "url_animated", "gif", "asset", "path", "source", "file", "url_4x", "url_2x", "url_1x"]) {
+    const url = cleanUrl(record[key]);
+    if (url) return url;
+  }
+  for (const key of ["images", "urls", "variants", "versions", "small", "medium", "large"]) {
+    const url = findUrl(record[key], depth + 1);
+    if (url) return url;
+  }
+  return null;
+}
+
+function cleanCode(value: unknown): string | null {
+  if (typeof value !== "string" && typeof value !== "number") return null;
+  const code = String(value).trim();
+  if (!code) return null;
+  return code.length > 2 && code.startsWith(":") && code.endsWith(":") ? code.slice(1, -1) : code;
+}
+
+function cleanUrl(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const url = value.trim();
+  if (url.startsWith("https://") || url.startsWith("http://")) return url;
+  if (url.startsWith("//")) return `https:${url}`;
+  return null;
+}
+
+function asRecord(value: unknown): UnknownRecord | null {
+  return value && typeof value === "object" && !Array.isArray(value) ? value as UnknownRecord : null;
+}
+
+function parseMaybeJson(value: unknown): unknown {
+  if (typeof value !== "string") return value;
+  try {
+    return JSON.parse(value);
+  } catch {
+    return value;
+  }
+}
+
+function logKickEmoteDebug(channel: string, payload: KickChatPayload, message: string, emotes: Emote[], channelEmoteCount: number) {
+  if (!DEBUG_EMOTES) return;
+  const tokenRefs = [...payload.content.matchAll(KICK_EMOTE_TOKEN_RE)]
+    .map((match) => ({ id: match[1], code: match[2], inferredUrl: kickEmoteUrlFromId(match[1]) }))
+    .filter((ref) => ref.id || ref.code);
+  const metadata = parseMaybeJson(payload.metadata);
+  const nestedMessage = parseMaybeJson(payload.message);
+  const hasRawEmoteSignal = Boolean(
+    tokenRefs.length ||
+    payload.emotes ||
+    asRecord(metadata)?.emotes ||
+    asRecord(nestedMessage)?.emotes ||
+    emotes.length,
+  );
+  if (!hasRawEmoteSignal) return;
+
+  console.log("[emotes:kick]", JSON.stringify({
+    channel,
+    rawContent: payload.content,
+    normalizedMessage: message,
+    tokenRefs,
+    channelEmoteCount,
+    resolved: emotes,
+    rawShape: summarizeEmoteShape({
+      emotes: payload.emotes,
+      metadata,
+      message: nestedMessage,
+    }),
+  }));
+}
+
+function summarizeEmoteShape(value: unknown, depth = 0): unknown {
+  if (depth > 3 || value == null) return undefined;
+  if (Array.isArray(value)) return { type: "array", length: value.length, first: summarizeEmoteShape(value[0], depth + 1) };
+  const record = asRecord(value);
+  if (!record) return typeof value;
+  const out: Record<string, unknown> = {};
+  for (const [key, item] of Object.entries(record)) {
+    if (/emote|image|url|src|asset|metadata|message|data|name|code|slug|id/i.test(key)) {
+      out[key] = typeof item === "string" || typeof item === "number" || typeof item === "boolean"
+        ? item
+        : summarizeEmoteShape(item, depth + 1);
+    }
+  }
+  return Object.keys(out).length ? out : { keys: Object.keys(record).slice(0, 12) };
 }

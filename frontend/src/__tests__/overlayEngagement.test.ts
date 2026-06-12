@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { actionById, canAfford, engageUrl, qrImageUrl, spendBucks } from "@/lib/overlayEngagement";
+import { actionById, canAfford, canPublishOverlayEvent, engageUrl, qrImageUrl, resetOverlayPublishGate, spendBucks } from "@/lib/overlayEngagement";
 
 describe("overlay engagement", () => {
   it("gates actions by Bubble Bucks balance", () => {
@@ -17,6 +17,13 @@ describe("overlay engagement", () => {
     expect(actionById("bear-vote")).toBeUndefined();
   });
 
+  it("exposes the meme overlay actions", () => {
+    expect(actionById("wagmi-meme")?.label).toBe("WAGMI");
+    expect(actionById("diamond-hands-meme")?.kind).toBe("emote");
+    expect(actionById("moon-meme")?.cost).toBe(15);
+    expect(actionById("dogecoin-meme")?.label).toBe("Dogecoin");
+  });
+
   it("spends only when balance can cover the action", () => {
     const action = actionById("ticker-boost")!;
     expect(spendBucks(9, action)).toBe(9);
@@ -27,5 +34,25 @@ describe("overlay engagement", () => {
     const url = engageUrl("show room", "https://marketbubble.chat", "/live");
     expect(url).toBe("https://marketbubble.chat/live?engage=1&room=show%20room");
     expect(qrImageUrl(url)).toContain(encodeURIComponent(url));
+  });
+
+  it("rate-limits repeated overlay actions before they reach the renderer", () => {
+    resetOverlayPublishGate();
+    const event = { room: "main", actionId: "ticker-boost", kind: "ticker" as const };
+
+    expect(canPublishOverlayEvent(event, 1_000)).toBe(true);
+    expect(canPublishOverlayEvent(event, 1_050)).toBe(false);
+    expect(canPublishOverlayEvent(event, 1_160)).toBe(true);
+  });
+
+  it("caps room-level overlay bursts", () => {
+    resetOverlayPublishGate();
+    const event = { room: "main", actionId: "ticker-boost", kind: "ticker" as const };
+
+    for (let i = 0; i < 12; i++) {
+      expect(canPublishOverlayEvent(event, 1_000 + i * 150)).toBe(true);
+    }
+    expect(canPublishOverlayEvent(event, 2_900)).toBe(false);
+    expect(canPublishOverlayEvent(event, 12_000)).toBe(true);
   });
 });

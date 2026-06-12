@@ -1,133 +1,279 @@
-# 🫧 Market Bubble
+# Market Bubble
 
-> The real-time **broadcast command center** for Market Bubble — Twitch + Kick + X
-> + YouTube chat unified (with real emotes + cross-platform moderation), live
-> **Polymarket** odds, a **KOL smart-money tracker** on real Hyperliquid wallets,
-> full revenue analytics (subs · bits · Kicks · Super Chats · tips · **estimated ad
-> revenue**), X broadcast replays, OBS overlays, and **non-custodial crypto tipping**
-> — in a drag/drop visual dashboard. Built for the **$10k Vibe Code Challenge**.
+Market Bubble is a real-time broadcast operations dashboard for live financial and creator streams. It brings chat, viewer activity, moderation, market context, Polymarket odds, OBS sources, analytics, and crypto tipping into one production-focused interface.
 
-![mode: demo + live](https://img.shields.io/badge/mode-demo%20%2B%20live-16e6a4)
-![stack: React 18 · Vite · TS · Socket.io](https://img.shields.io/badge/stack-React%2018%20·%20Vite%20·%20Socket.io-34d6ff)
+The app is built to run in two clear modes:
 
-**Live demo:** https://marketbubble-khaki.vercel.app — runs fully in **demo mode**, no keys needed.
-**⚡ 60-second Judge Tour:** https://marketbubble-khaki.vercel.app/?tour — a guided pass over the working core.
-Mirror (S3): http://marketbubble-live-preview.s3-website-us-east-1.amazonaws.com
+- **Demo mode:** a self-contained mock firehose for reviewing the product without API keys or backend services.
+- **Live mode:** a Socket.io backend drives real chat, accounts, viewer stats, OAuth connections, and stream history.
 
----
+[![Mode](https://img.shields.io/badge/mode-demo%20%2B%20live-16e6a4)](#demo-and-live-mode)
+[![Frontend](https://img.shields.io/badge/frontend-React%2018%20%2B%20Vite%20%2B%20TypeScript-34d6ff)](#tech-stack)
+[![Backend](https://img.shields.io/badge/backend-Node%20%2B%20Express%20%2B%20Socket.io-d9a547)](#tech-stack)
+[![License](https://img.shields.io/badge/license-proprietary-lightgrey)](#license)
 
-## ✨ Features
+## Live Links
 
-| Area | What it does |
-|---|---|
-| **Unified feed** | Twitch + Kick + X + YouTube in one stream — source badges, hover shows which streamer's chat, per-platform filters, search + Hosts/Mentions/Tickers quick filters. Stays pinned to live unless you scroll up. |
-| **Real emotes** | 7TV / BTTV / FFZ (global **and** per-channel) + classic Twitch emotes render inline — channel sets auto-resolve for every connected Twitch channel. |
-| **Auto-mod** | Leetspeak-tolerant banned-word engine: slurs dropped before render, profanity masked — keeps chat and hosts safe in real time. |
-| **Watch any channel** | Type any Twitch/Kick channel in Connections → its real chat streams into the feed (anonymous read, no OAuth needed). |
-| **KOL tracker** | Real Hyperliquid leaderboard (probed for live perp activity), real vaults by TVL, verified KOL wallets — click any trader for live account-value chart, open positions, and fills with realized PnL. |
-| **Intelligence Feed** | Real headlines (CoinDesk · Cointelegraph · Decrypt · The Block), sentiment-scored with impact + ticker tags, refreshed every 5 min. |
-| **Episode replays** | Full past X broadcasts play in-app via guest HLS (no login, zero account risk) — most recent autoplays when nothing is live. |
-| **Producer Brief** | A live host rundown derived from chat: topics, tickers in play, room mood, a suggested host question, the last clip-worthy spike, and Polymarket chatter. |
-| **Emoji composer** | Send a host message into the feed with a built-in emoji picker. |
-| **Live Stats** | Combined viewers + a per-platform → per-channel breakdown with trend sparklines (toggleable), unique/active chatters, watch hours, msg/min and engagement. |
-| **Polymarket panel** | Live markets from Polymarket's public API — Trending / Breaking + every category, Yes/No odds (green/red), 24h volume. Click to open the real market, or pin it to your OBS overlay. |
-| **Viewer tipping** | Non-custodial **USDC / USDT** tips to wallet-connected viewers (Ethereum, Base, Arbitrum, Optimism, Polygon) — auto-switches the wallet to a supported chain. |
-| **Stream preview** | Center-stage player with play/pause, a seek scrubber, per-channel switcher, and a live clip button. |
-| **Past broadcasts** | A VOD library with real frame-preview thumbnails — click one to play it in the preview. |
-| **Analytics** | Historical KPIs, live snapshot, trends, A/B compare — every revenue stream connected: **bits, subs, Kicks, Super Chats, memberships, tips**, plus **estimated ad revenue tied to ads actually shown** (tracked breaks × live impressions × net CPM; Twitch ad breaks polled via the Ads API). New-follower tracking included. |
-| **Leaderboards** | Top Chatters + Subs ($ value per platform), filterable by Day / Week / Month / All-time. |
-| **User list** | Searchable cross-platform viewer list — sort by messages / $ spent / name / recency, filter by channel, default-filtered to wallet-connected (tippable) viewers. Click a name for a Twitch-style profile + message history + moderation. |
-| **Moderation** | Cross-platform timeout (stackable 1m/5m/15m/1h/1d, reduce/remove) + ban, from chat or the user card. |
-| **Giveaway Bot** | Run a giveaway across all platforms at once — pooled entries + animated winner draw. |
-| **Clips & Clip Radar** | Auto-detects clip-worthy chat-velocity spikes; capture clips with chat context (native-clip backend seam). |
-| **Chat Only (on-stream)** | The aggregated chat as a broadcast-clean panel built to sit **center-screen between the hosts** (`?broadcast=1`) — per-streamer viewer totals (hover for the platform split), On Air gold styling. "Chat Only" in the header previews it staged over the show frame. |
-| **OBS** | Four browser-source routes: the **Chat Only panel** (`?broadcast=1`), floating viewer/chat/market **overlay** (`?overlay=1`), a compact **dock** (`?dock=1`), plus a live **OBS WebSocket v5** client to add the source for you. |
-| **Visual editor** | Drag / drop / resize / snap-to-grid every panel; layout persists to localStorage. Theme editor with live CSS-variable theming. |
-| **Demo / Live** | One toggle flips the whole app between a self-contained mock firehose and real backend data. |
+- **Live demo:** https://marketbubble-khaki.vercel.app
+- **Judge tour:** https://marketbubble-khaki.vercel.app/?tour
+- **S3 mirror:** http://marketbubble-live-preview.s3-website-us-east-1.amazonaws.com
+- **Chat-only OBS source:** `/?broadcast=1`
+- **Staged chat preview:** `/?broadcast=1&stage=1`
+- **Floating overlay:** `/?overlay=1`
+- **OBS dock:** `/?dock=1`
 
----
+## What Market Bubble Does
 
-## 🏗️ Architecture
+Market Bubble is designed for operators, hosts, and producers who need one screen that answers four questions during a live show:
 
-An npm monorepo with a shared type contract:
+1. **What is the audience saying?** Unified chat, mentions, tickers, sentiment, moderation, and viewer profiles.
+2. **What is happening in the market?** Polymarket odds, headlines, KOL wallet activity, and watchlist context.
+3. **What should the show do next?** Producer briefs, clip radar, topic spikes, and host prompts.
+4. **What goes on stream?** OBS-ready chat, overlays, docks, and browser sources.
 
-```
+## Feature Guide
+
+| Feature | How it works | How to use it |
+| --- | --- | --- |
+| Unified chat feed | Normalizes Twitch, Kick, X, and YouTube messages into one shared message format with platform badges, streamer attribution, timestamps, moderation state, and per-user history. | Open the dashboard and use the chat feed filters for platforms, hosts, mentions, tickers, or search. Stay at the bottom to remain pinned to live messages; scroll up to review history. |
+| Demo / Live mode | Demo mode starts a local mock firehose. Live mode connects the frontend to the backend through `VITE_BACKEND_URL` and uses backend socket events instead of mock data. | Use the Demo/Live control in the top bar or Chat Only staged view. Leave `VITE_BACKEND_URL` unset for demo. Set it to the backend URL for live data. |
+| Platform connections | The Connections panel launches platform OAuth flows where credentials are configured. Twitch and Kick can also watch public channels by name where supported. Secrets and OAuth tokens stay server-side. | Open **Connections**, switch to **Live**, then click **Connect** for a platform. For Twitch or Kick, use the watch-channel input to add a public channel to the live feed. |
+| Real emote rendering | Twitch, Kick, 7TV, BTTV, and FFZ emotes resolve and render inline so chat looks familiar to streamers and viewers. Twitch official emotes are resolved from IRC tags; Kick emotes are resolved from message metadata, channel emote data, or numeric Kick emote tokens when available. | Connect or watch Twitch/Kick channels, then view messages in the feed or Chat Only source. Emotes render automatically when available. |
+| Moderation | The app applies an auto-mod pass before messages render, then exposes manual moderation actions through message rows and user profiles. | Click a viewer or moderation action to timeout, ban, remove, or inspect message history. Live platform enforcement depends on backend credentials and scopes. |
+| Viewer profiles | User cards combine platform identity, message history, activity, moderation controls, and tipping eligibility. | Click a username in chat or the viewer list. Use the profile for context before moderating, tipping, or tracking viewer activity. |
+| Top chatters and viewer list | Aggregates message volume, spend, recency, platform, channel, and wallet eligibility into ranked views. | Use the leaderboards and viewer list to find high-signal users, recent participants, subscribers, and tippable viewers. |
+| Live stats | Stats are ingested per message and rebuilt on a timed tick so UI rendering stays bounded during fast chat. | Watch combined viewers, active chatters, message rate, engagement, platform breakdowns, and stream trends in the dashboard. |
+| Revenue analytics | Tracks subscriptions, bits, Kick activity, Super Chats, memberships, tips, and estimated ad revenue where signals are available. | Open the analytics view to compare live snapshots, trends, and historical stream performance. Demo mode seeds example history; live mode uses backend history. |
+| Polymarket panel | Pulls market data from Polymarket public APIs and displays odds, volume, categories, and watchable markets. | Open the Polymarket panel, browse trending or category views, click markets to inspect them, or pin relevant market context to the overlay. |
+| KOL smart-money tracker | Surfaces trader and wallet context from available leaderboard, vault, and wallet data. | Use the KOL view to inspect account value, positions, fills, realized PnL, and market context for notable traders. |
+| Intelligence feed | Displays market headlines with ticker and impact context so producers can spot useful show topics quickly. | Open the intelligence/news area during prep or live production. Use impact and ticker labels to decide what belongs in the show. |
+| Producer brief | Summarizes live room context into host-ready prompts: active topics, tickers, mood, questions, and clip-worthy moments. | Keep the brief visible for host direction or use it during transitions when the show needs the next topic. |
+| Stream preview | Provides a center-stage video surface with stream controls, source switching, and replay support. | Use the preview to monitor the show, review replays, or switch between available stream sources. |
+| Past broadcasts | Presents a VOD/replay library with thumbnails and playable entries. | Open a past broadcast to review show moments or prepare clips and talking points. |
+| Clip radar | Detects chat-velocity spikes and clip-worthy windows around moments that caused audience reaction. | Watch clip alerts during the show, then capture or review the surrounding chat context. Native clip creation depends on backend platform support. |
+| Giveaway bot | Pools eligible entries across connected platforms and selects a winner with a visual draw. | Start a giveaway from the dashboard, define the entry behavior, then run the winner draw when entries close. |
+| Visual editor | Dashboard panels can be moved, resized, and arranged with persisted local layout state. | Use edit controls in the main dashboard to arrange the workspace for the operator, producer, or host. Layouts persist in the browser. |
+| Theme editor | CSS variable based theming lets the operator adjust the look without changing application code. | Open the theme editor, adjust colors and presentation, then review the dashboard and overlays. |
+| Chat Only source | Renders the aggregated chat as a clean OBS browser source. The staged preview places the chat over the show frame for review, while the clean source stays chrome-free for OBS. | Use `/?broadcast=1` in OBS. Use `/?broadcast=1&stage=1` in the browser to preview the show placement, toggle Demo/Live, and open Connections. |
+| OBS overlay | Renders market, viewer, and chat elements as browser-source friendly overlays. | Add `/?overlay=1` as an OBS Browser Source. Use the dashboard to control which market or overlay elements should appear. |
+| OBS dock | Provides a compact browser dock for the operator inside OBS. | In OBS, open **Docks -> Custom Browser Docks** and add `/?dock=1`. Use it as an internal monitor, not as a viewer-facing source. |
+| OBS WebSocket integration | Connects to OBS WebSocket v5 and can add browser sources directly to the current scene. | Open **Connections**, enter OBS host, port, and WebSocket password, then use the one-click source buttons. |
+| Crypto tipping | Uses an EIP-1193 wallet and ERC-20 transfers for non-custodial USDC/USDT tips on supported EVM chains. | Connect a wallet, enable tipping, click a wallet-connected viewer, choose a token/amount, and approve the transaction in your wallet. |
+
+## Demo and Live Mode
+
+The app is intentionally explicit about data mode.
+
+### Demo mode
+
+Demo mode is the default when the frontend has no backend URL. It is useful for product review, UI testing, local development, and demos without API keys.
+
+Demo mode includes:
+
+- seeded chat traffic,
+- seeded viewer activity,
+- seeded analytics history,
+- mock platform accounts,
+- demo-friendly stream and market surfaces.
+
+### Live mode
+
+Live mode is enabled by setting `VITE_BACKEND_URL` for the frontend and running the backend. In live mode, the frontend expects the backend to provide messages, connection status, accounts, stats, and history.
+
+Live mode is used for:
+
+- real platform account connections,
+- real watched channels,
+- real socket-delivered chat,
+- real backend stats,
+- server-side OAuth and token handling,
+- platform moderation and clip actions when credentials support them.
+
+## Architecture
+
+This repository is organized as a small TypeScript monorepo with shared contracts.
+
+```text
 market-bubble/
-├── shared/types.ts     # single source of truth — message / stats / layout / socket contracts
-├── frontend/           # React 18 + Vite + TS + Tailwind + Zustand + Framer Motion
-│   └── src/
-│       ├── components/ # widgets + overlays + modals
-│       ├── store/      # zustand stores (chat, stats, layout, overlay, wallet, …)
-│       ├── lib/        # mock firehose, socket, web3, polymarket, analytics, …
-│       └── hooks/      # useChatConnection (the data pump), …
-└── backend/            # Node + Express + Socket.io (tsx) — connectors, stats aggregator, OAuth, clips
+|-- shared/      # shared TypeScript contracts
+|-- frontend/    # React, Vite, Tailwind, Zustand, Socket.io client
+`-- backend/     # Express, Socket.io, OAuth, platform connectors
 ```
 
-- **Demo vs live is a single switch.** `lib/socket.ts` either starts the mock firehose (`lib/mockData.ts`) or connects to the backend over Socket.io. The rest of the app consumes the same `stats`/`message`/`accounts` events either way.
-- **The stats engine is cheap-per-message, recompute-per-tick** (`store/statsStore.ts`): `ingest()` touches small accumulators; a ~1.5s `tick()` rebuilds the read-model `snapshot` the UI renders — so re-renders are bounded no matter how fast chat scrolls.
-- **Secrets stay server-side.** The browser only ever sees `VITE_BACKEND_URL`; OAuth client secrets + platform tokens live in the backend. Tipping is non-custodial — every transfer is signed in the user's own wallet.
+### Data flow
 
----
+1. The frontend mounts the chat connection hook.
+2. Demo mode starts the mock firehose in the browser.
+3. Live mode connects to the backend over Socket.io.
+4. Messages are batched before entering the store so fast chat does not trigger one render per message.
+5. Stats are ingested cheaply and rebuilt on a timed tick for predictable UI performance.
+6. Dashboard widgets, overlays, and OBS routes consume the same normalized state.
 
-## 🚀 Quick start
+### Security model
 
-**Frontend (demo — no backend or keys needed):**
+- OAuth client secrets stay in the backend environment.
+- Platform access tokens stay server-side.
+- The browser only needs the backend origin.
+- Wallet tipping is non-custodial; transactions are approved in the user's wallet.
+- Demo mode never requires real credentials.
+
+## Quick Start
+
+### Prerequisites
+
+- Node.js 18 or newer
+- npm
+- Optional: OBS Studio with OBS WebSocket enabled
+- Optional: platform developer apps for OAuth
+
+### Run the frontend in demo mode
+
 ```bash
 cd frontend
 npm install
-npm run dev          # → http://localhost:5184
+npm run dev
 ```
-That's it — the whole dashboard runs on the mock firehose. Toggle **Demo → Live** in the topbar to switch to real data (needs the backend below).
 
-**Backend (live data):**
+Open http://localhost:5184.
+
+No backend or API keys are required for demo mode.
+
+### Run the backend for live mode
+
 ```bash
 cd backend
 npm install
-cp ../.env.example .env     # fill in the platforms you want (all optional, degrades gracefully)
-npm run dev                 # → http://localhost:4000
+cp ../.env.example .env
+npm run dev
 ```
-Then set `VITE_BACKEND_URL=http://localhost:4000` for the frontend and toggle the app to **Live**. Each platform you want to connect needs a developer app registered + its Client ID/Secret in `backend/.env` (see the comments there for the exact callback URLs).
 
-**OBS browser sources** (paste into OBS → Sources → Browser):
-- Chat Only (center-screen panel): `<demo-url>/?broadcast=1` — options: `&bg=transparent`, `&platform=twitch,kick`, `&fontsize=18`
-- Overlay: `<demo-url>/?overlay=1`
-- Dock: `<demo-url>/?dock=1`
+Then configure the frontend:
 
-**Tests** (Vitest — pure-logic smoke tests for the money/format/web3/markets/moderation helpers):
 ```bash
-cd frontend && npm test
+cd frontend
+cp .env.example .env
 ```
 
----
+Set:
 
-## 🏆 Why this wins
+```bash
+VITE_BACKEND_URL=http://localhost:4000
+```
 
-1. **It's real.** Market data, leaderboards, vaults, headlines, wallets, episode
-   replays, chat connectors — live APIs with graceful failover, not mockups. The
-   one estimated number (ad revenue) is labeled as an estimate.
-2. **It's the whole job, not just a chat merger.** Aggregation is table stakes —
-   this adds moderation, monetization, market intelligence, production tooling
-   (OBS overlay + dock + Producer Brief + Clip Radar), and analytics in one place.
-3. **It's honest.** Demo and Live are a single explicit switch; demo never
-   pretends to be live data, and the README never claims wiring that isn't there.
-4. **It fits the show.** Polymarket odds in the brand theme, KOL wallets the
-   hosts actually talk about, X broadcast replays, crypto tipping — built for
-   Market Bubble's broadcast, not a generic dashboard.
+Restart the frontend after changing environment variables, then switch the UI from Demo to Live.
 
-## 🧰 Tech stack
+## Platform Setup
 
-React 18 · Vite · TypeScript (strict) · Tailwind CSS · Zustand · TanStack Query ·
-Framer Motion · react-grid-layout · Socket.io · Express · tmi.js (Twitch) · OBS
-WebSocket v5 · EIP-1193 / ERC-20 (wallet tipping) · Polymarket Gamma API.
+Platform OAuth is optional. Configure only the providers you need.
 
-## ☁️ Deploy
+| Platform | What it enables | Required environment variables |
+| --- | --- | --- |
+| Twitch | OAuth account connection, chat, moderation, viewer/clip APIs depending on scopes | `TWITCH_CLIENT_ID`, `TWITCH_CLIENT_SECRET`, optional bot/moderation tokens |
+| YouTube | OAuth account connection and YouTube data access | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, optional API key/video ID |
+| X | OAuth account connection and configured stream rules | `X_CLIENT_ID`, `X_CLIENT_SECRET`, optional bearer token/rules |
+| Kick | OAuth account connection and public channel watching where available | `KICK_CLIENT_ID`, `KICK_CLIENT_SECRET`, optional bearer token |
 
-The frontend is a static Vite build. `.github/workflows/deploy.yml` builds and
-syncs `frontend/dist/` to S3 on every push to `main` (needs the repo secrets
-`AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY`). Manual: `npm run build` in
-`frontend/` then `aws s3 sync dist/ s3://<bucket>/ --delete`.
+For exact callback URLs and provider registration steps, see [OAUTH_SETUP.md](./OAUTH_SETUP.md).
 
-## 📄 License
+## OBS Usage
 
-Proprietary — © 2026 Market Bubble, all rights reserved. Shared for evaluation
-and private review only. See [LICENSE](./LICENSE).
+Market Bubble exposes multiple browser-ready routes.
+
+| Route | Purpose | Recommended use |
+| --- | --- | --- |
+| `/?broadcast=1` | Clean Chat Only source | Add as an OBS Browser Source for the on-stream chat panel. |
+| `/?broadcast=1&stage=1` | Staged Chat Only preview | Use in a browser to preview placement, switch Demo/Live, and open Connections. |
+| `/?overlay=1` | Floating overlay | Add as a transparent OBS Browser Source for viewer, market, and chat overlays. |
+| `/?dock=1` | Operator dock | Add under OBS Custom Browser Docks for an internal chat monitor. |
+
+Useful Chat Only query options:
+
+```text
+?broadcast=1&bg=transparent
+?broadcast=1&platform=twitch,kick
+?broadcast=1&fontsize=18
+?broadcast=1&messages=80
+```
+
+Recommended OBS settings:
+
+- Browser Source size: start around `880x624` for Chat Only.
+- Disable **Shutdown source when not visible** if you want the source to stay connected.
+- Use the clean `?broadcast=1` route for OBS. Use `&stage=1` only for browser preview.
+
+## Available Scripts
+
+Frontend:
+
+```bash
+cd frontend
+npm run dev       # local Vite server
+npm run build     # TypeScript build plus production Vite bundle
+npm run preview   # serve the production build locally
+npm test          # Vitest test suite
+```
+
+Backend:
+
+```bash
+cd backend
+npm run dev        # watch mode
+npm run start      # run the server
+npm run typecheck  # TypeScript type check
+```
+
+## Deployment
+
+The frontend is a static Vite build.
+
+```bash
+cd frontend
+npm run build
+```
+
+The generated `dist` directory can be hosted on Vercel, S3 static hosting, CloudFront, or any static file host.
+
+For S3:
+
+```bash
+aws s3 sync dist/ s3://<bucket-name>/ --delete
+```
+
+For Vercel, the root `vercel.json` builds the frontend and serves `frontend/dist`.
+
+Production live mode also requires a reachable backend URL and matching `CORS_ORIGIN` / `PUBLIC_URL` values in the backend environment.
+
+## Troubleshooting
+
+| Symptom | Check |
+| --- | --- |
+| The app only shows demo data | Confirm `frontend/.env` has `VITE_BACKEND_URL` and restart the Vite dev server. |
+| Live mode is empty | Confirm the backend is running, the frontend can reach it, and the browser console has no CORS errors. |
+| Connect buttons do not open OAuth | Confirm the provider client ID/secret is set in `backend/.env`, restart the backend, and verify `/auth/config`. |
+| OAuth callback fails | Confirm the provider callback URL exactly matches `${PUBLIC_URL}/auth/<platform>/callback`. |
+| Twitch/Kick public watch does not add chat | Confirm Live mode is enabled and the channel slug is valid. |
+| Twitch/Kick emotes show as text | Run the backend with `DEBUG_EMOTES=1`, send one known emote in the watched channel, and inspect the `[emotes:twitch]` or `[emotes:kick]` log line. It shows the raw platform token/range data and the image URL the normalizer resolved. |
+| OBS source is not updating | Disable source shutdown in OBS and use the clean `?broadcast=1` route. |
+| Overlay appears with the wrong background | Add `bg=transparent` where supported and confirm OBS Browser Source transparency. |
+| Buttons feel slow during heavy chat | Confirm the current build is running; message ingestion is batched to reduce render pressure. |
+
+## Tech Stack
+
+- React 18
+- Vite
+- TypeScript
+- Tailwind CSS
+- Zustand
+- TanStack Query
+- Framer Motion
+- react-grid-layout
+- Socket.io
+- Express
+- tmi.js
+- OBS WebSocket v5
+- EIP-1193 wallet integrations
+- Polymarket public APIs
+
+## License
+
+Proprietary - Copyright 2026 Market Bubble. All rights reserved. Shared for evaluation and private review only. See [LICENSE](./LICENSE).
