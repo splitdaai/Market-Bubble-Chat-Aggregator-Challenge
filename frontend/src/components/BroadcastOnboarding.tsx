@@ -71,7 +71,7 @@ export function OnboardingChrome({ demo }: { demo: boolean }) {
             </div>
 
             {/* Copy OBS URL explainer */}
-            <div className={`left-3 top-[168px] max-w-[250px] ${card}`} style={cardStyle}>
+            <div className={`left-[288px] top-[14px] max-w-[250px] ${card}`} style={cardStyle}>
               <div className="mb-0.5 font-black uppercase tracking-wider" style={{ color: "#e8c987" }}>Copy OBS URL</div>
               This page <b>is your OBS source</b>. Copy the <span style={{ color: "#86ffd5" }}>Live</span> or <span style={{ color: "#e8c987" }}>Demo</span> URL, then in OBS go <b>Sources &rarr; + &rarr; Browser</b> and paste it.
             </div>
