@@ -19,7 +19,7 @@ import { dirname } from "node:path";
 import { getTwitchChannel } from "./twitchChannel.ts";
 import { getMarketData, getPriceHistory, getLeaderboards, getHlWallet, getEvmWallet, getNews, getVaults } from "./marketData.ts";
 import { resolveXVod, proxyHls } from "./xVod.ts";
-import { broadcastChatBatch } from "./xBroadcastChat.ts";
+import { broadcastChatBatch, normalizeBroadcastId, XBroadcastChatConnector } from "./xBroadcastChat.ts";
 
 const PORT = Number(process.env.PORT ?? 4000);
 // Non-wildcard CORS allowlist in production (comma-separated origins); "*" only
@@ -183,6 +183,10 @@ function buildConnectors(): Connector[] {
     const rules = (process.env.X_STREAM_RULES ?? "").split(",").map((s) => s.trim()).filter(Boolean);
     connectors.push(new XConnector({ bearer: process.env.X_BEARER_TOKEN, rules }));
   }
+  const xBroadcastId = normalizeBroadcastId(process.env.X_BROADCAST_ID);
+  if (xBroadcastId) {
+    connectors.push(new XBroadcastChatConnector(xBroadcastId, process.env.X_BROADCAST_LABEL || "X Broadcast"));
+  }
   if (process.env.YOUTUBE_VIDEO_ID && process.env.YOUTUBE_API_KEY) {
     connectors.push(new YouTubeConnector({ videoId: process.env.YOUTUBE_VIDEO_ID, apiKey: process.env.YOUTUBE_API_KEY }));
   }
@@ -281,6 +285,20 @@ function startViewerPollers() {
 async function main() {
   const connectors = buildConnectors();
   const hub = bindHub(io, connectors, aggregator, history);
+
+  app.post("/api/x-broadcast-chat/watch", async (req, res) => {
+    const id = normalizeBroadcastId(req.body?.url ?? req.body?.id ?? req.body?.broadcastId);
+    if (!id) return res.status(400).json({ error: "valid X broadcast URL or ID required" });
+
+    try {
+      const batch = await broadcastChatBatch(id);
+      const label = batch.title || `X Broadcast ${id}`;
+      await hub.addConnector(new XBroadcastChatConnector(id, label));
+      res.json({ ok: true, id, title: label, messages: batch.messages.length });
+    } catch (e) {
+      res.status(502).json({ error: `x broadcast watch failed: ${e instanceof Error ? e.message : String(e)}` });
+    }
+  });
 
   // Auto-start a live chat reader for EACH connected account (any account — not
   // a hard-coded list): Twitch/Kick read by channel name (anonymous), YouTube

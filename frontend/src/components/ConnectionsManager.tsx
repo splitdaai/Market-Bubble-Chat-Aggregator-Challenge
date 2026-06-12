@@ -96,6 +96,28 @@ export function ConnectionsManager({ open, onClose }: { open: boolean; onClose: 
       push({ message: `Added ${ch} (${platformLabel(p)}) to the feed`, tone: "ok" });
     }
   };
+  const watchXBroadcast = async () => {
+    const url = (watchInput.x ?? "").trim();
+    if (!url) { push({ message: "Paste an X broadcast URL or ID", tone: "error" }); return; }
+    if (demo) { push({ message: "Switch to LIVE to watch an X broadcast chat", tone: "info" }); return; }
+    if (!BACKEND) { push({ message: "X broadcast chat needs the backend — set VITE_BACKEND_URL and run the server", tone: "info" }); return; }
+
+    try {
+      const r = await fetch(`${BACKEND}/api/x-broadcast-chat/watch`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url }),
+      });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(j.error || `HTTP ${r.status}`);
+      const title = String(j.title || "X Broadcast");
+      addAccount("x", String(j.id), title);
+      setWatchInput((s) => ({ ...s, x: "" }));
+      push({ message: `Watching ${title} — ${Number(j.messages ?? 0)} X messages backfilled`, tone: "ok" });
+    } catch (e) {
+      push({ message: `Couldn't watch X broadcast: ${e instanceof Error ? e.message : e}`, tone: "error" });
+    }
+  };
 
   // Two distinct OBS chat sources:
   //   chatSourceUrl — the polished "Chat Only" panel (`?broadcast=1`) meant to
@@ -315,6 +337,26 @@ export function ConnectionsManager({ open, onClose }: { open: boolean; onClose: 
                         <button
                           type="submit"
                           disabled={!(watchInput[p] ?? "").trim()}
+                          className="flex items-center gap-1 rounded-md border border-white/15 px-2.5 py-1.5 text-[10px] font-bold text-muted transition hover:border-accent/50 hover:text-accent disabled:opacity-40"
+                        >
+                          <Plus size={11} /> Watch
+                        </button>
+                      </form>
+                    )}
+                    {p === "x" && (
+                      <form
+                        onSubmit={(e) => { e.preventDefault(); void watchXBroadcast(); }}
+                        className="mt-1.5 flex items-center gap-1.5"
+                      >
+                        <input
+                          value={watchInput.x ?? ""}
+                          onChange={(e) => setWatchInput((s) => ({ ...s, x: e.target.value }))}
+                          placeholder="Paste X broadcast URL — x.com/i/broadcasts/..."
+                          className="vc-input flex-1 text-xs"
+                        />
+                        <button
+                          type="submit"
+                          disabled={!(watchInput.x ?? "").trim()}
                           className="flex items-center gap-1 rounded-md border border-white/15 px-2.5 py-1.5 text-[10px] font-bold text-muted transition hover:border-accent/50 hover:text-accent disabled:opacity-40"
                         >
                           <Plus size={11} /> Watch
