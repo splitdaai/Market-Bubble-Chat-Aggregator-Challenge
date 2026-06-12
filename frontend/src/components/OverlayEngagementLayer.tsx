@@ -1222,7 +1222,7 @@ function ImageEmote({ asset, seed, size, patternId }: { asset: EmoteAsset; seed:
 }
 
 function ColorWave({ event, profile }: { event: OverlayEngagementEvent; profile?: OverlayEffectProfile }) {
-  const color = event.payload?.color ?? "#d9a547";
+  const color = profile?.accent ?? event.payload?.color ?? "#d9a547";
   const alpha = profileAlpha(profile, 1);
   return (
     <>
@@ -1247,10 +1247,12 @@ function ColorWave({ event, profile }: { event: OverlayEngagementEvent; profile?
 
 function Spotlight({ event, profile }: { event: OverlayEngagementEvent; profile?: OverlayEffectProfile }) {
   const accent = profile?.accent ?? "#d9a547";
+  const alpha = profileAlpha(profile, 1);
+  const scale = profile?.scale ?? 1;
   return (
     <motion.div
       initial={{ opacity: 0, y: -22, scale: 0.92, filter: "blur(8px)" }}
-      animate={{ opacity: 1, y: 0, scale: 1, filter: "blur(0px)" }}
+      animate={{ opacity: alpha, y: 0, scale, filter: "blur(0px)" }}
       exit={{ opacity: 0, y: -12, filter: "blur(4px)" }}
       transition={{ duration: profileDuration(profile, 0.38), ease: FX_EASE }}
       className="absolute left-1/2 top-[110px] w-[min(76%,760px)] -translate-x-1/2 overflow-hidden rounded-2xl p-3.5 text-center shadow-[0_24px_60px_rgba(0,0,0,0.62)] backdrop-blur-xl"
@@ -1264,7 +1266,7 @@ function Spotlight({ event, profile }: { event: OverlayEngagementEvent; profile?
         className="absolute inset-y-0 w-24 skew-x-[-18deg] bg-white/20"
         initial={{ x: "-130%" }}
         animate={{ x: "740%" }}
-        transition={{ duration: 1.05, delay: 0.1, ease: "easeOut" }}
+        transition={{ duration: profileDuration(profile, 1.05), delay: profileDuration(profile, 0.1), ease: "easeOut" }}
       />
       <div className="relative text-[10px] font-black uppercase tracking-[0.18em]" style={{ color: accent }}>Viewer Spotlight · {event.user}</div>
       <div className="relative mt-1 text-xl font-black leading-tight text-white drop-shadow-[0_3px_14px_rgba(0,0,0,0.8)]">{event.payload?.message || "W stream."}</div>
@@ -1274,10 +1276,12 @@ function Spotlight({ event, profile }: { event: OverlayEngagementEvent; profile?
 
 function ClipBoost({ event, profile }: { event: OverlayEngagementEvent; profile?: OverlayEffectProfile }) {
   const accent = profile?.accent ?? "#f97316";
+  const alpha = profileAlpha(profile, 1);
+  const scale = profile?.scale ?? 1;
   return (
     <motion.div
       initial={{ opacity: 0, x: 38, scale: 0.9, filter: "blur(5px)" }}
-      animate={{ opacity: 1, x: 0, scale: 1, filter: "blur(0px)" }}
+      animate={{ opacity: alpha, x: 0, scale, filter: "blur(0px)" }}
       exit={{ opacity: 0, x: 24, filter: "blur(4px)" }}
       transition={{ duration: profileDuration(profile, 0.32), ease: FX_EASE }}
       className="absolute right-2 top-[64px] overflow-hidden rounded-2xl px-3.5 py-2.5 text-right shadow-[0_18px_44px_rgba(0,0,0,0.48)] backdrop-blur-xl"
@@ -1287,8 +1291,8 @@ function ClipBoost({ event, profile }: { event: OverlayEngagementEvent; profile?
         boxShadow: `0 18px 44px rgba(0,0,0,0.48), 0 0 26px ${accent}42`,
       }}
     >
-      <motion.div className="absolute inset-y-0 left-0 w-1 bg-orange-200" animate={{ opacity: [0.4, 1, 0.4] }} transition={{ duration: 0.72, repeat: 2 }} />
-      <div className="text-[10px] font-black uppercase tracking-[0.14em] text-orange-200">Clip Boost</div>
+      <motion.div className="absolute inset-y-0 left-0 w-1" style={{ background: accent }} animate={{ opacity: [0.4, 1, 0.4] }} transition={{ duration: profileDuration(profile, 0.72), repeat: 2 }} />
+      <div className="text-[10px] font-black uppercase tracking-[0.14em]" style={{ color: accent }}>Clip Boost</div>
       <div className="text-sm font-black text-white">{event.user} marked this</div>
     </motion.div>
   );
@@ -1297,10 +1301,12 @@ function ClipBoost({ event, profile }: { event: OverlayEngagementEvent; profile?
 function Soundwave({ event, profile }: { event: OverlayEngagementEvent; profile?: OverlayEffectProfile }) {
   const count = profileCount(profile, 18);
   const accent = profile?.accent ?? "#a78bfa";
+  const alpha = profileAlpha(profile, 1);
+  const scale = profile?.scale ?? 1;
   return (
     <motion.div
       initial={{ opacity: 0, y: 22, scale: 0.92, filter: "blur(6px)" }}
-      animate={{ opacity: 1, y: 0, scale: 1, filter: "blur(0px)" }}
+      animate={{ opacity: alpha, y: 0, scale, filter: "blur(0px)" }}
       exit={{ opacity: 0, y: 12, filter: "blur(4px)" }}
       transition={{ duration: profileDuration(profile, 0.32), ease: FX_EASE }}
       className="absolute bottom-[58px] left-1/2 flex -translate-x-1/2 items-end gap-1 overflow-hidden rounded-full px-5 py-2.5 backdrop-blur-xl"
@@ -1311,17 +1317,18 @@ function Soundwave({ event, profile }: { event: OverlayEngagementEvent; profile?
       }}
     >
       <motion.div
-        className="absolute inset-[-40%] rounded-full bg-violet-300/20 blur-xl"
-        animate={{ scale: [0.8, 1.2, 0.9], opacity: [0.25, 0.55, 0.2] }}
-        transition={{ duration: 0.72, repeat: 3, ease: "easeInOut" }}
+        className="absolute inset-[-40%] rounded-full blur-xl"
+        style={{ background: hexToRgba(accent, 0.2) }}
+        animate={{ scale: [0.8, 1.2, 0.9], opacity: [0.25, profileAlpha(profile, 0.55), 0.2] }}
+        transition={{ duration: profileDuration(profile, 0.72), repeat: 3, ease: "easeInOut" }}
       />
       {Array.from({ length: count }, (_, i) => (
         <motion.span
           key={`${event.id}-${i}`}
-          className="relative block w-1 rounded-full shadow-[0_0_12px_rgba(196,181,253,0.72)]"
-          style={{ background: accent }}
+          className="relative block w-1 rounded-full"
+          style={{ background: accent, boxShadow: `0 0 12px ${hexToRgba(accent, 0.72)}` }}
           animate={{ height: [8, 30 + ((i * 7) % 28), 12, 24 + ((i * 5) % 18), 8] }}
-          transition={{ duration: 0.86, repeat: 3, delay: i * 0.02, ease: "easeInOut" }}
+          transition={{ duration: profileDuration(profile, 0.86), repeat: 3, delay: profileDuration(profile, i * 0.02), ease: "easeInOut" }}
         />
       ))}
     </motion.div>
@@ -1352,7 +1359,8 @@ function shouldRenderEvent(event: OverlayEngagementEvent, now: number, lastVisua
 
 function playOverlayHeroSfx(event: OverlayEngagementEvent, profile?: OverlayEffectProfile): void {
   try {
-    if ((profile?.audio ?? 1) <= 0.01) return;
+    const audioScale = profile?.audio ?? 1;
+    if (audioScale <= 0.01) return;
     const now = Date.now();
     if (now - lastHeroAudioAt < AUDIO_COOLDOWN_MS) return;
     lastHeroAudioAt = now;
@@ -1361,13 +1369,13 @@ function playOverlayHeroSfx(event: OverlayEngagementEvent, profile?: OverlayEffe
     void ctx.resume().catch(() => undefined);
     const start = ctx.currentTime + 0.03;
     if (event.actionId === "charging-bull") {
-      playChargingBullSfx(ctx, start);
+      playChargingBullSfx(ctx, start, audioScale);
     } else if (event.actionId === "bear-slash") {
-      playBearSlashSfx(ctx, start);
+      playBearSlashSfx(ctx, start, audioScale);
     } else if (event.actionId === "chart-pump") {
-      playChartCandleSfx(ctx, start, "bull");
+      playChartCandleSfx(ctx, start, "bull", audioScale);
     } else if (event.actionId === "chart-dump") {
-      playChartCandleSfx(ctx, start, "bear");
+      playChartCandleSfx(ctx, start, "bear", audioScale);
     }
   } catch {
     // Audio is best-effort; OBS/browser autoplay policy can block it.
@@ -1407,8 +1415,8 @@ function connectSpatial(ctx: AudioContext, input: AudioNode, output: AudioNode, 
   pan.connect(output);
 }
 
-function playChargingBullSfx(ctx: AudioContext, start: number): void {
-  const master = createEffectMaster(ctx, start, 2.75, 0.22);
+function playChargingBullSfx(ctx: AudioContext, start: number, volumeScale = 1): void {
+  const master = createEffectMaster(ctx, start, 2.75, 0.22 * volumeScale);
 
   const rumble = ctx.createOscillator();
   const rumbleGain = ctx.createGain();
@@ -1444,8 +1452,8 @@ function playChargingBullSfx(ctx: AudioContext, start: number): void {
   }
 }
 
-function playBearSlashSfx(ctx: AudioContext, start: number): void {
-  const master = createEffectMaster(ctx, start, 2.45, 0.23);
+function playBearSlashSfx(ctx: AudioContext, start: number, volumeScale = 1): void {
+  const master = createEffectMaster(ctx, start, 2.45, 0.23 * volumeScale);
 
   const growl = ctx.createOscillator();
   const growlFilter = ctx.createBiquadFilter();
@@ -1486,9 +1494,9 @@ function playBearSlashSfx(ctx: AudioContext, start: number): void {
   scheduleThump(ctx, master, start + 0.9, -0.15, 54);
 }
 
-function playChartCandleSfx(ctx: AudioContext, start: number, side: "bull" | "bear"): void {
+function playChartCandleSfx(ctx: AudioContext, start: number, side: "bull" | "bear", volumeScale = 1): void {
   const isBull = side === "bull";
-  const master = createEffectMaster(ctx, start, 2.25, 0.21);
+  const master = createEffectMaster(ctx, start, 2.25, 0.21 * volumeScale);
 
   const sweep = ctx.createOscillator();
   const sweepGain = ctx.createGain();
