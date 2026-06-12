@@ -16,7 +16,6 @@ The app is built to run in two clear modes:
 
 - **Live demo:** https://marketbubble-khaki.vercel.app
 - **Judge tour:** https://marketbubble-khaki.vercel.app/?tour
-- **S3 mirror:** http://marketbubble-live-preview.s3-website-us-east-1.amazonaws.com
 - **Chat-only OBS source:** `/?broadcast=1`
 - **Staged chat preview:** `/?broadcast=1&stage=1`
 - **Floating overlay:** `/?overlay=1`
