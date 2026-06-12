@@ -1,16 +1,17 @@
 import { useRef } from "react";
-import { motion } from "framer-motion";
-import { Move, Copy, Check, X as XIcon, Monitor, Trash2 } from "lucide-react";
+import { AnimatePresence, motion } from "framer-motion";
+import { Move, Copy, Check, X as XIcon, Monitor, Trash2, Wand2 } from "lucide-react";
 import { useOverlayStore } from "@/store/overlayStore";
 import { useToastStore } from "@/store/toastStore";
 import { OverlayChip } from "./OverlayChip";
 import { OverlayChat } from "./OverlayChat";
 import { OverlayMarket } from "./OverlayMarket";
 import { CustomOverlayEffect } from "./CustomOverlayEffect";
+import { OverlayFxLab } from "./OverlayFxLab";
 import type { OverlaySource } from "@shared/types";
 import { useState } from "react";
 
-const SOURCES: OverlaySource[] = ["combined", "twitch", "kick", "x", "youtube", "chat"];
+const SOURCES: OverlaySource[] = ["combined", "twitch", "kick", "x", "youtube", "chat", "custom"];
 const SOURCE_LABEL: Record<OverlaySource, string> = {
   combined: "Total",
   twitch: "Twitch",
@@ -35,8 +36,10 @@ export function OverlayLayer() {
   const toggleSource = useOverlayStore((s) => s.toggleSource);
   const setEnabled = useOverlayStore((s) => s.setEnabled);
   const removeElement = useOverlayStore((s) => s.removeElement);
+  const removeCustomAsset = useOverlayStore((s) => s.removeCustomAsset);
   const push = useToastStore((s) => s.push);
   const [copied, setCopied] = useState(false);
+  const [fxOpen, setFxOpen] = useState(false);
 
   const dragInfo = useRef<{ id: string; dx: number; dy: number } | null>(null);
   const resizeInfo = useRef<{ id: string; sx: number; sy: number; w: number; h: number; isMarket: boolean } | null>(null);
@@ -100,11 +103,11 @@ export function OverlayLayer() {
             <span className="pointer-events-none absolute -left-1 -top-5 flex items-center gap-0.5 text-[9px] font-bold uppercase tracking-wider text-accent opacity-80">
               <Move size={9} /> drag
             </span>
-            {/* dynamic market cards get a remove button */}
-            {el.source === "market" && (
+            {/* dynamic market cards and custom assets get a remove button */}
+            {(el.source === "market" || el.source === "custom") && (
               <button
                 onPointerDown={(e) => e.stopPropagation()}
-                onClick={() => removeElement(el.id)}
+                onClick={() => el.custom ? removeCustomAsset(el.custom.id) : removeElement(el.id)}
                 title="Remove from overlay"
                 className="absolute -right-2 -top-2 z-10 grid h-5 w-5 place-items-center rounded-full border border-red-400/60 bg-black/80 text-red-300 transition hover:bg-red-500/30"
               >
@@ -120,7 +123,7 @@ export function OverlayLayer() {
             ) : (
               <OverlayChip el={el} />
             )}
-            {(el.source === "chat" || el.source === "market") && (
+            {(el.source === "chat" || el.source === "market" || el.source === "custom") && (
               <div
                 onPointerDown={(e) => onResizeDown(e, el.id, el.w ?? 320, el.h ?? 380)}
                 title="Drag to resize"
@@ -160,10 +163,17 @@ export function OverlayLayer() {
         <button onClick={copyObsLink} className="flex items-center gap-1 rounded-md border border-white/15 px-2 py-1 text-[10px] font-semibold text-ink transition hover:border-accent hover:text-accent">
           {copied ? <Check size={11} className="text-emerald-400" /> : <Copy size={11} />} OBS link
         </button>
+        <button onClick={() => setFxOpen(true)} className="flex items-center gap-1 rounded-md border border-accent/35 bg-accent/10 px-2 py-1 text-[10px] font-bold text-accent transition hover:bg-accent/20">
+          <Wand2 size={11} /> FX Lab
+        </button>
         <button onClick={() => setEnabled(false)} className="rounded-md p-1 text-muted transition hover:text-ink" title="Done">
           <XIcon size={14} />
         </button>
       </motion.div>
+
+      <AnimatePresence>
+        {fxOpen && <OverlayFxLab onClose={() => setFxOpen(false)} />}
+      </AnimatePresence>
     </div>
   );
 }

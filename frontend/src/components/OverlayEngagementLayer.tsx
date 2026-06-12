@@ -2,6 +2,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { engageUrl, qrImageUrl, subscribeOverlayEvents, type OverlayEngagementEvent } from "@/lib/overlayEngagement";
+import { profileAlpha, profileCount, profileDuration } from "@/lib/overlayFx";
+import { useOverlayStore } from "@/store/overlayStore";
+import type { OverlayEffectProfile } from "@shared/types";
 
 const TTL = 9000;
 const METER_IDLE_MS = 5000;
@@ -48,6 +51,7 @@ export function OverlayEngagementLayer({ room }: { room: string }) {
   const [votes, setVotes] = useState({ bull: 1, bear: 1 });
   const [meterPulse, setMeterPulse] = useState<{ side: "bull" | "bear"; at: number } | null>(null);
   const [meterVisible, setMeterVisible] = useState(false);
+  const effectProfiles = useOverlayStore((s) => s.effectProfiles);
   const pendingEvents = useRef<OverlayEngagementEvent[]>([]);
   const flushTimer = useRef<number | null>(null);
   const lastVisualAt = useRef(new Map<string, number>());
@@ -98,13 +102,13 @@ export function OverlayEngagementLayer({ room }: { room: string }) {
     if (renderable.length) {
       const visualEvents = renderable.slice(-8);
       const hero = visualEvents.find((event) => HERO_ACTION_IDS.has(event.actionId));
-      if (hero) playOverlayHeroSfx(hero);
+      if (hero) playOverlayHeroSfx(hero, effectProfiles[hero.actionId]);
       setEvents((prev) => [...visualEvents.reverse(), ...prev].slice(0, MAX_EVENT_HISTORY));
     }
     if (pendingEvents.current.length && flushTimer.current === null) {
       flushTimer.current = window.setTimeout(flushPendingEvents, EVENT_FLUSH_MS);
     }
-  }, []);
+  }, [effectProfiles]);
 
   const scheduleFlush = useCallback(() => {
     if (flushTimer.current !== null) return;
@@ -160,12 +164,12 @@ export function OverlayEngagementLayer({ room }: { room: string }) {
   return (
     <div className="pointer-events-none absolute inset-0 z-30 overflow-hidden">
       <AnimatePresence initial={false}>
-        {latestWave && <ColorWave key={latestWave.id} event={latestWave} />}
-        {heroEvents.map((event) => <HeroEffect key={event.id} event={event} />)}
-        {visible.filter((e) => e.kind === "emote").slice(0, 4).map((event) => <EmoteBurst key={event.id} event={event} />)}
-        {latestSpotlight && <Spotlight key={latestSpotlight.id} event={latestSpotlight} />}
-        {latestClip && <ClipBoost key={latestClip.id} event={latestClip} />}
-        {latestSound && <Soundwave key={latestSound.id} event={latestSound} />}
+        {latestWave && profileEnabled(effectProfiles[latestWave.actionId]) && <ColorWave key={latestWave.id} event={latestWave} profile={effectProfiles[latestWave.actionId]} />}
+        {heroEvents.filter((event) => profileEnabled(effectProfiles[event.actionId])).map((event) => <HeroEffect key={event.id} event={event} profile={effectProfiles[event.actionId]} />)}
+        {visible.filter((e) => e.kind === "emote" && profileEnabled(effectProfiles[e.actionId])).slice(0, 4).map((event) => <EmoteBurst key={event.id} event={event} profile={effectProfiles[event.actionId]} />)}
+        {latestSpotlight && profileEnabled(effectProfiles[latestSpotlight.actionId]) && <Spotlight key={latestSpotlight.id} event={latestSpotlight} profile={effectProfiles[latestSpotlight.actionId]} />}
+        {latestClip && profileEnabled(effectProfiles[latestClip.actionId]) && <ClipBoost key={latestClip.id} event={latestClip} profile={effectProfiles[latestClip.actionId]} />}
+        {latestSound && profileEnabled(effectProfiles[latestSound.actionId]) && <Soundwave key={latestSound.id} event={latestSound} profile={effectProfiles[latestSound.actionId]} />}
       </AnimatePresence>
 
       <AnimatePresence initial={false}>
@@ -178,7 +182,7 @@ export function OverlayEngagementLayer({ room }: { room: string }) {
           />
         )}
       </AnimatePresence>
-      {tickerEvents.length > 0 && <TickerTape events={tickerEvents} />}
+      {tickerEvents.length > 0 && <TickerTape events={tickerEvents.filter((event) => profileEnabled(effectProfiles[event.actionId]))} profile={effectProfiles["ticker-boost"]} />}
     </div>
   );
 }
@@ -298,19 +302,23 @@ function BullBearMeter({ bullPct, lastSide, pulseKey }: { bullPct: number; lastS
   );
 }
 
-function HeroEffect({ event }: { event: OverlayEngagementEvent }) {
+function HeroEffect({ event, profile }: { event: OverlayEngagementEvent; profile?: OverlayEffectProfile }) {
   switch (event.actionId) {
     case "charging-bull":
-      return <ChargingBull event={event} />;
+      return <ChargingBull event={event} profile={profile} />;
     case "bear-slash":
-      return <BearSlash event={event} />;
+      return <BearSlash event={event} profile={profile} />;
     case "chart-pump":
-      return <ChartCandleBurst event={event} side="bull" />;
+      return <ChartCandleBurst event={event} side="bull" profile={profile} />;
     case "chart-dump":
-      return <ChartCandleBurst event={event} side="bear" />;
+      return <ChartCandleBurst event={event} side="bear" profile={profile} />;
     default:
       return null;
   }
+}
+
+function profileEnabled(profile?: OverlayEffectProfile): boolean {
+  return profile?.enabled ?? true;
 }
 
 function CinematicVignette({ color, focus = "50% 50%" }: { color: string; focus?: string }) {
@@ -402,75 +410,78 @@ function DebrisField({ eventId, color, side, count = 26 }: { eventId: string; co
   );
 }
 
-function ChargingBull({ event }: { event: OverlayEngagementEvent }) {
+function ChargingBull({ event, profile }: { event: OverlayEngagementEvent; profile?: OverlayEffectProfile }) {
+  const color = profile?.accent ?? "#16e6a4";
+  const scale = profile?.scale ?? 1;
+  const blur = profile?.blur ?? 1;
   return (
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1, x: [0, -12, 9, -5, 0], y: [0, 2, -2, 1, 0] }}
       exit={{ opacity: 0 }}
-      transition={{ duration: 0.56, ease: "easeOut" }}
+      transition={{ duration: profileDuration(profile, 0.56), ease: "easeOut" }}
       className="absolute inset-0 z-20 overflow-hidden"
     >
-      <CinematicVignette color="#16e6a4" focus="28% 58%" />
+      <CinematicVignette color={color} focus="28% 58%" />
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: [0, 0.52, 0.12, 0] }}
-        transition={{ duration: 0.76, ease: "easeOut" }}
+        transition={{ duration: profileDuration(profile, 0.76), ease: "easeOut" }}
         className="absolute inset-0 mix-blend-screen"
-        style={{ background: "linear-gradient(100deg, transparent 0%, rgba(22,230,164,0.52) 42%, rgba(255,255,255,0.45) 50%, transparent 74%)" }}
+        style={{ background: `linear-gradient(100deg, transparent 0%, ${hexToRgba(color, profileAlpha(profile, 0.52))} 42%, rgba(255,255,255,0.45) 50%, transparent 74%)` }}
       />
-      <ImpactRing color="#16e6a4" x="48%" y="58%" delay={0.54} />
-      <ImpactRing color="#d7fff2" x="58%" y="52%" delay={0.72} />
-      <DebrisField eventId={event.id} color="#16e6a4" side="bull" />
-      <LensStreak color="#16e6a4" delay={0.18} />
-      <LensStreak color="#d7fff2" delay={0.58} />
-      {Array.from({ length: 16 }, (_, i) => (
+      <ImpactRing color={color} x="48%" y="58%" delay={profileDuration(profile, 0.54)} />
+      <ImpactRing color="#d7fff2" x="58%" y="52%" delay={profileDuration(profile, 0.72)} />
+      <DebrisField eventId={event.id} color={color} side="bull" count={profileCount(profile, 26)} />
+      <LensStreak color={color} delay={profileDuration(profile, 0.18)} />
+      <LensStreak color="#d7fff2" delay={profileDuration(profile, 0.58)} />
+      {Array.from({ length: profileCount(profile, 16) }, (_, i) => (
         <motion.span
           key={`${event.id}-speed-${i}`}
           initial={{ x: "-30vw", opacity: 0, scaleX: 0.25 }}
           animate={{ x: "124vw", opacity: [0, 0.9, 0], scaleX: [0.25, 1.45, 0.4] }}
-          transition={{ duration: 1.18 + (i % 5) * 0.1, delay: i * 0.035, ease: IMPACT_EASE }}
-          className="absolute h-[3px] rounded-full bg-[linear-gradient(90deg,transparent,#d7fff2,#16e6a4,transparent)] blur-[0.5px]"
-          style={{ top: `${18 + ((i * 11) % 64)}%`, left: "-18%", width: `${18 + (i % 4) * 8}%` }}
+          transition={{ duration: profileDuration(profile, 1.18 + (i % 5) * 0.1), delay: profileDuration(profile, i * 0.035), ease: IMPACT_EASE }}
+          className="absolute h-[3px] rounded-full blur-[0.5px]"
+          style={{ top: `${18 + ((i * 11) % 64)}%`, left: "-18%", width: `${18 + (i % 4) * 8}%`, background: `linear-gradient(90deg,transparent,#d7fff2,${color},transparent)` }}
         />
       ))}
-      <ShockStreaks color="#16e6a4" side="bull" />
+      <ShockStreaks color={color} side="bull" count={profileCount(profile, 16)} durationScale={profile?.durationScale ?? 1} />
       <motion.div
         initial={{ opacity: 0, scaleX: 0.4 }}
-        animate={{ opacity: [0, 0.85, 0], scaleX: [0.4, 1.25, 0.8] }}
-        transition={{ duration: 1.25, delay: 0.48, ease: "easeOut" }}
+        animate={{ opacity: [0, profileAlpha(profile, 0.85), 0], scaleX: [0.4, 1.25, 0.8] }}
+        transition={{ duration: profileDuration(profile, 1.25), delay: profileDuration(profile, 0.48), ease: "easeOut" }}
         className="absolute bottom-[14%] left-[-10%] h-[16vh] w-[120%] origin-left blur-xl"
-        style={{ background: "linear-gradient(90deg, transparent, rgba(22,230,164,0.28), rgba(255,255,255,0.22), transparent)" }}
+        style={{ background: `linear-gradient(90deg, transparent, ${hexToRgba(color, profileAlpha(profile, 0.28))}, rgba(255,255,255,0.22), transparent)` }}
       />
       <motion.img
         src={BULL_ASSET}
         alt=""
         draggable={false}
-        initial={{ x: "-78vw", y: "28vh", opacity: 0, scale: 0.72, rotate: -3, filter: "blur(5px) contrast(1.15) saturate(1.2) drop-shadow(0 0 0 rgba(22,230,164,0))" }}
+        initial={{ x: "-78vw", y: "28vh", opacity: 0, scale: 0.72 * scale, rotate: -3, filter: `blur(${5 * blur}px) contrast(1.15) saturate(1.2) drop-shadow(0 0 0 ${hexToRgba(color, 0)})` }}
         animate={{
           x: ["-78vw", "-18vw", "14vw", "42vw", "118vw"],
           y: ["30vh", "22vh", "17vh", "18vh", "24vh"],
           opacity: [0, 1, 1, 1, 0],
-          scale: [0.72, 1.04, 1.18, 1.16, 1.04],
+          scale: [0.72 * scale, 1.04 * scale, 1.18 * scale, 1.16 * scale, 1.04 * scale],
           rotate: [-3, 1.5, -1, 0.6, 0],
           filter: [
-            "blur(5px) contrast(1.18) saturate(1.22) drop-shadow(0 0 0 rgba(22,230,164,0))",
-            "blur(0px) contrast(1.12) saturate(1.18) drop-shadow(0 0 34px rgba(22,230,164,0.52))",
-            "blur(0px) contrast(1.12) saturate(1.2) drop-shadow(0 0 42px rgba(22,230,164,0.62))",
-            "blur(0px) contrast(1.12) saturate(1.18) drop-shadow(0 0 36px rgba(22,230,164,0.52))",
-            "blur(2px) contrast(1.08) saturate(1.12) drop-shadow(0 0 18px rgba(22,230,164,0.32))",
+            `blur(${5 * blur}px) contrast(1.18) saturate(1.22) drop-shadow(0 0 0 ${hexToRgba(color, 0)})`,
+            `blur(0px) contrast(1.12) saturate(1.18) drop-shadow(0 0 34px ${hexToRgba(color, profileAlpha(profile, 0.52))})`,
+            `blur(0px) contrast(1.12) saturate(1.2) drop-shadow(0 0 42px ${hexToRgba(color, profileAlpha(profile, 0.62))})`,
+            `blur(0px) contrast(1.12) saturate(1.18) drop-shadow(0 0 36px ${hexToRgba(color, profileAlpha(profile, 0.52))})`,
+            `blur(${2 * blur}px) contrast(1.08) saturate(1.12) drop-shadow(0 0 18px ${hexToRgba(color, profileAlpha(profile, 0.32))})`,
           ],
         }}
-        transition={{ duration: 4.35, times: [0, 0.25, 0.5, 0.74, 1], ease: IMPACT_EASE }}
+        transition={{ duration: profileDuration(profile, 4.35), times: [0, 0.25, 0.5, 0.74, 1], ease: IMPACT_EASE }}
         className="absolute left-0 h-[min(44vh,430px)] max-h-[430px] min-h-[210px] w-auto select-none drop-shadow-[0_24px_38px_rgba(0,0,0,0.62)]"
         style={{ willChange: "transform, opacity, filter" }}
       />
-      <HeroLabel event={event} title="Bull charge" color="#16e6a4" />
+      <HeroLabel event={event} title="Bull charge" color={color} profile={profile} />
     </motion.div>
   );
 }
 
-function BearSlash({ event }: { event: OverlayEngagementEvent }) {
+function BearSlash({ event, profile }: { event: OverlayEngagementEvent; profile?: OverlayEffectProfile }) {
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -531,7 +542,7 @@ function BearSlash({ event }: { event: OverlayEngagementEvent }) {
   );
 }
 
-function ChartCandleBurst({ event, side }: { event: OverlayEngagementEvent; side: "bull" | "bear" }) {
+function ChartCandleBurst({ event, side, profile }: { event: OverlayEngagementEvent; side: "bull" | "bear"; profile?: OverlayEffectProfile }) {
   const ticker = eventTicker(event);
   const isBull = side === "bull";
   const color = isBull ? "#16e6a4" : "#ff3f5f";
@@ -744,7 +755,9 @@ function HeroLabel({ event, title, color }: { event: OverlayEngagementEvent; tit
   );
 }
 
-function TickerTape({ events }: { events: OverlayEngagementEvent[] }) {
+function TickerTape({ events, profile }: { events: OverlayEngagementEvent[]; profile?: OverlayEffectProfile }) {
+  const duration = profileDuration(profile, 0.32);
+  const alpha = profileAlpha(profile, 1);
   return (
     <div className="absolute bottom-2 left-2 right-[116px] flex min-w-0 gap-1.5 overflow-hidden rounded-full">
       {events.map((event) => (
@@ -752,11 +765,12 @@ function TickerTape({ events }: { events: OverlayEngagementEvent[] }) {
           key={event.id}
           initial={{ y: 18, opacity: 0, scale: 0.86, filter: "blur(4px)" }}
           animate={{ y: 0, opacity: 1, scale: 1, filter: "blur(0px)" }}
-          transition={{ duration: 0.32, ease: FX_EASE }}
+          transition={{ duration, ease: FX_EASE }}
           className="relative shrink-0 overflow-hidden rounded-full px-3.5 py-1.5 text-[13px] font-black text-[#bdf2ff] shadow-[0_0_22px_rgba(52,214,255,0.28)] backdrop-blur"
           style={{
             background: "linear-gradient(135deg, rgba(52,214,255,0.24), rgba(0,0,0,0.48))",
             border: "1px solid rgba(189,242,255,0.36)",
+            opacity: alpha,
           }}
         >
           <motion.span
@@ -772,16 +786,18 @@ function TickerTape({ events }: { events: OverlayEngagementEvent[] }) {
   );
 }
 
-function EmoteBurst({ event }: { event: OverlayEngagementEvent }) {
+function EmoteBurst({ event, profile }: { event: OverlayEngagementEvent; profile?: OverlayEffectProfile }) {
   const emote = event.payload?.emote ?? "RKT";
   const asset = brandedEmoteAsset(event.actionId);
   const pattern = emotePatternFor(event, asset, emote);
+  const count = profileCount(profile, pattern.count);
+  const alpha = profileAlpha(profile, 1);
   return (
     <>
       <EmotePatternBackdrop event={event} pattern={pattern} />
-      {Array.from({ length: pattern.count }, (_, i) => {
+      {Array.from({ length: count }, (_, i) => {
         const seed = hash(`${event.id}-${i}`);
-        const motionPreset = emoteParticleMotion(event.actionId, seed, i, pattern.count);
+        const motionPreset = emoteParticleMotion(event.actionId, seed, i, count);
         const delay = motionPreset.delay ?? (seed % 9) * 0.035;
         const size = pattern.sizeMin + (seed % pattern.sizeRange);
         const depth = 0.78 + (seed % 34) / 100;
@@ -803,7 +819,7 @@ function EmoteBurst({ event }: { event: OverlayEngagementEvent }) {
               filter: asset ? `blur(${blur}) drop-shadow(0 10px 18px rgba(0,0,0,0.62)) drop-shadow(0 0 15px ${pattern.glow})` : `blur(${blur}) drop-shadow(0 4px 12px rgba(0,0,0,0.68))`,
               perspective: 900,
               transformStyle: "preserve-3d",
-              opacity: depth,
+              opacity: depth * alpha,
               willChange: "transform, opacity",
             }}
           >
@@ -1185,22 +1201,23 @@ function ImageEmote({ asset, seed, size, patternId }: { asset: EmoteAsset; seed:
   );
 }
 
-function ColorWave({ event }: { event: OverlayEngagementEvent }) {
+function ColorWave({ event, profile }: { event: OverlayEngagementEvent; profile?: OverlayEffectProfile }) {
   const color = event.payload?.color ?? "#d9a547";
+  const alpha = profileAlpha(profile, 1);
   return (
     <>
       <motion.div
         initial={{ opacity: 0, scale: 0.66, rotate: -10 }}
-        animate={{ opacity: [0, 0.42, 0], scale: 1.65, rotate: 10 }}
+        animate={{ opacity: [0, 0.42 * alpha, 0], scale: 1.65 * (profile?.scale ?? 1), rotate: 10 }}
         exit={{ opacity: 0 }}
-        transition={{ duration: 2.45, ease: "easeOut" }}
+        transition={{ duration: profileDuration(profile, 2.45), ease: "easeOut" }}
         className="absolute inset-[-22%] rounded-full blur-2xl"
         style={{ background: `radial-gradient(circle at 50% 50%, ${color}, transparent 58%)` }}
       />
       <motion.div
         initial={{ opacity: 0, x: "-28vw", scaleX: 0.4 }}
-        animate={{ opacity: [0, 0.68, 0], x: "120vw", scaleX: [0.4, 1.25, 0.7] }}
-        transition={{ duration: 1.22, ease: IMPACT_EASE }}
+        animate={{ opacity: [0, 0.68 * alpha, 0], x: "120vw", scaleX: [0.4, 1.25 * (profile?.scale ?? 1), 0.7] }}
+        transition={{ duration: profileDuration(profile, 1.22), ease: IMPACT_EASE }}
         className="absolute left-0 top-1/2 h-[34vh] w-[42vw] -translate-y-1/2 skew-x-[-14deg] blur-xl"
         style={{ background: `linear-gradient(90deg, transparent, ${color}88, rgba(255,255,255,0.35), transparent)` }}
       />
@@ -1208,18 +1225,19 @@ function ColorWave({ event }: { event: OverlayEngagementEvent }) {
   );
 }
 
-function Spotlight({ event }: { event: OverlayEngagementEvent }) {
+function Spotlight({ event, profile }: { event: OverlayEngagementEvent; profile?: OverlayEffectProfile }) {
+  const accent = profile?.accent ?? "#d9a547";
   return (
     <motion.div
       initial={{ opacity: 0, y: -22, scale: 0.92, filter: "blur(8px)" }}
       animate={{ opacity: 1, y: 0, scale: 1, filter: "blur(0px)" }}
       exit={{ opacity: 0, y: -12, filter: "blur(4px)" }}
-      transition={{ duration: 0.38, ease: FX_EASE }}
+      transition={{ duration: profileDuration(profile, 0.38), ease: FX_EASE }}
       className="absolute left-1/2 top-[110px] w-[min(76%,760px)] -translate-x-1/2 overflow-hidden rounded-2xl p-3.5 text-center shadow-[0_24px_60px_rgba(0,0,0,0.62)] backdrop-blur-xl"
       style={{
-        background: "linear-gradient(135deg, rgba(217,165,71,0.18), rgba(0,0,0,0.72) 42%, rgba(52,214,255,0.1))",
+        background: `linear-gradient(135deg, ${accent}2e, rgba(0,0,0,0.72) 42%, rgba(52,214,255,0.1))`,
         border: "1px solid rgba(255,255,255,0.16)",
-        boxShadow: "0 24px 60px rgba(0,0,0,0.62), 0 0 32px rgba(217,165,71,0.24), inset 0 1px 0 rgba(255,255,255,0.14)",
+        boxShadow: `0 24px 60px rgba(0,0,0,0.62), 0 0 32px ${accent}3d, inset 0 1px 0 rgba(255,255,255,0.14)`,
       }}
     >
       <motion.div
@@ -1228,24 +1246,25 @@ function Spotlight({ event }: { event: OverlayEngagementEvent }) {
         animate={{ x: "740%" }}
         transition={{ duration: 1.05, delay: 0.1, ease: "easeOut" }}
       />
-      <div className="relative text-[10px] font-black uppercase tracking-[0.18em] text-[#d9a547]">Viewer Spotlight · {event.user}</div>
+      <div className="relative text-[10px] font-black uppercase tracking-[0.18em]" style={{ color: accent }}>Viewer Spotlight · {event.user}</div>
       <div className="relative mt-1 text-xl font-black leading-tight text-white drop-shadow-[0_3px_14px_rgba(0,0,0,0.8)]">{event.payload?.message || "W stream."}</div>
     </motion.div>
   );
 }
 
-function ClipBoost({ event }: { event: OverlayEngagementEvent }) {
+function ClipBoost({ event, profile }: { event: OverlayEngagementEvent; profile?: OverlayEffectProfile }) {
+  const accent = profile?.accent ?? "#f97316";
   return (
     <motion.div
       initial={{ opacity: 0, x: 38, scale: 0.9, filter: "blur(5px)" }}
       animate={{ opacity: 1, x: 0, scale: 1, filter: "blur(0px)" }}
       exit={{ opacity: 0, x: 24, filter: "blur(4px)" }}
-      transition={{ duration: 0.32, ease: FX_EASE }}
+      transition={{ duration: profileDuration(profile, 0.32), ease: FX_EASE }}
       className="absolute right-2 top-[64px] overflow-hidden rounded-2xl px-3.5 py-2.5 text-right shadow-[0_18px_44px_rgba(0,0,0,0.48)] backdrop-blur-xl"
       style={{
-        background: "linear-gradient(135deg, rgba(249,115,22,0.26), rgba(0,0,0,0.66))",
-        border: "1px solid rgba(253,186,116,0.42)",
-        boxShadow: "0 18px 44px rgba(0,0,0,0.48), 0 0 26px rgba(249,115,22,0.26)",
+        background: `linear-gradient(135deg, ${accent}42, rgba(0,0,0,0.66))`,
+        border: `1px solid ${accent}66`,
+        boxShadow: `0 18px 44px rgba(0,0,0,0.48), 0 0 26px ${accent}42`,
       }}
     >
       <motion.div className="absolute inset-y-0 left-0 w-1 bg-orange-200" animate={{ opacity: [0.4, 1, 0.4] }} transition={{ duration: 0.72, repeat: 2 }} />
@@ -1255,18 +1274,20 @@ function ClipBoost({ event }: { event: OverlayEngagementEvent }) {
   );
 }
 
-function Soundwave({ event }: { event: OverlayEngagementEvent }) {
+function Soundwave({ event, profile }: { event: OverlayEngagementEvent; profile?: OverlayEffectProfile }) {
+  const count = profileCount(profile, 18);
+  const accent = profile?.accent ?? "#a78bfa";
   return (
     <motion.div
       initial={{ opacity: 0, y: 22, scale: 0.92, filter: "blur(6px)" }}
       animate={{ opacity: 1, y: 0, scale: 1, filter: "blur(0px)" }}
       exit={{ opacity: 0, y: 12, filter: "blur(4px)" }}
-      transition={{ duration: 0.32, ease: FX_EASE }}
+      transition={{ duration: profileDuration(profile, 0.32), ease: FX_EASE }}
       className="absolute bottom-[58px] left-1/2 flex -translate-x-1/2 items-end gap-1 overflow-hidden rounded-full px-5 py-2.5 backdrop-blur-xl"
       style={{
-        background: "linear-gradient(135deg, rgba(167,139,250,0.24), rgba(0,0,0,0.58))",
-        border: "1px solid rgba(196,181,253,0.38)",
-        boxShadow: "0 18px 44px rgba(0,0,0,0.48), 0 0 28px rgba(167,139,250,0.3)",
+        background: `linear-gradient(135deg, ${accent}3d, rgba(0,0,0,0.58))`,
+        border: `1px solid ${accent}61`,
+        boxShadow: `0 18px 44px rgba(0,0,0,0.48), 0 0 28px ${accent}4d`,
       }}
     >
       <motion.div
@@ -1274,10 +1295,11 @@ function Soundwave({ event }: { event: OverlayEngagementEvent }) {
         animate={{ scale: [0.8, 1.2, 0.9], opacity: [0.25, 0.55, 0.2] }}
         transition={{ duration: 0.72, repeat: 3, ease: "easeInOut" }}
       />
-      {Array.from({ length: 18 }, (_, i) => (
+      {Array.from({ length: count }, (_, i) => (
         <motion.span
           key={`${event.id}-${i}`}
-          className="relative block w-1 rounded-full bg-violet-100 shadow-[0_0_12px_rgba(196,181,253,0.72)]"
+          className="relative block w-1 rounded-full shadow-[0_0_12px_rgba(196,181,253,0.72)]"
+          style={{ background: accent }}
           animate={{ height: [8, 30 + ((i * 7) % 28), 12, 24 + ((i * 5) % 18), 8] }}
           transition={{ duration: 0.86, repeat: 3, delay: i * 0.02, ease: "easeInOut" }}
         />
@@ -1308,8 +1330,9 @@ function shouldRenderEvent(event: OverlayEngagementEvent, now: number, lastVisua
   return true;
 }
 
-function playOverlayHeroSfx(event: OverlayEngagementEvent): void {
+function playOverlayHeroSfx(event: OverlayEngagementEvent, profile?: OverlayEffectProfile): void {
   try {
+    if ((profile?.audio ?? 1) <= 0.01) return;
     const now = Date.now();
     if (now - lastHeroAudioAt < AUDIO_COOLDOWN_MS) return;
     lastHeroAudioAt = now;
