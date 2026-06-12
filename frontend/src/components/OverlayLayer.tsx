@@ -18,6 +18,7 @@ const SOURCE_LABEL: Record<OverlaySource, string> = {
   youtube: "YouTube",
   chat: "Chat",
   market: "Market",
+  custom: "Custom",
 };
 
 /**

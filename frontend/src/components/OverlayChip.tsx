@@ -12,7 +12,10 @@ const LABEL: Record<OverlaySource, string> = {
   combined: "Total",
   chat: "Chat",
   market: "Market",
+  custom: "Custom",
 };
+
+const PLATFORMS: Platform[] = ["twitch", "kick", "x", "youtube"];
 
 function Glyph({ source, color }: { source: OverlaySource; color: string }) {
   if (source === "twitch") return <Twitch size={16} style={{ color }} strokeWidth={2.5} />;
@@ -33,8 +36,26 @@ function Glyph({ source, color }: { source: OverlaySource; color: string }) {
  */
 export function OverlayChip({ el }: { el: OverlayElement }) {
   const snap = useStatsStore((s) => s.snapshot);
-  const viewers = el.source === "combined" ? snap.totals.viewers : snap.perPlatform[el.source as Platform].viewers;
-  const color = el.source === "combined" ? "var(--vc-accent)" : platformColor(el.source as Platform);
+  const isPlatform = PLATFORMS.includes(el.source as Platform);
+  const viewers = el.source === "combined" ? snap.totals.viewers : isPlatform ? snap.perPlatform[el.source as Platform].viewers : 0;
+  const color = el.source === "custom" ? (el.custom?.accent ?? "var(--vc-accent)") : el.source === "combined" ? "var(--vc-accent)" : platformColor(el.source as Platform);
+
+  if (el.source === "custom" && el.custom) {
+    return (
+      <div style={{ transform: `scale(${el.scale})`, transformOrigin: "top left", opacity: el.custom.opacity }}>
+        <img
+          src={el.custom.src}
+          alt={el.custom.name}
+          draggable={false}
+          className="block select-none object-contain"
+          style={{
+            width: el.custom.size,
+            filter: el.custom.effect === "none" ? undefined : `drop-shadow(0 0 ${Math.round(el.custom.intensity * 16)}px ${color})`,
+          }}
+        />
+      </div>
+    );
+  }
 
   return (
     <div style={{ transform: `scale(${el.scale})`, transformOrigin: "top left" }}>

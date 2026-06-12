@@ -370,7 +370,8 @@ export type OverlaySource =
   | "youtube"
   | "combined"
   | "chat"
-  | "market";
+  | "market"
+  | "custom";
 
 /** A Polymarket market pinned to the overlay. */
 export interface OverlayMarketData {
@@ -381,6 +382,56 @@ export interface OverlayMarketData {
   prob: number;
   volume24h: number;
   category: string;
+}
+
+export type OverlayCustomAnimation =
+  | "float"
+  | "orbit"
+  | "impact"
+  | "scan"
+  | "rain"
+  | "pulse"
+  | "glitch";
+
+export type OverlayCustomEffect =
+  | "none"
+  | "neon"
+  | "hologram"
+  | "ember"
+  | "frost"
+  | "gold";
+
+export interface OverlayCustomAsset {
+  id: string;
+  name: string;
+  src: string;
+  originalSrc?: string;
+  animation: OverlayCustomAnimation;
+  effect: OverlayCustomEffect;
+  accent: string;
+  opacity: number;
+  intensity: number;
+  speed: number;
+  size: number;
+  feather: number;
+  threshold: number;
+  createdAt: number;
+}
+
+export type OverlayEffectMotion = "default" | "slower" | "snappy" | "cinematic" | "chaos";
+
+export interface OverlayEffectProfile {
+  actionId: string;
+  label: string;
+  enabled: boolean;
+  motion: OverlayEffectMotion;
+  accent?: string;
+  durationScale: number;
+  intensity: number;
+  density: number;
+  scale: number;
+  blur: number;
+  audio: number;
 }
 
 /**
@@ -402,6 +453,8 @@ export interface OverlayElement {
   h?: number;
   /** Market payload — only set when source === "market". */
   market?: OverlayMarketData;
+  /** Custom transparent PNG-style asset — only set when source === "custom". */
+  custom?: OverlayCustomAsset;
 }
 
 /* ------------------------- Viewer overlay engagement ------------------------ */
