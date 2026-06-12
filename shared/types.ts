@@ -396,6 +396,37 @@ export interface OverlayElement {
   market?: OverlayMarketData;
 }
 
+/* ------------------------- Viewer overlay engagement ------------------------ */
+
+export type OverlayActionKind =
+  | "vote"
+  | "emote"
+  | "ticker"
+  | "color"
+  | "clip"
+  | "soundwave"
+  | "spotlight"
+  | "boss";
+
+export interface OverlayEngagementEvent {
+  id: string;
+  room: string;
+  actionId: string;
+  kind: OverlayActionKind;
+  label: string;
+  user: string;
+  cost: number;
+  at: number;
+  payload?: {
+    side?: "bull" | "bear";
+    ticker?: string;
+    emote?: string;
+    message?: string;
+    color?: string;
+    damage?: number;
+  };
+}
+
 /* -------------------------- Custom action buttons ---------------------------- */
 
 /** A user-authored action button created in the Button Editor. */
@@ -431,11 +462,17 @@ export interface ServerToClientEvents {
    * single source of truth for which chat names show as tippable.
    */
   wallets: (map: Record<string, string>) => void;
+  /** [BACKEND] Viewer-triggered OBS overlay effect, scoped to an overlay room. */
+  "overlay:action": (event: OverlayEngagementEvent) => void;
 }
 
 export interface ClientToServerEvents {
   moderate: (req: ModerationRequest) => void;
   "command:run": (button: ActionButton, target?: string) => void;
+  /** Join the OBS overlay control room so phone actions can reach this source. */
+  "overlay:join": (room: string) => void;
+  /** Send a viewer-triggered OBS overlay effect through the hosted relay. */
+  "overlay:action": (event: OverlayEngagementEvent) => void;
   /** [BACKEND] Ask the server to cut a native platform clip for this moment. */
   "clip:create": (clip: Clip) => void;
   /**

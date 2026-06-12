@@ -1,12 +1,13 @@
-export type OverlayActionKind =
-  | "vote"
-  | "emote"
-  | "ticker"
-  | "color"
-  | "clip"
-  | "soundwave"
-  | "spotlight"
-  | "boss";
+import { io, type Socket } from "socket.io-client";
+import type {
+  ClientToServerEvents,
+  OverlayActionKind,
+  OverlayEngagementEvent,
+  ServerToClientEvents,
+} from "@shared/types";
+import { BACKEND_URL, getSocket } from "./socket";
+
+export type { OverlayActionKind, OverlayEngagementEvent };
 
 export interface OverlayActionDef {
   id: string;
@@ -18,28 +19,21 @@ export interface OverlayActionDef {
   accent: string;
 }
 
-export interface OverlayEngagementEvent {
-  id: string;
-  room: string;
-  actionId: string;
-  kind: OverlayActionKind;
-  label: string;
-  user: string;
-  cost: number;
-  at: number;
-  payload?: {
-    side?: "bull" | "bear";
-    ticker?: string;
-    emote?: string;
-    message?: string;
-    color?: string;
-    damage?: number;
-  };
-}
-
 export const ENGAGE_ROOM = "market-bubble-live";
 const CHANNEL = "market-bubble-overlay-engage";
 const STORAGE_KEY = "market-bubble-overlay-engage-event";
+type OverlaySocket = Socket<ServerToClientEvents, ClientToServerEvents>;
+let overlaySocket: OverlaySocket | null = null;
+
+function overlayTransport(): OverlaySocket | null {
+  const existing = getSocket() as OverlaySocket | null;
+  if (existing) return existing;
+  if (!BACKEND_URL) return null;
+  if (!overlaySocket) {
+    overlaySocket = io(BACKEND_URL, { transports: ["websocket"] });
+  }
+  return overlaySocket;
+}
 
 export const OVERLAY_ACTIONS: OverlayActionDef[] = [
   { id: "bull-vote", kind: "vote", label: "Bull Vote", cost: 0, description: "Move the crowd meter green.", cta: "Bullish", accent: "#16e6a4" },
@@ -97,12 +91,22 @@ export function publishOverlayEvent(event: Omit<OverlayEngagementEvent, "id" | "
   } catch { /* storage can be blocked in private contexts. */ }
 
   window.dispatchEvent(new CustomEvent(STORAGE_KEY, { detail: full }));
+
+  try {
+    overlayTransport()?.emit("overlay:action", full);
+  } catch { /* hosted relay is best-effort; local fallback already fired. */ }
+
   return full;
 }
 
 export function subscribeOverlayEvents(room: string, cb: (event: OverlayEngagementEvent) => void): () => void {
+  const seen = new Set<string>();
   const handle = (event: OverlayEngagementEvent) => {
-    if (event.room === room) cb(event);
+    if (!event?.id || seen.has(event.id)) return;
+    if (event.room !== room) return;
+    seen.add(event.id);
+    window.setTimeout(() => seen.delete(event.id), 60_000);
+    cb(event);
   };
 
   let channel: BroadcastChannel | null = null;
@@ -116,13 +120,20 @@ export function subscribeOverlayEvents(room: string, cb: (event: OverlayEngageme
     try { handle(JSON.parse(ev.newValue) as OverlayEngagementEvent); } catch { /* ignore */ }
   };
   const onCustom = (ev: Event) => handle((ev as CustomEvent<OverlayEngagementEvent>).detail);
+  const socket = overlayTransport();
+  const onRemote = (event: OverlayEngagementEvent) => handle(event);
 
   window.addEventListener("storage", onStorage);
   window.addEventListener(STORAGE_KEY, onCustom);
+  try {
+    socket?.emit("overlay:join", room);
+    socket?.on("overlay:action", onRemote);
+  } catch { /* ignore */ }
 
   return () => {
     channel?.close();
     window.removeEventListener("storage", onStorage);
     window.removeEventListener(STORAGE_KEY, onCustom);
+    socket?.off("overlay:action", onRemote);
   };
 }

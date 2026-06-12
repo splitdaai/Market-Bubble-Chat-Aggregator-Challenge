@@ -21,8 +21,8 @@ type Sock = Socket<ServerToClientEvents, ClientToServerEvents>;
 // Connect to the real Socket.io server. Defaults to the production backend so a
 // missing build-time env never silently drops the app to the mock firehose;
 // pass VITE_BACKEND_URL="" explicitly to force demo mode.
-const RAW_BACKEND = import.meta.env.VITE_BACKEND_URL as string | undefined;
-const BACKEND_URL = RAW_BACKEND === undefined ? "https://3-213-104-77.nip.io" : RAW_BACKEND || undefined;
+export const RAW_BACKEND = import.meta.env.VITE_BACKEND_URL as string | undefined;
+export const BACKEND_URL = RAW_BACKEND === undefined ? "https://3-213-104-77.nip.io" : RAW_BACKEND || undefined;
 
 let socket: Sock | null = null;
 let stopMock: (() => void) | null = null;

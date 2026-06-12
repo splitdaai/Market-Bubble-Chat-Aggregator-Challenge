@@ -6,6 +6,8 @@ import type {
   ServerToClientEvents,
   ClientToServerEvents,
   Clip,
+  OverlayEngagementEvent,
+  OverlayActionKind,
 } from "../../../shared/types.ts";
 import { makeModerationRouter } from "../moderation.ts";
 import { StatsAggregator } from "../stats/aggregator.ts";
@@ -43,6 +45,8 @@ export function bindHub(
 
   // Per-handle send timestamps for the shared-chat rate limiter (5 msgs / 10s).
   const chatRate = new Map<string, number[]>();
+  // Per-socket timestamps for public overlay actions (12 effects / 10s).
+  const overlayRate = new WeakMap<object, number[]>();
 
   const broadcastStatus = () => io.emit("status", [...statuses.values()]);
 
@@ -86,6 +90,55 @@ export function bindHub(
   // Broadcast the real stats snapshot every 2s.
   const statsTimer = setInterval(() => io.emit("stats", aggregator.snapshot()), 2000);
 
+  const overlayRoom = (room: unknown) => {
+    const clean = String(room ?? "")
+      .replace(/[^\w:-]/g, "")
+      .slice(0, 80);
+    return clean || "market-bubble-live";
+  };
+  const overlayTopic = (room: string) => `overlay:${room}`;
+  const overlayKinds = new Set<OverlayActionKind>(["vote", "emote", "ticker", "color", "clip", "soundwave", "spotlight", "boss"]);
+  const cleanText = (value: unknown, fallback: string, max = 80) =>
+    String(value ?? fallback)
+      .replace(/[\x00-\x1f\x7f]/g, "")
+      .trim()
+      .slice(0, max) || fallback;
+  const cleanOverlayAction = (event: OverlayEngagementEvent): OverlayEngagementEvent | null => {
+    if (!event || !overlayKinds.has(event.kind)) return null;
+    const room = overlayRoom(event.room);
+    const cost = Number.isFinite(event.cost) ? Math.max(0, Math.min(10_000, Math.round(event.cost))) : 0;
+    const damage = Number.isFinite(event.payload?.damage) ? Math.max(0, Math.min(100, Math.round(event.payload!.damage!))) : undefined;
+    const color = typeof event.payload?.color === "string" && /^#[0-9a-fA-F]{6}$/.test(event.payload.color) ? event.payload.color : undefined;
+    const side = event.payload?.side === "bull" || event.payload?.side === "bear" ? event.payload.side : undefined;
+
+    return {
+      id: cleanText(event.id, `${Date.now()}-${Math.random().toString(36).slice(2)}`, 96),
+      room,
+      actionId: cleanText(event.actionId, event.kind, 48),
+      kind: event.kind,
+      label: cleanText(event.label, "Overlay Action", 48),
+      user: cleanText(event.user, "bubbleguest", 32),
+      cost,
+      at: Number.isFinite(event.at) ? event.at : Date.now(),
+      payload: {
+        side,
+        ticker: cleanText(event.payload?.ticker, "BTC", 12).toUpperCase(),
+        emote: cleanText(event.payload?.emote, "W", 16),
+        message: cleanText(event.payload?.message, "", 72),
+        color,
+        damage,
+      },
+    };
+  };
+  const allowOverlayAction = (socketKey: object) => {
+    const now = Date.now();
+    const hist = (overlayRate.get(socketKey) ?? []).filter((t) => now - t < 10_000);
+    if (hist.length >= 12) return false;
+    hist.push(now);
+    overlayRate.set(socketKey, hist);
+    return true;
+  };
+
   io.on("connection", (socket) => {
     // Joining client gets the current health + stats + past streams immediately,
     // plus the stream's recent chat backlog so a refresh doesn't blank the feed.
@@ -97,6 +150,19 @@ export function bindHub(
     socket.on("moderate", async (req) => {
       const result = await moderate(req);
       socket.emit("moderation:result", result);
+    });
+
+    // Viewer QR controls: OBS browser source joins a room, phone page publishes
+    // an effect, and the hosted backend relays it to every source in that room.
+    socket.on("overlay:join", (room) => {
+      void socket.join(overlayTopic(overlayRoom(room)));
+    });
+
+    socket.on("overlay:action", (event) => {
+      if (!allowOverlayAction(socket)) return;
+      const clean = cleanOverlayAction(event);
+      if (!clean) return;
+      io.to(overlayTopic(clean.room)).emit("overlay:action", clean);
     });
 
     // Login-with-X shared chat: a verified viewer posts into the unified feed.

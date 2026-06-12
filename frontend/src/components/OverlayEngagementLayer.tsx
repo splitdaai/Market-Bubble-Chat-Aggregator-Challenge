@@ -26,8 +26,9 @@ export function OverlayEngagementLayer({ room }: { room: string }) {
   useEffect(() => {
     const unsub = subscribeOverlayEvents(room, (event) => {
       setEvents((prev) => [event, ...prev].slice(0, 20));
-      if (event.payload?.side) {
-        setVotes((v) => ({ ...v, [event.payload!.side!]: v[event.payload!.side!] + 1 }));
+      const side = event.payload?.side as "bull" | "bear" | undefined;
+      if (side === "bull" || side === "bear") {
+        setVotes((v) => ({ ...v, [side]: v[side] + 1 }));
       }
       if (event.kind === "boss") {
         setBoss((hp) => Math.max(0, hp - (event.payload?.damage ?? 12)));
