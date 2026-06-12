@@ -115,9 +115,7 @@ export function SimpleApp() {
           </button>
           <a
             href="/?broadcast=1&stage=1"
-            target="_blank"
-            rel="noreferrer"
-            title="Preview the on-stream Chat Only panel (OBS center-screen)"
+            title="The on-stream Chat Only panel (OBS center-screen)"
             className="flex items-center gap-1.5 rounded-lg border border-white/15 bg-white/[0.05] px-3 py-1.5 text-[13px] font-bold text-ink transition hover:border-accent/50 hover:text-accent"
           >
             <MessagesSquare size={15} /> Chat Only

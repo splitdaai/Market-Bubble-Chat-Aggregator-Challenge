@@ -192,13 +192,15 @@ export function BroadcastView() {
         style={{ scrollbarWidth: "none" }}
       >
         <style>{`div::-webkit-scrollbar{display:none}`}</style>
-        <AnimatePresence initial={false}>
+        {/* Bottom-anchored like Twitch — messages grow upward. No exit
+            animations: with a bottom-anchored flex column, exiting items
+            linger in flow and mash into the incoming ones. */}
+        <div className="flex min-h-full flex-col justify-end">
           {visible.map((msg) => (
             <motion.div
               key={msg.id}
               initial={{ opacity: 0, y: 6 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0 }}
               transition={{ duration: 0.18 }}
             >
               <Message
@@ -210,7 +212,7 @@ export function BroadcastView() {
               />
             </motion.div>
           ))}
-        </AnimatePresence>
+        </div>
       </div>
 
       {/* ── Jump-to-live pill ── */}
@@ -255,8 +257,20 @@ export function BroadcastView() {
       {/* Warm vignette so the espresso panel reads as the focal point */}
       <div className="absolute inset-0" style={{ background: "radial-gradient(ellipse at center, rgba(8,7,6,0.04) 36%, rgba(8,7,6,0.42) 100%)" }} />
 
-      {/* Center column — where the panel sits between the hosts on stream */}
-      <div className="relative z-10 mx-auto flex h-full max-w-[640px] flex-col px-4 py-6">
+      {/* Back to the dashboard (Simple/Pro per saved mode) — demo chrome only,
+          never rendered on the clean OBS route. */}
+      <a
+        href="/"
+        className="absolute left-4 top-4 z-20 flex items-center gap-1.5 rounded-xl px-3 py-2 text-[13px] font-bold transition hover:brightness-125"
+        style={{ background: "rgba(8,7,6,0.82)", border: "1px solid rgba(217,165,71,0.4)", color: "#e8c987", backdropFilter: "blur(6px)" }}
+      >
+        ← Dashboard
+      </a>
+
+      {/* The panel sits exactly over the show's center capture tile (between
+          the host cams, above the banner + ticker) so it reads as a native
+          part of the broadcast frame. */}
+      <div className="relative z-10 mx-auto flex flex-col" style={{ width: "clamp(560px, 52vw, 1280px)", maxWidth: "94vw", height: "66vh", marginTop: "1.2vh" }}>
         {panel}
       </div>
     </div>
