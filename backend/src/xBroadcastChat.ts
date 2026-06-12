@@ -23,6 +23,17 @@ const ID_RE = /^[A-Za-z0-9]+$/;
 
 interface ChatAccess { endpoint: string; accessToken: string; roomId: string; replay: boolean; title: string; state: string }
 
+async function jsonOrNull<T>(res: Response): Promise<T | null> {
+  if (!res.ok) return null;
+  const text = await res.text();
+  if (!text.trim()) return null;
+  try {
+    return JSON.parse(text) as T;
+  } catch {
+    return null;
+  }
+}
+
 /** Accept a raw broadcast id or a copied X/Twitter broadcast URL. */
 export function normalizeBroadcastId(value: unknown): string | null {
   const raw = String(value ?? "").trim();
@@ -37,13 +48,19 @@ export async function resolveBroadcastChat(id: string): Promise<ChatAccess | nul
   if (!ID_RE.test(id)) return null;
   const gt = await guestToken();
   const H = { authorization: `Bearer ${X_BEARER}`, "x-guest-token": gt, "User-Agent": X_UA };
-  const show = (await (await fetch(`https://api.twitter.com/1.1/broadcasts/show.json?ids=${id}`, { headers: H })).json()) as { broadcasts?: Record<string, { media_key: string; status?: string; state?: string }> };
+  const show = await jsonOrNull<{ broadcasts?: Record<string, { media_key: string; status?: string; state?: string }> }>(
+    await fetch(`https://api.twitter.com/1.1/broadcasts/show.json?ids=${id}`, { headers: H }),
+  );
   const bc = show?.broadcasts?.[id];
   if (!bc) return null;
-  const st = (await (await fetch(`https://api.twitter.com/1.1/live_video_stream/status/${bc.media_key}?client=web`, { headers: H })).json()) as { chatToken?: string };
+  const st = await jsonOrNull<{ chatToken?: string }>(
+    await fetch(`https://api.twitter.com/1.1/live_video_stream/status/${bc.media_key}?client=web`, { headers: H }),
+  );
   const chatToken = st?.chatToken;
   if (!chatToken) return null;
-  const acc = (await (await fetch("https://proxsee.pscp.tv/api/v2/accessChatPublic", { method: "POST", headers: PSCP_HEADERS, body: JSON.stringify({ chat_token: chatToken }) })).json()) as { endpoint?: string; access_token?: string; room_id?: string };
+  const acc = await jsonOrNull<{ endpoint?: string; access_token?: string; room_id?: string }>(
+    await fetch("https://proxsee.pscp.tv/api/v2/accessChatPublic", { method: "POST", headers: PSCP_HEADERS, body: JSON.stringify({ chat_token: chatToken }) }),
+  );
   if (!acc?.endpoint || !acc?.access_token) return null;
   const replay = acc.endpoint.includes("-replay-") || (bc.state ?? "").toUpperCase() === "ENDED";
   return { endpoint: acc.endpoint, accessToken: acc.access_token, roomId: acc.room_id ?? id, replay, title: bc.status ?? "", state: bc.state ?? "" };
@@ -65,21 +82,21 @@ function parseMsg(m: RawMsg): { username: string; displayName: string; text: str
 /** One page of replay chat history from a cursor (ns timestamp; "" = start). */
 export async function replayChatPage(access: ChatAccess, cursor = "", limit = 200): Promise<{ messages: { username: string; displayName: string; text: string; t: number }[]; cursor: string }> {
   const r = await fetch(`${access.endpoint}/chatapi/v1/history`, { method: "POST", headers: PSCP_HEADERS, body: JSON.stringify({ access_token: access.accessToken, cursor, limit }) });
-  if (!r.ok) return { messages: [], cursor };
-  const d = (await r.json()) as { messages?: RawMsg[]; cursor?: string };
+  const d = await jsonOrNull<{ messages?: RawMsg[]; cursor?: string }>(r);
+  if (!d) return { messages: [], cursor };
   const messages = (d.messages ?? []).map(parseMsg).filter((m): m is NonNullable<typeof m> => !!m);
   return { messages, cursor: d.cursor ?? cursor };
 }
 
 /* ----------------------------- REST shape (demo) ---------------------------- */
-const restCache = new Map<string, { exp: number; msgs: { username: string; displayName: string; text: string; t: number }[] }>();
+const restCache = new Map<string, { exp: number; title: string; msgs: { username: string; displayName: string; text: string; t: number }[] }>();
 
 /** A batch of real chat messages from a broadcast (mid-stream window so it's not
  *  all join/heartbeat frames). Cached — used by the frontend to drip real X chat
  *  into the unified feed even in demo mode. */
 export async function broadcastChatBatch(id: string): Promise<{ title: string; messages: { username: string; displayName: string; text: string; t: number }[] }> {
   const hit = restCache.get(id);
-  if (hit && Date.now() < hit.exp) return { title: "", messages: hit.msgs };
+  if (hit && Date.now() < hit.exp) return { title: hit.title, messages: hit.msgs };
   const access = await resolveBroadcastChat(id);
   if (!access) return { title: "", messages: [] };
   // Replay chat is heartbeat-heavy and sparse, so walk deep (cached 30 min, so
@@ -93,7 +110,7 @@ export async function broadcastChatBatch(id: string): Promise<{ title: string; m
     cursor = page.cursor;
   }
   const out = [...dedup.values()].sort((a, b) => a.t - b.t);
-  restCache.set(id, { exp: Date.now() + 30 * 60_000, msgs: out });
+  restCache.set(id, { exp: Date.now() + (access.replay ? 30 * 60_000 : 2500), title: access.title, msgs: out });
   return { title: access.title, messages: out };
 }
 
@@ -106,6 +123,8 @@ export class XBroadcastChatConnector extends BaseConnector {
   private ws: WebSocket | null = null;
   private stopped = false;
   private seen = new Set<string>();
+  private cursor = "";
+  private historyTimer: ReturnType<typeof setTimeout> | null = null;
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   constructor(private broadcastId: string, label = "X Broadcast") {
     super("x", label);
@@ -118,17 +137,48 @@ export class XBroadcastChatConnector extends BaseConnector {
       if (!access) { this.setStatus({ connected: false, error: "no_broadcast" }); return; }
       this.setStatus({ channel: access.title || this.status().channel || "X Broadcast" });
 
-      // Backfill whatever chat already happened before the connector was added.
-      const { messages } = await broadcastChatBatch(this.broadcastId);
-      for (const m of messages) this.emit(m);
+      // Backfill whatever chat already happened before the connector was added,
+      // then keep polling history as a safety net. X Live chat websockets can be
+      // quiet or close during low-traffic tests; history polling catches those
+      // messages without duplicating websocket frames.
+      await this.catchUpHistory(access, access.replay ? 60 : 10);
 
       if (access.replay) {
         this.setStatus({ connected: true });
         return;
       }
+      this.scheduleHistoryPoll(access, 2500);
       this.connectWs(access);
     } catch (e) {
       this.setStatus({ connected: false, error: String(e) });
+    }
+  }
+
+  private async catchUpHistory(access: ChatAccess, maxPages = 4) {
+    for (let i = 0; i < maxPages && !this.stopped; i++) {
+      const page = await replayChatPage(access, this.cursor);
+      for (const m of page.messages) this.emit(m);
+      if (!page.cursor || page.cursor === this.cursor) break;
+      this.cursor = page.cursor;
+      if (page.messages.length === 0) break;
+    }
+  }
+
+  private scheduleHistoryPoll(access: ChatAccess, delay = 3000) {
+    if (this.stopped) return;
+    if (this.historyTimer) clearTimeout(this.historyTimer);
+    this.historyTimer = setTimeout(() => void this.pollHistory(access), delay);
+  }
+
+  private async pollHistory(access: ChatAccess) {
+    if (this.stopped) return;
+    try {
+      await this.catchUpHistory(access, 2);
+      this.setStatus({ connected: true, error: undefined });
+    } catch (e) {
+      this.setStatus({ connected: false, error: `history_poll_failed: ${e instanceof Error ? e.message : String(e)}` });
+    } finally {
+      this.scheduleHistoryPoll(access, 3000);
     }
   }
 
@@ -144,8 +194,8 @@ export class XBroadcastChatConnector extends BaseConnector {
     });
     this.ws.on("close", () => {
       if (this.stopped) return;
-      this.setStatus({ connected: false, error: "socket_closed" });
-      this.reconnectTimer = setTimeout(() => void this.start(), 4000);
+      this.setStatus({ connected: this.status().connected, error: "socket_closed_history_polling" });
+      this.reconnectTimer = setTimeout(() => this.connectWs(access), 4000);
     });
     this.ws.on("error", (e) => this.setStatus({ connected: false, error: String(e) }));
   }
@@ -169,6 +219,7 @@ export class XBroadcastChatConnector extends BaseConnector {
 
   async stop() {
     this.stopped = true;
+    if (this.historyTimer) clearTimeout(this.historyTimer);
     if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
     this.ws?.close();
     this.setStatus({ connected: false });

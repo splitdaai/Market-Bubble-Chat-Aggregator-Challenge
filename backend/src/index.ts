@@ -19,7 +19,7 @@ import { dirname } from "node:path";
 import { getTwitchChannel } from "./twitchChannel.ts";
 import { getMarketData, getPriceHistory, getLeaderboards, getHlWallet, getEvmWallet, getNews, getVaults } from "./marketData.ts";
 import { resolveXVod, proxyHls } from "./xVod.ts";
-import { broadcastChatBatch, normalizeBroadcastId, XBroadcastChatConnector } from "./xBroadcastChat.ts";
+import { broadcastChatBatch, normalizeBroadcastId, resolveBroadcastChat, XBroadcastChatConnector } from "./xBroadcastChat.ts";
 
 const PORT = Number(process.env.PORT ?? 4000);
 // Non-wildcard CORS allowlist in production (comma-separated origins); "*" only
@@ -291,8 +291,10 @@ async function main() {
     if (!id) return res.status(400).json({ error: "valid X broadcast URL or ID required" });
 
     try {
+      const access = await resolveBroadcastChat(id);
+      if (!access) return res.status(404).json({ error: "X broadcast chat is unavailable or the broadcast has ended without replay chat access" });
       const batch = await broadcastChatBatch(id);
-      const label = batch.title || `X Broadcast ${id}`;
+      const label = access.title || batch.title || `X Broadcast ${id}`;
       await hub.addConnector(new XBroadcastChatConnector(id, label));
       res.json({ ok: true, id, title: label, messages: batch.messages.length });
     } catch (e) {

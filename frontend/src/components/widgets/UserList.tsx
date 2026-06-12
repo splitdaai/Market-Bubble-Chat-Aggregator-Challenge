@@ -11,13 +11,15 @@ import { useActivePlatforms } from "@/hooks/useActivePlatforms";
 import { ModMenu } from "../ModMenu";
 import { viewerWallet } from "@/lib/viewerWallets";
 import { compact } from "@/lib/format";
+import { bucksFor } from "@/lib/bucks";
 
 type ListUser = UserRow;
-type SortKey = "messages" | "donated" | "name" | "recent";
+type SortKey = "messages" | "donated" | "bucks" | "name" | "recent";
 
 const SORTS: { key: SortKey; label: string }[] = [
   { key: "messages", label: "Messages" },
   { key: "donated", label: "$ Spent" },
+  { key: "bucks", label: "Bucks" },
   { key: "name", label: "Name" },
   { key: "recent", label: "Recent" },
 ];
@@ -66,6 +68,7 @@ export function UserList() {
     return [...rows].sort((a, b) => {
       if (sort === "name") return a.name.replace(/^@/, "").localeCompare(b.name.replace(/^@/, ""));
       if (sort === "donated") return b.donated - a.donated;
+      if (sort === "bucks") return bucksFor(b) - bucksFor(a);
       if (sort === "recent") return b.last - a.last;
       return b.count - a.count; // messages
     });
