@@ -3,6 +3,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import { X, ChevronRight, ChevronLeft, Sparkles } from "lucide-react";
 import { useViewStore, type View } from "@/store/viewStore";
 import { useTourStore } from "@/store/tourStore";
+import { OverlayEngagementLayer } from "./OverlayEngagementLayer";
+import { publishOverlayEvent, actionById, ENGAGE_ROOM } from "@/lib/overlayEngagement";
 
 /**
  * The 60-second Judge Tour — a non-blocking guided walkthrough that drives the
@@ -12,10 +14,12 @@ import { useTourStore } from "@/store/tourStore";
 
 const SECONDS_PER_STEP = 8;
 
-const STEPS: { view: View; title: string; body: string }[] = [
+const STEPS: { view: View; title: string; body: string; overlay?: boolean }[] = [
   { view: "live", title: "One feed. Every platform.", body: "Twitch, Kick, X and YouTube chat aggregated live into a single feed — source badges, real emotes (7TV/BTTV/FFZ), auto-mod, and search. Demo mode simulates the trio; flip to LIVE for real connectors." },
   { view: "live", title: "Mod everyone, everywhere", body: "Click any chatter for their cross-platform profile — ban or timeout them on every platform at once. Banned-word automod protects hosts in real time." },
   { view: "live", title: "Broadcast-native market context", body: "Live Polymarket odds (gold bars, OBS-overlayable), Chat Vibe sentiment + most-spammed words, giveaways with auto-draw, and clip-moment detection — all running off the live chat stream." },
+  { view: "live", overlay: true, title: "Interactive Overlay", body: "Viewers scan a QR and spend User Points to fire real on-screen effects — watch a charging bull stampede and a green candle rip across the stream right now. Plus bull/bear votes, emote storms and a FUD boss, all viewer-controlled in Live or Demo." },
+  { view: "analytics", title: "User Points (Bubble Bucks)", body: "Watch-&-earn points: earned per minute watched, per message, per sub and per dollar supported — then spent on the Interactive Overlay. Ranked on the Bubble Bucks leaderboards and shown right in chat." },
   { view: "market", title: "Real markets, zero mockups", body: "Crypto + indices + commodities live (with automatic failover so the board never blanks), real Hyperliquid trader leaderboards & vaults by TVL, and real headlines from CoinDesk/Cointelegraph/Decrypt — sentiment-scored." },
   { view: "kol", title: "KOL smart-money tracker", body: "Top Hyperliquid wallets — filtered to accounts that are actually active. Click one: live account value chart, open positions, and recent fills with realized PnL. All on-chain, all real." },
   { view: "analytics", title: "The full revenue picture", body: "Viewers, watch time, chatters, new followers — plus every revenue stream connected: bits, subs, Kicks, Super Chats, memberships, crypto tips, and estimated ad revenue tied to ads actually shown." },
@@ -35,6 +39,21 @@ export function JudgeTour() {
     setView(STEPS[step].view);
   }, [active, step, setView]);
 
+  // On the Interactive Overlay step, actually fire a charging bull + green
+  // candle so the judge sees the effects live (the layer is mounted below).
+  useEffect(() => {
+    if (!active || !STEPS[step]?.overlay) return;
+    const fire = (id: string) => {
+      const a = actionById(id);
+      if (!a) return;
+      publishOverlayEvent({ room: ENGAGE_ROOM, actionId: a.id, kind: a.kind, label: a.label, user: "Judge Tour", cost: 0, payload: { side: "bull", color: a.accent } });
+    };
+    const t1 = window.setTimeout(() => fire("charging-bull"), 600);
+    const t2 = window.setTimeout(() => fire("chart-pump"), 2600);
+    const t3 = window.setTimeout(() => fire("charging-bull"), 4800);
+    return () => { window.clearTimeout(t1); window.clearTimeout(t2); window.clearTimeout(t3); };
+  }, [active, step]);
+
   // Auto-advance with a visible progress bar; pause-free, judges can override.
   useEffect(() => {
     if (!active) return;
@@ -51,6 +70,12 @@ export function JudgeTour() {
   }, [active, step, setStep, stop]);
 
   return (
+    <>
+    {active && STEPS[step]?.overlay && (
+      <div className="pointer-events-none fixed inset-0 z-[68]">
+        <OverlayEngagementLayer room={ENGAGE_ROOM} />
+      </div>
+    )}
     <AnimatePresence>
       {active && (
         <motion.div
@@ -100,5 +125,6 @@ export function JudgeTour() {
         </motion.div>
       )}
     </AnimatePresence>
+    </>
   );
 }
