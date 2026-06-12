@@ -130,7 +130,7 @@ export function EngagePage() {
                 <Sparkles size={14} /> Market Bubble Live Layer
               </div>
               <h1 className="max-w-xl text-5xl font-black leading-[0.92] tracking-normal text-white sm:text-6xl">
-                Spend Bubble Bucks. Move the overlay.
+                Spend Bubble Bits. Move the overlay.
               </h1>
               <p className="mt-4 max-w-lg text-[15px] leading-6 text-white/62">
                 Scan from the stream, pick a clean effect, and spend Bubble Bucks to trigger controlled on-screen moments.
