@@ -13,6 +13,7 @@ import { useUiModeStore } from "./store/uiModeStore";
 import { useOverlayStore } from "./store/overlayStore";
 import { useToastStore } from "./store/toastStore";
 import { useUserCardStore } from "./store/userCardStore";
+import { useTrafficBeacon } from "./hooks/useTrafficBeacon";
 
 const EditorCanvas = lazy(() => import("./components/EditorCanvas").then((m) => ({ default: m.EditorCanvas })));
 const MarketTab = lazy(() => import("./components/market/MarketTab").then((m) => ({ default: m.MarketTab })));
@@ -46,6 +47,7 @@ export default function App() {
   useEffect(() => useWalletStore.getState().hydrate(), []);
 
   const view = useViewStore((s) => s.view);
+  useTrafficBeacon(view);
   const isMobile = useIsMobile();
   const uiMode = useUiModeStore((s) => s.mode);
   const marketTemplate = useThemeStore((s) => s.marketTemplate);

@@ -20,6 +20,8 @@ import { getTwitchChannel } from "./twitchChannel.ts";
 import { getMarketData, getPriceHistory, getLeaderboards, getHlWallet, getEvmWallet, getNews, getVaults } from "./marketData.ts";
 import { resolveXVod, proxyHls } from "./xVod.ts";
 import { broadcastChatBatch, normalizeBroadcastId, resolveBroadcastChat, XBroadcastChatConnector } from "./xBroadcastChat.ts";
+import { createIpRateLimit } from "./rateLimit.ts";
+import { mountVisitRoutes } from "./visits.ts";
 
 const PORT = Number(process.env.PORT ?? 4000);
 // Non-wildcard CORS allowlist in production (comma-separated origins); "*" only
@@ -30,8 +32,17 @@ const ORIGIN = process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(",").map(
 const PUBLIC_URL = process.env.PUBLIC_URL ?? process.env.RENDER_EXTERNAL_URL ?? `http://localhost:${PORT}`;
 
 const app = express();
+app.disable("x-powered-by");
+app.set("trust proxy", true);
 app.use(cors({ origin: ORIGIN }));
-app.use(express.json());
+app.use(express.json({ limit: "32kb" }));
+app.use((_req, res, next) => {
+  res.set("X-Content-Type-Options", "nosniff");
+  res.set("Referrer-Policy", "strict-origin-when-cross-origin");
+  res.set("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
+  next();
+});
+mountVisitRoutes(app);
 app.get("/health", (_req, res) => res.json({ ok: true, ts: Date.now() }));
 
 // Real Twitch channel feed (live status + VODs + clips) for the embeds.
@@ -170,6 +181,8 @@ const io = new Server<ClientToServerEvents, ServerToClientEvents>(httpServer, {
 const aggregator = new StatsAggregator();
 const history = new HistoryStore();
 history.load();
+const publicWriteRateLimit = createIpRateLimit({ name: "public-write", windowMs: 60_000, max: 30 });
+const publicTriggerRateLimit = createIpRateLimit({ name: "public-trigger", windowMs: 60_000, max: 10 });
 
 function buildConnectors(): Connector[] {
   const connectors: Connector[] = [];
@@ -286,7 +299,7 @@ async function main() {
   const connectors = buildConnectors();
   const hub = bindHub(io, connectors, aggregator, history);
 
-  app.post("/api/x-broadcast-chat/watch", async (req, res) => {
+  app.post("/api/x-broadcast-chat/watch", publicTriggerRateLimit, async (req, res) => {
     const id = normalizeBroadcastId(req.body?.url ?? req.body?.id ?? req.body?.broadcastId);
     if (!id) return res.status(400).json({ error: "valid X broadcast URL or ID required" });
 
@@ -359,7 +372,7 @@ async function main() {
   try { wallets = JSON.parse(readFileSync(WALLETS_FILE, "utf8")); } catch { /* first run */ }
   const persistWallets = () => { try { mkdirSync(dirname(WALLETS_FILE), { recursive: true }); writeFileSync(WALLETS_FILE, JSON.stringify(wallets, null, 2)); } catch { /* best-effort */ } };
 
-  app.post("/api/wallet/register", (req, res) => {
+  app.post("/api/wallet/register", publicWriteRateLimit, (req, res) => {
     const id = verifyChatToken(String(req.body?.token ?? ""));
     if (!id) return res.status(401).json({ error: "sign in with X first" });
     const handle = id.handle.replace(/^@/, "").toLowerCase();
@@ -377,8 +390,9 @@ async function main() {
   io.on("connection", (s) => s.emit("wallets", wallets));
 
   // Save the current session into history (call when a stream ends).
-  app.post("/api/session/save", (req, res) => {
-    const title = (req.body?.title as string) ?? `Stream ${new Date().toISOString().slice(0, 10)}`;
+  app.post("/api/session/save", publicWriteRateLimit, (req, res) => {
+    const rawTitle = typeof req.body?.title === "string" ? req.body.title : "";
+    const title = rawTitle.replace(/[\x00-\x1f\x7f]/g, "").trim().slice(0, 120) || `Stream ${new Date().toISOString().slice(0, 10)}`;
     const session = aggregator.toSession(title);
     history.add(session);
     io.emit("history", history.all());
