@@ -12,6 +12,11 @@ describe("overlay engagement", () => {
     expect(actionById("boss-attack")).toBeUndefined();
   });
 
+  it("does not expose standalone bull or bear vote buttons", () => {
+    expect(actionById("bull-vote")).toBeUndefined();
+    expect(actionById("bear-vote")).toBeUndefined();
+  });
+
   it("spends only when balance can cover the action", () => {
     const action = actionById("ticker-boost")!;
     expect(spendBucks(9, action)).toBe(9);

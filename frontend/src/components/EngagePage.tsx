@@ -13,10 +13,8 @@ const TICKERS = ["BTC", "ETH", "SOL", "HYPE", "DOGE", "XRP", "NVDA", "COIN", "MS
 const EMOTES = ["🚀", "🐂", "💎", "🔥", "W", "📈", "🟢", "👑", "⚡"];
 const COLORS = ["#16e6a4", "#d9a547", "#34d6ff", "#f97316", "#a78bfa", "#ff5c7a"];
 const SIDE_BY_ACTION: Record<string, "bull" | "bear"> = {
-  "bull-vote": "bull",
   "charging-bull": "bull",
   "chart-pump": "bull",
-  "bear-vote": "bear",
   "bear-slash": "bear",
   "chart-dump": "bear",
 };
@@ -26,6 +24,25 @@ const EMOTE_BY_ACTION: Record<string, string> = {
   "nelk-emote": "NELK",
   "happy-dad-emote": "HAPPY DAD",
   "polymarket-emote": "POLY",
+};
+const MOBILE_ACTION_LABELS: Record<string, string> = {
+  "charging-bull": "Bull",
+  "bear-slash": "Bear",
+  "chart-pump": "Pump",
+  "chart-dump": "Dump",
+  "ticker-boost": "Ticker",
+  "ansem-emote": "Ansem",
+  "banks-emote": "Banks",
+  "nelk-emote": "NELK",
+  "happy-dad-emote": "Happy",
+  "polymarket-emote": "Poly",
+  "emote-burst": "Emotes",
+  "mood-wave": "Mood",
+  "clip-boost": "Clip",
+  "soundwave": "Wave",
+  "spotlight": "Spot",
+  "whale-storm": "Whale",
+  "clear-overlay": "Clear",
 };
 
 function storedNumber(key: string, fallback: number): number {
@@ -183,7 +200,7 @@ export function EngagePage() {
             </div>
           </div>
 
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="grid grid-cols-4 gap-2 sm:grid-cols-2 sm:gap-3">
             {OVERLAY_ACTIONS.map((action, i) => {
               const ok = canAfford(balance, action);
               const isClearAction = action.id === "clear-overlay";
@@ -196,22 +213,29 @@ export function EngagePage() {
                   transition={{ delay: i * 0.035 }}
                   onClick={() => fire(action)}
                   disabled={disabled}
-                  className="group relative min-h-[132px] overflow-hidden rounded-2xl border p-4 text-left transition disabled:cursor-not-allowed disabled:opacity-42"
+                  title={`${action.label}: ${action.description}`}
+                  className="group relative min-h-[92px] overflow-hidden rounded-xl border p-2 text-center transition disabled:cursor-not-allowed disabled:opacity-42 sm:min-h-[132px] sm:rounded-2xl sm:p-4 sm:text-left"
                   style={{ borderColor: ok && (!isSending || isClearAction) ? `${action.accent}66` : "rgba(255,255,255,0.1)", background: ok && (!isSending || isClearAction) ? `linear-gradient(140deg, ${action.accent}18, rgba(255,255,255,0.035))` : "rgba(255,255,255,0.025)" }}
                 >
-                  <div className="absolute -right-8 -top-8 h-24 w-24 rounded-full blur-2xl transition group-hover:scale-125" style={{ background: `${action.accent}33` }} />
-                  <div className="relative flex items-start justify-between gap-3">
-                    <div>
-                      <div className="text-lg font-black text-white">{action.label}</div>
-                      <p className="mt-1 text-[12px] leading-5 text-white/55">{action.description}</p>
+                  <div className="absolute -right-6 -top-6 h-16 w-16 rounded-full blur-2xl transition group-hover:scale-125 sm:-right-8 sm:-top-8 sm:h-24 sm:w-24" style={{ background: `${action.accent}33` }} />
+                  <div className="relative flex h-full flex-col items-center justify-between gap-2 sm:block">
+                    <div className="flex w-full items-start justify-center gap-1 sm:justify-between sm:gap-3">
+                      <div className="min-w-0">
+                        <div className="text-[11px] font-black leading-tight text-white sm:text-lg">
+                          <span className="sm:hidden">{MOBILE_ACTION_LABELS[action.id] ?? action.label}</span>
+                          <span className="hidden sm:inline">{action.label}</span>
+                        </div>
+                        <p className="mt-1 hidden text-[12px] leading-5 text-white/55 sm:block">{action.description}</p>
+                      </div>
+                      <div className="hidden shrink-0 rounded-full px-2.5 py-1 text-[12px] font-black tabular-nums sm:block" style={{ color: action.accent, background: `${action.accent}18`, border: `1px solid ${action.accent}55` }}>
+                        {action.cost ? `${action.cost} BB` : "Free"}
+                      </div>
                     </div>
-                    <div className="shrink-0 rounded-full px-2.5 py-1 text-[12px] font-black tabular-nums" style={{ color: action.accent, background: `${action.accent}18`, border: `1px solid ${action.accent}55` }}>
-                      {action.cost ? `${action.cost} BB` : "Free"}
+                    <div className="relative inline-flex items-center justify-center gap-1 rounded-full px-2 py-1 text-[9px] font-black uppercase tracking-[0.08em] sm:mt-4 sm:gap-1.5 sm:rounded-none sm:px-0 sm:py-0 sm:text-[12px] sm:tracking-[0.12em]" style={{ color: ok && (!isSending || isClearAction) ? action.accent : "rgba(255,255,255,0.45)", background: `${action.accent}12` }}>
+                      {action.kind === "spotlight" ? <MessageSquareText size={13} /> : <Zap size={13} />}
+                      <span className="hidden sm:inline">{isSending && !isClearAction ? "Cooling down" : ok ? action.cta : "Need more BB"}</span>
+                      <span className="sm:hidden">{isSending && !isClearAction ? "Cool" : ok ? action.cost ? `${action.cost} BB` : "Free" : "More BB"}</span>
                     </div>
-                  </div>
-                  <div className="relative mt-4 inline-flex items-center gap-1.5 text-[12px] font-black uppercase tracking-[0.12em]" style={{ color: ok && (!isSending || isClearAction) ? action.accent : "rgba(255,255,255,0.45)" }}>
-                    {action.kind === "spotlight" ? <MessageSquareText size={14} /> : <Zap size={14} />}
-                    {isSending && !isClearAction ? "Cooling down" : ok ? action.cta : "Need more BB"}
                   </div>
                 </motion.button>
               );

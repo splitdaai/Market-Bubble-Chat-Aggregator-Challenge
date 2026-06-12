@@ -36,8 +36,6 @@ function overlayTransport(): OverlaySocket | null {
 }
 
 export const OVERLAY_ACTIONS: OverlayActionDef[] = [
-  { id: "bull-vote", kind: "vote", label: "Bull Vote", cost: 0, description: "Move the crowd meter green.", cta: "Bullish", accent: "#16e6a4" },
-  { id: "bear-vote", kind: "vote", label: "Bear Vote", cost: 0, description: "Move the crowd meter red.", cta: "Bearish", accent: "#ff5c7a" },
   { id: "charging-bull", kind: "vote", label: "Charging Bull", cost: 350, description: "Send a hyper-real bull charging across the source.", cta: "Release bull", accent: "#16e6a4" },
   { id: "bear-slash", kind: "vote", label: "Bear Slash", cost: 350, description: "Rip the screen with a hyper-real bear claw attack.", cta: "Slash screen", accent: "#ff5c7a" },
   { id: "chart-pump", kind: "vote", label: "Green Candle", cost: 300, description: "Launch a giant green candle through the chart.", cta: "Pump chart", accent: "#16e6a4" },
