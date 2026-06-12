@@ -1,29 +1,49 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useSyncExternalStore } from "react";
 import { useStatsStore } from "@/store/statsStore";
 import { useViewerStore } from "@/store/viewerStore";
 import { bucksFor, computeRanks } from "@/lib/bucks";
 import type { Platform } from "@shared/types";
 
-/**
- * Map of user-key (`platform:username`) → 1-20 rank by lifetime Bubble Bucks.
- * Memoized on a 5-second cadence so message renders don't re-sort the full
- * user list on every chat tick.
- */
+/* -------------------------------------------------------------------------- */
+/* Shared rank singleton.                                                       */
+/*                                                                              */
+/* Chat can show dozens of messages at once, each with a rank badge. Computing  */
+/* the rank map (a sort over hundreds of users) PER BADGE on its own interval   */
+/* was a real perf hit. Instead one module-level computation runs on a single   */
+/* 5s interval — but only while at least one badge is mounted — and every badge */
+/* reads the same Map via useSyncExternalStore.                                 */
+/* -------------------------------------------------------------------------- */
+
+const EMPTY_RANKS = new Map<string, number>();
+let currentRanks = EMPTY_RANKS;
+const listeners = new Set<() => void>();
+let interval: number | null = null;
+
+function recompute() {
+  const users = useStatsStore.getState().listUsers();
+  const rows = users.map((u) => ({ platform: u.platform, name: u.name, bucks: bucksFor(u) }));
+  currentRanks = computeRanks(rows, 20);
+  for (const l of listeners) l();
+}
+
+function subscribe(onChange: () => void): () => void {
+  listeners.add(onChange);
+  if (interval === null) {
+    recompute(); // seed immediately for the first subscriber
+    interval = window.setInterval(recompute, 5_000);
+  }
+  return () => {
+    listeners.delete(onChange);
+    if (listeners.size === 0 && interval !== null) {
+      window.clearInterval(interval);
+      interval = null;
+    }
+  };
+}
+
+/** Map of user-key (`platform:username`) → 1-20 rank by lifetime Bubble Bucks. */
 export function useBucksRanks(): Map<string, number> {
-  const listUsers = useStatsStore((s) => s.listUsers);
-  const [tick, setTick] = useState(0);
-  const timer = useRef<number>(0);
-
-  useEffect(() => {
-    timer.current = window.setInterval(() => setTick((t) => t + 1), 5_000);
-    return () => window.clearInterval(timer.current);
-  }, []);
-
-  return useMemo(() => {
-    void tick; // dependency
-    const rows = listUsers().map((u) => ({ platform: u.platform, name: u.name, bucks: bucksFor(u) }));
-    return computeRanks(rows, 20);
-  }, [listUsers, tick]);
+  return useSyncExternalStore(subscribe, () => currentRanks);
 }
 
 /**

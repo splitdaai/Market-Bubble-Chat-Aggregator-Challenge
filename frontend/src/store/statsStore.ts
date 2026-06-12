@@ -573,19 +573,14 @@ export const useStatsStore = create<StatsState>((set, get) => ({
       : 0;
 
     // ---- persist watch-time + messages so balances survive reloads ----
-    // The ledger holds lifetime totals keyed by platform:username; every tick
-    // we upsert each known chatter so refreshing the page never zeroes a
-    // viewer's Bubble Bucks. When the backend lands this is the swap point.
-    const ledger = useBucksLedger.getState();
+    // One batched ledger update per tick (NOT one set + localStorage write per
+    // chatter — that 800×/tick storm was the main perf regression). The ledger
+    // itself throttles the actual localStorage write.
+    const ledgerRows = [];
     for (const c of chatters.values()) {
-      ledger.upsert(c.platform, c.name, {
-        first: c.first,
-        last: c.last,
-        count: c.count,
-        donated: c.donated,
-        subs: c.subs,
-      });
+      ledgerRows.push({ platform: c.platform, username: c.name, e: { first: c.first, last: c.last, count: c.count, donated: c.donated, subs: c.subs } });
     }
+    useBucksLedger.getState().bulkUpsert(ledgerRows);
 
     // ---- leaderboards: chatters / donors / subs ----
     const all = [...chatters.values()];
