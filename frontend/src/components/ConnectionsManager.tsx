@@ -8,6 +8,7 @@ import { useModeStore } from "@/store/modeStore";
 import { useToastStore } from "@/store/toastStore";
 import { useWalletStore } from "@/store/walletStore";
 import { connectObs, addOverlaySource, addChatSource, type ObsClient } from "@/lib/obs";
+import { track } from "@/lib/debugLog";
 import { chainInfo, shortAddr } from "@/lib/web3";
 import { WalletButtons } from "./WalletButtons";
 
@@ -151,26 +152,35 @@ export function ConnectionsManager({ open, onClose }: { open: boolean; onClose: 
 
   const connectObsNow = async () => {
     setObsState({ obsBusy: true, obsError: undefined });
+    track("obs", `Connecting to ${obs.host}:${obs.port}`);
     try {
       obsClient = await connectObs(obs.host, obs.port, password);
       setObsState({ obsConnected: true, obsVersion: obsClient.version, obsBusy: false });
+      track("obs", `Connected to OBS ${obsClient.version}`);
       push({ message: `Connected to OBS ${obsClient.version}`, tone: "ok" });
     } catch (e) {
-      setObsState({ obsConnected: false, obsBusy: false, obsError: (e as Error).message });
+      const msg = (e as Error).message;
+      setObsState({ obsConnected: false, obsBusy: false, obsError: msg });
+      // Direct console.error so it lands in the debug log as a real error,
+      // not just a tracked event — Connections failures are operator-blocking.
+      console.error("OBS connect failed:", msg);
     }
   };
   const disconnectObs = () => {
     obsClient?.disconnect();
     obsClient = null;
     setObsState({ obsConnected: false, obsVersion: undefined });
+    track("obs", "Disconnected from OBS");
   };
   const addOverlay = async () => {
     if (!obsClient) return;
     const url = `${window.location.origin}${window.location.pathname}?overlay=1`;
     try {
       await addOverlaySource(obsClient, url);
+      track("obs", "Added viewer overlay to OBS", { url });
       push({ message: "Added Market Bubble overlay to OBS as a Browser Source", tone: "ok" });
     } catch (e) {
+      console.error("OBS addOverlay failed:", (e as Error).message);
       push({ message: `OBS: ${(e as Error).message}`, tone: "error" });
     }
   };
@@ -178,8 +188,10 @@ export function ConnectionsManager({ open, onClose }: { open: boolean; onClose: 
     if (!obsClient) return;
     try {
       await addChatSource(obsClient, chatSourceUrl);
+      track("obs", "Added chat source to OBS", { url: chatSourceUrl });
       push({ message: "Added Market Bubble chat to OBS — it's now a Browser Source in your current scene", tone: "ok" });
     } catch (e) {
+      console.error("OBS addChat failed:", (e as Error).message);
       push({ message: `OBS: ${(e as Error).message}`, tone: "error" });
     }
   };

@@ -1,3 +1,7 @@
+import { installDebugCapture, track } from "./lib/debugLog";
+// Install error capture FIRST so any module-init throw still lands in the log.
+installDebugCapture();
+
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -16,6 +20,7 @@ import { LoadingScreen } from "./components/LoadingScreen";
 // an old chunk that no longer exists → blank screen when it lazy-loads a view
 // (e.g. Clips). Auto-recover by reloading once to fetch the fresh index.
 window.addEventListener("vite:preloadError", (e) => {
+  track("vite", "chunk preload failed — auto-reloading to refetch", { message: (e as unknown as { message?: string }).message ?? "" });
   e.preventDefault();
   const last = Number(sessionStorage.getItem("vc-chunk-reload") || 0);
   if (Date.now() - last > 10_000) {

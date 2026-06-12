@@ -30,6 +30,7 @@ const MobileApp = lazy(() => import("./components/mobile/MobileApp").then((m) =>
 const SimpleApp = lazy(() => import("./components/SimpleApp").then((m) => ({ default: m.SimpleApp })));
 const FeaturesModal = lazy(() => import("./components/FeaturesModal").then((m) => ({ default: m.FeaturesModal })));
 const UserCard = lazy(() => import("./components/UserCard").then((m) => ({ default: m.UserCard })));
+const DebugLogOverlay = lazy(() => import("./components/DebugLogOverlay").then((m) => ({ default: m.DebugLogOverlay })));
 
 export default function App() {
   // Always boot the data pipeline — both the dashboard and the OBS overlay
@@ -133,6 +134,7 @@ export default function App() {
             onClose={() => setBtnEditor({ open: false, editing: null })}
           />
         )}
+        <DebugLogOverlay />
       </Suspense>
       <Toaster />
     </div>
