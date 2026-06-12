@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Plug, ShieldCheck, MonitorPlay, Loader2, Check, ExternalLink, Plus, Trash2, Power, LogIn, LayoutDashboard, Copy, Wallet } from "lucide-react";
+import { X, Plug, ShieldCheck, MonitorPlay, Loader2, Check, ExternalLink, Plus, Trash2, Power, LogIn, LayoutDashboard, Copy, Wallet, MessagesSquare } from "lucide-react";
 import type { Platform } from "@shared/types";
 import { CHAT_PLATFORMS, SourceBadge, platformLabel, platformColor } from "./SourceBadge";
 import { useConnectionsStore } from "@/store/connectionsStore";
@@ -96,13 +96,27 @@ export function ConnectionsManager({ open, onClose }: { open: boolean; onClose: 
     }
   };
 
+  // Two distinct OBS chat sources:
+  //   chatSourceUrl — the polished "Chat Only" panel (`?broadcast=1`) meant to
+  //     sit center-screen between the hosts. Add it in OBS as a Browser Source.
+  //   dockUrl       — the slim sidebar dock (`?dock=1`) for OBS Custom Browser
+  //     Docks (in-OBS chat monitor while you stream).
+  const chatSourceUrl = typeof window !== "undefined" ? `${window.location.origin}${window.location.pathname}?broadcast=1` : "";
   const dockUrl = typeof window !== "undefined" ? `${window.location.origin}${window.location.pathname}?dock=1` : "";
+  const copyChatSource = async () => {
+    try {
+      await navigator.clipboard.writeText(chatSourceUrl);
+      setDockCopied(true);
+      push({ message: "OBS chat-source URL copied — add it in OBS as a Browser Source", tone: "ok" });
+      window.setTimeout(() => setDockCopied(false), 2000);
+    } catch {
+      push({ message: chatSourceUrl, tone: "info" });
+    }
+  };
   const copyDock = async () => {
     try {
       await navigator.clipboard.writeText(dockUrl);
-      setDockCopied(true);
       push({ message: "OBS dock URL copied", tone: "ok" });
-      window.setTimeout(() => setDockCopied(false), 2000);
     } catch {
       push({ message: dockUrl, tone: "info" });
     }
@@ -333,19 +347,41 @@ export function ConnectionsManager({ open, onClose }: { open: boolean; onClose: 
               )}
             </div>
 
-            {/* ---- OBS dock (use as a plugin) ---- */}
+            {/* ---- OBS chat source (recommended) ---- */}
+            <h3 className="mb-2 mt-5 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-accent">
+              <MessagesSquare size={13} /> OBS Chat Source <span className="rounded-full bg-accent/15 px-1.5 py-0.5 text-[9px] font-black tracking-wider text-accent">RECOMMENDED</span>
+            </h3>
+            <div className="rounded-xl border border-accent/30 bg-accent/[0.04] p-3">
+              <p className="mb-2 text-[11px] leading-relaxed text-muted">
+                Add the aggregated chat as an OBS <span className="font-semibold text-ink">Browser Source</span>. In OBS go to{" "}
+                <span className="font-semibold text-ink">Sources → + → Browser</span>, paste this URL, and size it to wherever you want chat on screen (e.g. between the host cams):
+              </p>
+              <div className="flex items-center gap-1.5">
+                <input readOnly value={chatSourceUrl} className="vc-input flex-1 font-mono text-[11px]" onFocus={(e) => e.target.select()} />
+                <button onClick={copyChatSource} className="flex items-center gap-1 rounded-md bg-accent/20 px-2.5 py-1.5 text-xs font-bold text-accent hover:bg-accent/30">
+                  {dockCopied ? <Check size={13} /> : <Copy size={13} />} Copy
+                </button>
+              </div>
+              <p className="mt-2 text-[10px] leading-relaxed text-muted/80">
+                Options (append to the URL): <code className="text-accent">&amp;bg=transparent</code> for chroma-free, <code className="text-accent">&amp;fontsize=18</code> to bump text size, <code className="text-accent">&amp;platform=twitch,kick</code> to filter platforms.
+              </p>
+              <a href={chatSourceUrl} target="_blank" rel="noreferrer" className="mt-2 inline-flex items-center gap-1 text-[10px] font-semibold text-muted hover:text-accent">
+                <ExternalLink size={11} /> Preview the source
+              </a>
+            </div>
+
+            {/* ---- OBS dock (for in-OBS chat monitor) ---- */}
             <h3 className="mb-2 mt-5 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-muted">
-              <LayoutDashboard size={13} /> Use as an OBS Dock
+              <LayoutDashboard size={13} /> OBS Custom Browser Dock <span className="text-[9px] font-semibold text-muted/70">(optional · for your own monitor)</span>
             </h3>
             <div className="rounded-xl border border-white/8 bg-white/[0.02] p-3">
               <p className="mb-2 text-[11px] leading-relaxed text-muted">
-                Dock the Market Bubble feed right inside OBS — like a plugin. In OBS go to{" "}
-                <span className="font-semibold text-ink">Docks → Custom Browser Docks</span>, give it a name, and paste this URL:
+                A slim sidebar version of the feed for <span className="font-semibold text-ink">Docks → Custom Browser Docks</span> — so you can read chat without leaving OBS. Not visible to viewers.
               </p>
               <div className="flex items-center gap-1.5">
                 <input readOnly value={dockUrl} className="vc-input flex-1 font-mono text-[11px]" onFocus={(e) => e.target.select()} />
-                <button onClick={copyDock} className="flex items-center gap-1 rounded-md bg-accent/20 px-2.5 py-1.5 text-xs font-bold text-accent hover:bg-accent/30">
-                  {dockCopied ? <Check size={13} /> : <Copy size={13} />} Copy
+                <button onClick={copyDock} className="flex items-center gap-1 rounded-md bg-white/10 px-2.5 py-1.5 text-xs font-bold text-ink hover:bg-white/15">
+                  <Copy size={13} /> Copy
                 </button>
               </div>
               <a href={dockUrl} target="_blank" rel="noreferrer" className="mt-2 inline-flex items-center gap-1 text-[10px] font-semibold text-muted hover:text-accent">

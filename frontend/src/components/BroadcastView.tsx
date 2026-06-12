@@ -379,13 +379,16 @@ function StageView({ panel }: { panel: React.ReactNode }) {
       </div>
 
       {/* Back to the dashboard — demo chrome only, never on the clean OBS route. */}
-      <a
-        href="/"
-        className="absolute left-4 top-4 z-20 flex items-center gap-1.5 rounded-xl px-3 py-2 text-[13px] font-bold transition hover:brightness-125"
-        style={{ background: "rgba(8,7,6,0.82)", border: "1px solid rgba(217,165,71,0.4)", color: "#e8c987", backdropFilter: "blur(6px)" }}
-      >
-        ← Dashboard
-      </a>
+      <div className="absolute left-4 top-4 z-20 flex items-center gap-2">
+        <a
+          href="/"
+          className="flex items-center gap-1.5 rounded-xl px-3 py-2 text-[13px] font-bold transition hover:brightness-125"
+          style={{ background: "rgba(8,7,6,0.82)", border: "1px solid rgba(217,165,71,0.4)", color: "#e8c987", backdropFilter: "blur(6px)" }}
+        >
+          ← Dashboard
+        </a>
+        <CopyObsUrlButton />
+      </div>
 
       {/* Edit toggle + (when editing) live coordinates + reset */}
       <div className="absolute right-4 top-4 z-20 flex items-center gap-2">
@@ -421,4 +424,31 @@ function StageView({ panel }: { panel: React.ReactNode }) {
 
 function clamp(n: number, lo: number, hi: number): number {
   return Math.max(lo, Math.min(hi, n));
+}
+
+/** "Copy OBS Source URL" pill on the stage preview — gives the operator the
+ *  clean `?broadcast=1` URL (NOT the `&stage=1` preview URL) to paste into
+ *  OBS as a Browser Source. */
+function CopyObsUrlButton() {
+  const [copied, setCopied] = useState(false);
+  const url = typeof window !== "undefined"
+    ? `${window.location.origin}${window.location.pathname}?broadcast=1`
+    : "";
+  const onCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1800);
+    } catch { /* ignore */ }
+  };
+  return (
+    <button
+      onClick={onCopy}
+      title="Copy the clean OBS Browser Source URL — paste it in OBS → Sources → + → Browser"
+      className="flex items-center gap-1.5 rounded-xl px-3 py-2 text-[13px] font-bold transition hover:brightness-125"
+      style={{ background: "#d9a547", color: "#14100a", boxShadow: "0 4px 14px rgba(217,165,71,0.35)" }}
+    >
+      {copied ? "✓ Copied" : "⧉ Copy OBS URL"}
+    </button>
+  );
 }
