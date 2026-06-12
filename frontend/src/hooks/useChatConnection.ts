@@ -63,9 +63,10 @@ export function useChatConnection() {
       scheduleFlush();
     };
 
-    // Switching mode wipes any stale data so demo numbers never leak into live.
+    // Switching mode keeps Live's refresh cache separate from Demo, so X replay
+    // cannot be the only platform that survives a browser refresh.
     useStatsStore.getState().reset();
-    useChatStore.getState().clear();
+    useChatStore.getState().resetForMode(demo);
 
     // Demo mode is EXACTLY the canonical trio (Ansem / Banks / Market Bubble) —
     // no extra channels ever (watch-any-channel is a Live-mode feature). Restore
