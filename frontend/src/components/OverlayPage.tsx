@@ -36,18 +36,34 @@ export function OverlayPage() {
   const [previewMode, setPreviewMode] = useState(false);
   useEffect(() => {
     const force = params.get("preview");
-    if (force === "0") return;
+    if (force === "0") return; // never paint the backdrop
     if (force === "1") {
-      setPreviewMode(true);
+      setPreviewMode(true); // force-show (screenshots / intentional preview)
       return;
     }
     const isObs = () => typeof (window as unknown as { obsstudio?: unknown }).obsstudio !== "undefined";
     if (isObs()) return;
-    // obsstudio can be injected a tick late — re-check briefly before committing.
-    const t = window.setTimeout(() => {
-      if (!isObs()) setPreviewMode(true);
-    }, 450);
-    return () => window.clearTimeout(t);
+    // OBS normally injects `window.obsstudio` BEFORE page scripts run, but the
+    // injection can lag on slow/loaded machines. Painting the preview backdrop
+    // inside a real OBS source would corrupt the live stream, so instead of a
+    // single timed check we (a) poll across a generous window before committing
+    // to preview mode, and (b) KEEP watching afterwards — if obsstudio ever
+    // appears we immediately drop preview mode again.
+    let elapsed = 0;
+    const STEP = 200;
+    const COMMIT_AFTER = 2500; // not OBS for 2.5s → safe to show the backdrop
+    const GIVE_UP = 8000; // stop polling; no real OBS injects this late
+    const id = window.setInterval(() => {
+      if (isObs()) {
+        setPreviewMode(false);
+        window.clearInterval(id);
+        return;
+      }
+      elapsed += STEP;
+      if (elapsed >= COMMIT_AFTER) setPreviewMode(true);
+      if (elapsed >= GIVE_UP) window.clearInterval(id);
+    }, STEP);
+    return () => window.clearInterval(id);
   }, [params]);
 
   // Pin the data mode on load so an OBS Browser Source isn't at the mercy of
