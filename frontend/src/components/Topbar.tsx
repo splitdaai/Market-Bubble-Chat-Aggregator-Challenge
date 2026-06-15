@@ -31,7 +31,9 @@ export function Topbar({ onOpenTheme, onOpenConnections, onOpenFeatures }: { onO
   const accountLabel = xHandle ? `@${xHandle}` : address ? address.slice(0, 5) + "…" + address.slice(-3) : "Connect";
   const setView = useViewStore((s) => s.setView);
   const isLive = view === "live";
-  const canEdit = isLive || view === "market";
+  // Edit/resize is available on every grid-backed page: Live, Market, and the
+  // Content Radar (all three render through PageGrid, which persists per-page).
+  const canEdit = isLive || view === "market" || view === "content";
 
   // Proactive nudge on the Demo/Live toggle — dismissed once the user clicks it
   // (or the ✕). Session-only so a fresh load shows it again for the next viewer.
