@@ -299,7 +299,7 @@ const BroadcastMessageRow = memo(function BroadcastMessageRow({
  *  tuned readout values here.
  *  Percentages are relative to the letterboxed 16:9 frame so the panel
  *  tracks the tile at every window size. */
-const DEFAULT_TILE = { left: 27.7, top: 5.9, width: 44.9, height: 59.4 };
+const DEFAULT_TILE = { left: 27.26, top: 5.33, width: 45.52, height: 57.65 };
 const TILE_KEY = "vibechat-broadcast-tile";
 
 interface Tile { left: number; top: number; width: number; height: number }
