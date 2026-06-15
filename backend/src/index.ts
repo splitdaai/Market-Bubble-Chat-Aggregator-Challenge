@@ -20,6 +20,7 @@ import { getTwitchChannel } from "./twitchChannel.ts";
 import { getMarketData, getPriceHistory, getLeaderboards, getHlWallet, getEvmWallet, getNews, getVaults } from "./marketData.ts";
 import { resolveXVod, proxyHls } from "./xVod.ts";
 import { broadcastChatBatch, normalizeBroadcastId, resolveBroadcastChat, XBroadcastChatConnector } from "./xBroadcastChat.ts";
+import { XLiveBroadcastWatcher } from "./xLiveWatcher.ts";
 import { createIpRateLimit } from "./rateLimit.ts";
 import { mountVisitRoutes } from "./visits.ts";
 
@@ -345,7 +346,12 @@ async function main() {
         if (tok) connector = new YouTubeConnector({ oauthToken: tok, label: channel, refresh: () => refreshToken(a.id) });
       } else if (a.platform === "x") {
         const tok = getToken(a.id)?.access;
-        if (tok) connector = new XConnector({ oauthToken: tok, label: channel, refresh: () => refreshToken(a.id) }); // poll this account's mentions
+        if (tok) {
+          connector = new XConnector({ oauthToken: tok, label: channel, refresh: () => refreshToken(a.id) }); // poll this account's mentions
+          // Auto-detect this account's LIVE X broadcast and stream its chat into
+          // the feed — no manual link needed. Runs alongside the mentions poller.
+          void new XLiveBroadcastWatcher({ oauthToken: tok, label: channel, refresh: () => refreshToken(a.id), addConnector: hub.addConnector }).start();
+        }
       }
       if (!connector) continue;
       linked.add(a.id); // each connected account gets its own reader
