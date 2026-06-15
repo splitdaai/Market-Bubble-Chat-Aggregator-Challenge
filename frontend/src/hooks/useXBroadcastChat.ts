@@ -54,7 +54,14 @@ export function useXBroadcastChat(broadcastId: string = LATEST_EPISODE_BID) {
     const load = () => {
       fetch(`${BACKEND}/api/x-broadcast-chat/${broadcastId}`)
         .then((r) => r.json())
-        .then((d: { messages?: XMsg[] }) => { if (alive && Array.isArray(d.messages) && d.messages.length) drip(d.messages); })
+        .then((d: { messages?: XMsg[] }) => {
+          // Broadcast replay chat is mostly @-reply pings to the host — drop the
+          // reply-led ones so the feed shows clean standalone chat. (This filter
+          // lives HERE, not in the central store, so it never touches a host's or
+          // viewer's own composer message.)
+          const clean = (d.messages ?? []).filter((m) => !/^\s*@[A-Za-z0-9_]/.test(m.text));
+          if (alive && clean.length) drip(clean);
+        })
         .catch(() => {});
     };
     if ("requestIdleCallback" in window) {

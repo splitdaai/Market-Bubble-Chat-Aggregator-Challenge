@@ -17,6 +17,7 @@
   --vc-accent2: #34d6ff;
   --vc-text: #eafff6;
   --vc-text-muted: #78b6a4;
+  --vc-text-faint: color-mix(in srgb, #78b6a4 62%, #eafff6);
   --vc-glow: 0.82;
   --vc-radius: 22px;
   --vc-font: "Space Grotesk";

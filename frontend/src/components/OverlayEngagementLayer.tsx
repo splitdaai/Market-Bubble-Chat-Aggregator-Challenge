@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { engageUrl, qrImageUrl, subscribeOverlayEvents, type OverlayEngagementEvent } from "@/lib/overlayEngagement";
+import { engageUrl, qrImageUrl, subscribeOverlayEvents, overlayRelayConnected, type OverlayEngagementEvent } from "@/lib/overlayEngagement";
 import { profileAlpha, profileCount, profileDuration } from "@/lib/overlayFx";
 import { useOverlayStore } from "@/store/overlayStore";
 import type { OverlayEffectProfile, OverlayElement } from "@shared/types";
@@ -39,15 +39,15 @@ export function EngagementQr({ room }: { room: string }) {
   return (
     <div className="absolute bottom-2 right-2 z-40 flex items-center gap-2 rounded-xl border border-[#d9a547]/35 bg-[#080706]/88 p-1.5 shadow-[0_10px_28px_rgba(0,0,0,0.55)] backdrop-blur">
       <img src={qrImageUrl(url, 92)} alt="Scan to control the Market Bubble overlay" className="h-[58px] w-[58px] rounded-md bg-white p-1" />
-      <div className="hidden pr-1 sm:block">
+      <div className="pr-1">
         <div className="text-[9px] font-black uppercase leading-tight tracking-[0.14em] text-[#d9a547]">Scan to play</div>
-        <div className="mt-0.5 max-w-[72px] text-[10px] font-bold leading-tight text-white/70">Spend Bubble Bucks</div>
+        <div className="mt-0.5 max-w-[78px] text-[10px] font-bold leading-tight text-white/70">Spend Bubble Bucks</div>
       </div>
     </div>
   );
 }
 
-export function OverlayEngagementLayer({ room }: { room: string }) {
+export function OverlayEngagementLayer({ room, meterTop = 52 }: { room: string; meterTop?: number }) {
   const [events, setEvents] = useState<OverlayEngagementEvent[]>([]);
   const [votes, setVotes] = useState({ bull: 1, bear: 1 });
   const [meterPulse, setMeterPulse] = useState<{ side: "bull" | "bear"; at: number } | null>(null);
@@ -81,13 +81,19 @@ export function OverlayEngagementLayer({ room }: { room: string }) {
     let latestSide: "bull" | "bear" | null = null;
     const renderable: OverlayEngagementEvent[] = [];
 
+    // When the relay is connected, the server's `crowd-*-pressure` aggregate is
+    // the authoritative vote tally — count ONLY that, not the local echo too
+    // (otherwise a client that both publishes AND renders double-counts).
+    const relayed = overlayRelayConnected();
     for (const event of batch) {
       const side = event.payload?.side;
       const count = eventCount(event);
-      if (side === "bull") {
+      const isCrowd = event.actionId === "crowd-bull-pressure" || event.actionId === "crowd-bear-pressure";
+      const countsTowardMeter = isCrowd || !relayed;
+      if (side === "bull" && countsTowardMeter) {
         bullDelta += count;
         latestSide = side;
-      } else if (side === "bear") {
+      } else if (side === "bear" && countsTowardMeter) {
         bearDelta += count;
         latestSide = side;
       }
@@ -182,6 +188,7 @@ export function OverlayEngagementLayer({ room }: { room: string }) {
             bullPct={bullPct}
             lastSide={meterPulse?.side ?? "bull"}
             pulseKey={meterPulse?.at ?? 0}
+            top={meterTop}
           />
         )}
       </AnimatePresence>
@@ -230,7 +237,7 @@ function CustomTriggeredEffect({ event }: { event: OverlayEngagementEvent }) {
   );
 }
 
-function BullBearMeter({ bullPct, lastSide, pulseKey }: { bullPct: number; lastSide: "bull" | "bear"; pulseKey: number }) {
+function BullBearMeter({ bullPct, lastSide, pulseKey, top = 52 }: { bullPct: number; lastSide: "bull" | "bear"; pulseKey: number; top?: number }) {
   const bearPct = 100 - bullPct;
   const accent = lastSide === "bull" ? "#16e6a4" : "#ff5c7a";
   const bearStrength = 100 - bullPct;
@@ -240,8 +247,9 @@ function BullBearMeter({ bullPct, lastSide, pulseKey }: { bullPct: number; lastS
       animate={{ opacity: 1, y: 0, scale: 1, filter: "blur(0px)" }}
       exit={{ opacity: 0, y: -10, scale: 0.98, filter: "blur(4px)" }}
       transition={{ duration: 0.34, ease: FX_EASE }}
-      className="absolute left-1/2 top-[52px] -translate-x-1/2 overflow-hidden rounded-2xl px-3.5 py-3 shadow-[0_22px_70px_rgba(0,0,0,0.58)] backdrop-blur-xl"
+      className="absolute left-1/2 -translate-x-1/2 overflow-hidden rounded-2xl px-3.5 py-3 shadow-[0_22px_70px_rgba(0,0,0,0.58)] backdrop-blur-xl"
       style={{
+        top,
         width: "min(520px, calc(100vw - 28px))",
         background: "linear-gradient(135deg, rgba(7,9,10,0.92), rgba(10,14,15,0.74))",
         boxShadow: `0 22px 70px rgba(0,0,0,0.58), 0 0 34px ${accent}24, inset 0 1px 0 rgba(255,255,255,0.14)`,

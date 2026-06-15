@@ -22,7 +22,7 @@ export default {
         up: "#16e6a4",
         down: "#ff5a6a",
         gold: "#ffb02e",
-        faint: "#6b7280",
+        faint: "var(--vc-text-faint)",
       },
       fontFamily: {
         sans: ["var(--vc-font)", "Inter", "system-ui", "sans-serif"],

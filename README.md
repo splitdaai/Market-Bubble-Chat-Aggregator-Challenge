@@ -56,9 +56,9 @@ Everything visible in **Demo** is the real UI on simulated data; **Live** runs t
 | `/?broadcast=1&stage=1` | Staged Chat Only preview (show frame + Demo/Live toggle) |
 | `/?overlay=1` | Transparent **Interactive Overlay** browser source (effects + QR) |
 | `/?dock=1` | Compact operator **dock** for inside OBS |
-| `/engage` | Viewer engagement page (scan QR → spend Bubble Bucks → fire effects) |
+| `/?engage=1` | Viewer engagement page (scan QR → spend Bubble Bucks → fire effects) |
 
-Chat-only query options: `&bg=transparent`, `&platform=twitch,kick`, `&fontsize=18`, `&messages=80`. Overlay/engage accept `&room=<name>` for multi-stream isolation.
+All routes use a query param (not a clean path) so they resolve on any static host (S3/CloudFront) without rewrite rules — the in-app QR links to `/?engage=1&room=<name>`. The clean paths `/engage`, `/overlay`, `/dock`, `/broadcast` also work when the host serves `index.html` as the 404 fallback. Chat-only query options: `&bg=transparent`, `&platform=twitch,kick`, `&fontsize=18`, `&messages=80`. Overlay/engage accept `&room=<name>` for multi-stream isolation.
 
 ---
 
@@ -70,7 +70,7 @@ Chat-only query options: `&bg=transparent`, `&platform=twitch,kick`, `&fontsize=
 | **Real emotes** | 7TV + BTTV + FFZ (global **and** per-channel) + classic Twitch + Kick emotes resolve and render inline. Twitch from IRC tags; Kick from message metadata / numeric tokens. | Connect or watch a Twitch/Kick channel — emotes render automatically. |
 | **Auto-mod** | A leetspeak-tolerant banned-word pass runs before render: hard slurs dropped, profanity masked. | Always on. No config needed. |
 | **Cross-platform moderation** | Click a name → ban / timeout (stackable 1m–1d) / remove on every connected platform at once. Live enforcement uses backend OAuth scopes. | Click a viewer in chat or the user list, choose an action. |
-| **Interactive Overlay** | Viewers scan a QR, spend **Bubble Bucks**, and fire real on-screen effects (charging bull, green/red candle, emote storms, bull/bear vote meter, spotlight, ticker tape, custom PNGs). Relayed phone → backend → OBS source with two-layer rate-limiting. | Add `/?overlay=1` in OBS; viewers open the QR to `/engage`. See [Interactive Overlay](#interactive-overlay--bubble-bucks). |
+| **Interactive Overlay** | Viewers scan a QR, spend **Bubble Bucks**, and fire real on-screen effects (charging bull, green/red candle, emote storms, bull/bear vote meter, spotlight, ticker tape, custom PNGs). Relayed phone → backend → OBS source with two-layer rate-limiting. | Add `/?overlay=1` in OBS; viewers open the QR to `/?engage=1`. See [Interactive Overlay](#interactive-overlay--bubble-bucks). |
 | **Bubble Bucks (User Points)** | Watch-&-earn economy: points per minute watched, per message, per sub, per dollar supported. Spent on overlay effects; ranked on leaderboards; shown in chat. | Earned automatically from activity; spend on the engage page. |
 | **Live stats** | Cheap per-message ingest + a timed tick rebuild → combined viewers, active chatters, msg/min, engagement, per-platform → per-channel breakdowns, trend sparklines. | Watch the Live Stats panel and per-streamer cards. |
 | **Revenue analytics** | Tracks bits, subs, Kicks, Super Chats, memberships, tips, and **estimated ad revenue** (tracked ad breaks × live impressions × net CPM) + new followers. Per-stream averages + A/B compare. | Open the Analytics tab. Demo seeds history; Live uses backend history. |
@@ -91,7 +91,7 @@ Chat-only query options: `&bg=transparent`, `&platform=twitch,kick`, `&fontsize=
 
 A viewer-driven, on-stream effects system with a points economy. Three layers:
 
-- **Engage page** (`/engage`) — viewers scan a QR, see their Bubble Bucks balance, and tap to fire effects.
+- **Engage page** (`/?engage=1`) — viewers scan a QR, see their Bubble Bucks balance, and tap to fire effects.
 - **OBS overlay** (`/?overlay=1`) — a transparent browser source that renders the effects on stream.
 - **Relay** — events travel phone → backend → overlay over Socket.io rooms (`overlay:<room>`), with a BroadcastChannel + localStorage fallback for same-origin/no-socket cases.
 

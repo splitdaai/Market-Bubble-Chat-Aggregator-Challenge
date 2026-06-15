@@ -11,7 +11,7 @@ import { useModeStore } from "@/store/modeStore";
 import { useBroadcastStore, BROADCASTS } from "@/store/broadcastStore";
 import { SourceBadge } from "../SourceBadge";
 import { LiveTimer } from "../LiveTimer";
-import { XVodPlayer, LATEST_EPISODE_BID } from "../XVodPlayer";
+import { XVodPlayer, LATEST_EPISODE_BID, EPISODE_SLATE_SKIP } from "../XVodPlayer";
 import { compact } from "@/lib/format";
 import type { Account, Platform } from "@shared/types";
 
@@ -302,7 +302,7 @@ export function StreamPreview() {
           />
         ) : showEpisode ? (
           /* No live stream active → play the most recent full episode replay. */
-          <XVodPlayer key={playEpisodeId ?? ""} id={playEpisodeId ?? LATEST_EPISODE_BID} autoPlay onError={() => setEpFailed(true)} className="absolute inset-0 h-full w-full object-contain" />
+          <XVodPlayer key={playEpisodeId ?? ""} id={playEpisodeId ?? LATEST_EPISODE_BID} autoPlay startAt={EPISODE_SLATE_SKIP} onError={() => setEpFailed(true)} className="absolute inset-0 h-full w-full object-contain" />
         ) : (
           <video
             ref={videoRef}

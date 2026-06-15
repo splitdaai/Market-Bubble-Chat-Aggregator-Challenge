@@ -393,11 +393,20 @@ function StageView({ panel, onOpenConnections, landing = false }: { panel: React
             slate so the hosts are on screen from frame 1. */}
         <video
           src="/stream-preview.mp4"
+          poster="/banner.jpg"
           autoPlay
           muted
           loop
           playsInline
-          onLoadedMetadata={(e) => { e.currentTarget.currentTime = 24; }}
+          onLoadedMetadata={(e) => {
+            const v = e.currentTarget;
+            // Skip the intro slate, but only when the clip is actually long
+            // enough — seeking past the end leaves a black frame.
+            if (Number.isFinite(v.duration) && v.duration > 25) v.currentTime = 24;
+            // Autoplay can still be blocked even when muted; the poster stays up
+            // as a graceful fallback instead of a black box.
+            void v.play().catch(() => {});
+          }}
           className="absolute inset-0 h-full w-full object-cover"
         />
 

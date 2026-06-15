@@ -119,6 +119,14 @@ const leaderboardHead = "grid items-center pb-1 text-[9px] uppercase tracking-wi
 const leaderboardBody = "grid min-h-0";
 const leaderboardRow = "grid min-h-0 cursor-pointer items-center border-t border-white/6 text-left transition hover:bg-white/5 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-accent/70";
 const leaderboardRowsStyle = { gridTemplateRows: `repeat(${LEADERBOARD_LIMIT}, minmax(0, 1fr))` };
+/** Full-height (not squished) loading/error placeholder spanning the whole grid. */
+function LbPlaceholder({ label, fails }: { label: string; fails: number }) {
+  return (
+    <div style={{ gridRow: "1 / -1" }} className="grid place-items-center px-3 py-6 text-center text-[11px] text-faint">
+      {fails > 1 ? `Couldn't reach the live ${label} — retrying…` : `Loading live ${label}…`}
+    </div>
+  );
+}
 const onRowKey = (event: React.KeyboardEvent<HTMLDivElement>, action: () => void) => {
   if (event.key !== "Enter" && event.key !== " ") return;
   event.preventDefault();
@@ -175,17 +183,24 @@ export function MarketTabClassic() {
   const [detail, setDetail] = useState<Detail | null>(null);
   const [lb, setLb] = useState<{ hyperliquid: HlRow[]; polymarket: PolyRow[]; linked?: LinkedRow[] } | null>(null);
   const [vaults, setVaults] = useState<{ name: string; addr: string; tvl: number; apr: number }[] | null>(null);
+  const [lbErr, setLbErr] = useState(0);
   const setView = useViewStore((s) => s.setView);
   const editMode = useLayoutStore((s) => s.editMode);
   useEffect(() => {
     let on = true;
-    const load = () => {
-      fetch(`${BACKEND}/api/leaderboards?t=${Math.floor(Date.now() / 300000)}`).then((r) => r.json()).then((j) => { if (on && Array.isArray(j.hyperliquid)) setLb(j); }).catch(() => {});
-      fetch(`${BACKEND}/api/vaults`).then((r) => r.json()).then((v) => { if (on && Array.isArray(v) && v.length) setVaults(v); }).catch(() => {});
+    let fails = 0;
+    let timer: ReturnType<typeof setTimeout>;
+    const load = async () => {
+      let ok = false;
+      try { const j = await (await fetch(`${BACKEND}/api/leaderboards?t=${Math.floor(Date.now() / 300000)}`)).json(); if (on && Array.isArray(j.hyperliquid)) { setLb(j); ok = true; } } catch { /* retry below */ }
+      try { const v = await (await fetch(`${BACKEND}/api/vaults`)).json(); if (on && Array.isArray(v) && v.length) { setVaults(v); ok = true; } } catch { /* retry below */ }
+      if (!on) return;
+      // Retry on a cold/failed backend so the panels never get stuck on "Loading…".
+      if (ok) { fails = 0; timer = setTimeout(load, 600_000); }
+      else { fails += 1; setLbErr(fails); timer = setTimeout(load, Math.min(2000 * fails, 15_000)); }
     };
     load();
-    const iv = setInterval(load, 600_000);
-    return () => { on = false; clearInterval(iv); };
+    return () => { on = false; clearTimeout(timer); };
   }, []);
   useEffect(() => {
     let on = true;
@@ -256,7 +271,7 @@ export function MarketTabClassic() {
                         <span className="pl-2 text-right"><Sparkline data={t.trend ?? []} width={52} height={14} color={(t.roi ?? 0) >= 0 ? "#16e6a4" : "#ff5a6a"} /></span>
                       </div>
                     ); })}
-                    {!lb && <div className="py-6 text-center text-[11px] text-faint">Loading live Hyperliquid leaderboard…</div>}
+                    {!lb && <LbPlaceholder label="Hyperliquid leaderboard" fails={lbErr} />}
                   </div>
                 </div>
               </Panel>
@@ -279,7 +294,7 @@ export function MarketTabClassic() {
                         </div>
                       );
                     })}
-                    {!vaults && <div className="py-6 text-center text-[11px] text-faint">Loading live Hyperliquid vaults…</div>}
+                    {!vaults && <LbPlaceholder label="Hyperliquid vaults" fails={lbErr} />}
                   </div>
                 </div>
               </Panel>
@@ -300,7 +315,7 @@ export function MarketTabClassic() {
                         <span className={`text-right font-bold tabular-nums ${t.pnl >= 0 ? "text-up" : "text-down"}`}>{t.pnl >= 0 ? "+" : "-"}${compact(Math.abs(t.pnl))}</span>
                       </div>
                     ); })}
-                    {!lb && <div className="py-6 text-center text-[11px] text-faint">Loading live Polymarket leaderboard…</div>}
+                    {!lb && <LbPlaceholder label="Polymarket leaderboard" fails={lbErr} />}
                   </div>
                 </div>
               </Panel>

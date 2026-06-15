@@ -22,8 +22,9 @@ import {
   Zap,
   type LucideIcon,
 } from "lucide-react";
-import { OVERLAY_ACTIONS, canAfford, publishOverlayEvent, roomFromSearch, spendBucks, type OverlayActionDef } from "@/lib/overlayEngagement";
+import { OVERLAY_ACTIONS, canAfford, publishOverlayEvent, roomFromSearch, type OverlayActionDef } from "@/lib/overlayEngagement";
 import { compact } from "@/lib/format";
+import { bucksFor } from "@/lib/bucks";
 import { useBucksLedger } from "@/store/bucksLedgerStore";
 import { useOverlayStore } from "@/store/overlayStore";
 import { useToastStore } from "@/store/toastStore";
@@ -31,7 +32,15 @@ import type { OverlayCustomAsset } from "@shared/types";
 import { OverlayFxLab } from "./OverlayFxLab";
 import { Toaster } from "./Toaster";
 
+// Legacy key (pre-ledger): a free-floating balance number that tracked spend
+// independently of the Bubble Bucks ledger. Kept only to migrate old demo
+// wallets into the new per-handle grant.
 const BALANCE_KEY = "market-bubble-engage-balance";
+// Per-handle demo "wallet top-up" grant — the seed bucks a fresh scanner gets
+// to play with. Real earned bucks (chat/subs/support) come from the ledger and
+// are ADDED on top; spend is recorded in the ledger so the engage balance and
+// the analytics Bubble Bucks page always agree on what was spent.
+const GRANT_KEY_PREFIX = "market-bubble-engage-grant:";
 const USER_KEY = "market-bubble-engage-user";
 const DEFAULT_BALANCE = 1200;
 const DEFAULT_DISPLAY_NAME = "SplitDaWig";
@@ -139,9 +148,38 @@ function storedUser(): string {
   return DEFAULT_DISPLAY_NAME;
 }
 
+/** Bare handle for ledger lookups (no leading @, lowercased for the key). */
+const handleOf = (user: string) => (user.trim() || DEFAULT_DISPLAY_NAME).replace(/^@/, "");
+const grantKey = (user: string) => GRANT_KEY_PREFIX + handleOf(user).toLowerCase();
+
+/** This handle's demo grant, migrating the legacy global balance once. */
+function grantOf(user: string): number {
+  const key = grantKey(user);
+  try {
+    if (localStorage.getItem(key) != null) return storedNumber(key, DEFAULT_BALANCE);
+    const seed = storedNumber(BALANCE_KEY, DEFAULT_BALANCE); // migrate legacy wallet once
+    localStorage.setItem(key, String(seed));
+    return seed;
+  } catch {
+    return DEFAULT_BALANCE;
+  }
+}
+
+/**
+ * Spendable Bubble Bucks for this handle = demo grant + ledger-earned −
+ * ledger-spent (clamped ≥ 0). Spend lives ONLY in the ledger, so the engage
+ * page and the analytics Bubble Bucks page never disagree on what was spent.
+ */
+function computeBalance(user: string): number {
+  const entry = useBucksLedger.getState().get("x", handleOf(user));
+  const earned = entry ? bucksFor(entry) : 0;
+  const spent = entry?.spent ?? 0;
+  return Math.max(0, Math.round(grantOf(user) + earned - spent));
+}
+
 export function EngagePage() {
   const room = useMemo(() => roomFromSearch(), []);
-  const [balance, setBalance] = useState(() => storedNumber(BALANCE_KEY, DEFAULT_BALANCE));
+  const [balance, setBalance] = useState(() => computeBalance(storedUser()));
   const [user, setUser] = useState(() => storedUser());
   const [ticker, setTicker] = useState(TICKERS[0]);
   const [emote, setEmote] = useState(EMOTES[0]);
@@ -176,14 +214,17 @@ export function EngagePage() {
     return [...OVERLAY_ACTIONS, ...custom];
   }, [customAssets, customButtons]);
 
-  const saveBalance = (n: number) => {
+  // Recompute the spendable balance from the per-handle grant + the BB ledger
+  // (earned − spent). The ledger is the single source of truth for spend.
+  const refreshBalance = (u: string = user) => {
+    const n = computeBalance(u);
     balanceRef.current = n;
     setBalance(n);
-    try { localStorage.setItem(BALANCE_KEY, String(n)); } catch { /* ignore */ }
   };
   const saveUser = (next: string) => {
     setUser(next);
     try { localStorage.setItem(USER_KEY, next); } catch { /* ignore */ }
+    refreshBalance(next); // switching handle shows THAT handle's balance
   };
   const lockSend = () => {
     sendLockedUntil.current = Date.now() + SEND_COOLDOWN_MS;
@@ -233,20 +274,22 @@ export function EngagePage() {
       return;
     }
     if (!isClearAction) lockSend();
-    const next = spendBucks(currentBalance, action);
-    saveBalance(next);
-    // Record the spend in the persistent BB ledger so the analytics page tracks
-    // lifetime spending per viewer. Engage-page viewers identify by their X
-    // handle (the only platform that can route an anonymous QR scan back to a
-    // real account here); guest viewers fall back to "@bubbleguest".
+    // Record the spend in the persistent BB ledger — the SINGLE source of truth
+    // for spend, so the engage balance and the analytics Bubble Bucks page agree.
+    // Engage-page viewers identify by their X handle (the only platform that can
+    // route an anonymous QR scan back to a real account here).
     if (action.cost > 0) {
-      const handle = (user.trim() || DEFAULT_DISPLAY_NAME).replace(/^@/, "");
-      useBucksLedger.getState().addSpent("x", handle, action.cost);
+      useBucksLedger.getState().addSpent("x", handleOf(user), action.cost);
     }
-    setLast(`${action.label} sent. ${compact(next)} BB left.`);
+    refreshBalance();
+    setLast(`${action.label} sent. ${compact(balanceRef.current)} BB left.`);
   };
 
-  const earn = (n: number) => saveBalance(balanceRef.current + n);
+  // Top up THIS handle's demo grant (the "+250" demo button), then re-derive.
+  const earn = (n: number) => {
+    try { localStorage.setItem(grantKey(user), String(grantOf(user) + n)); } catch { /* ignore */ }
+    refreshBalance();
+  };
 
   return (
     <div className="min-h-screen overflow-x-hidden bg-[#080706] text-[#f3efe7]">
@@ -264,7 +307,7 @@ export function EngagePage() {
           </div>
         </header>
 
-        <section className="grid flex-1 items-center gap-6 py-6 lg:grid-cols-[0.86fr_1.14fr]">
+        <section className="grid flex-1 items-start gap-6 py-6 lg:grid-cols-[minmax(300px,340px)_1fr]">
           <div className="space-y-5">
             <div>
               <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-[#16e6a4]/30 bg-[#16e6a4]/10 px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.16em] text-[#16e6a4]">
@@ -315,7 +358,7 @@ export function EngagePage() {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-3">
+          <div className="grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-2 2xl:grid-cols-3">
             {engageActions.map((action, i) => {
               const ok = canAfford(balance, action);
               const isClearAction = action.id === "clear-overlay";

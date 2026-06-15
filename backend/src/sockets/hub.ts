@@ -8,6 +8,7 @@ import type {
   Clip,
   OverlayEngagementEvent,
   OverlayActionKind,
+  OverlayCustomAsset,
 } from "../../../shared/types.ts";
 import { makeModerationRouter } from "../moderation.ts";
 import { StatsAggregator } from "../stats/aggregator.ts";
@@ -125,6 +126,43 @@ export function bindHub(
       .replace(/[\x00-\x1f\x7f]/g, "")
       .trim()
       .slice(0, max) || fallback;
+  // Cap on a relayed custom PNG so a giant base64 blob can't flood the room.
+  const MAX_ASSET_SRC = 512 * 1024; // 512 KB
+  const ASSET_ANIMATIONS = new Set(["float", "orbit", "impact", "scan", "rain", "pulse", "glitch"]);
+  const ASSET_EFFECTS = new Set(["none", "neon", "hologram", "ember", "frost", "gold"]);
+  const num = (v: unknown, def: number, min: number, max: number) =>
+    typeof v === "number" && Number.isFinite(v) ? Math.max(min, Math.min(max, v)) : def;
+  /**
+   * Sanitize a viewer-supplied custom overlay asset for relay. Validates the
+   * image source (inline data-URI or http(s) only), caps its size, clamps all
+   * numeric knobs, and DROPS the unbounded `originalSrc` (the overlay renders
+   * from `src` alone). Returns undefined for anything missing/oversized/bogus.
+   */
+  const cleanCustomAsset = (raw: unknown): OverlayCustomAsset | undefined => {
+    if (!raw || typeof raw !== "object") return undefined;
+    const a = raw as Record<string, unknown>;
+    const src = typeof a.src === "string" ? a.src : "";
+    const okSrc = /^data:image\/(png|jpeg|jpg|gif|webp);base64,/.test(src) || /^https:\/\//.test(src);
+    if (!okSrc || src.length > MAX_ASSET_SRC) return undefined;
+    const animation = ASSET_ANIMATIONS.has(String(a.animation)) ? (a.animation as OverlayCustomAsset["animation"]) : "float";
+    const effect = ASSET_EFFECTS.has(String(a.effect)) ? (a.effect as OverlayCustomAsset["effect"]) : "none";
+    const accent = typeof a.accent === "string" && /^#[0-9a-fA-F]{6}$/.test(a.accent) ? a.accent : "#d9a547";
+    return {
+      id: cleanText(a.id, `asset-${Date.now()}`, 64),
+      name: cleanText(a.name, "Custom", 40),
+      src,
+      animation,
+      effect,
+      accent,
+      opacity: num(a.opacity, 1, 0, 1),
+      intensity: num(a.intensity, 1, 0, 4),
+      speed: num(a.speed, 1, 0, 8),
+      size: num(a.size, 1, 0.05, 8),
+      feather: num(a.feather, 0, 0, 1),
+      threshold: num(a.threshold, 0, 0, 1),
+      createdAt: num(a.createdAt, Date.now(), 0, Number.MAX_SAFE_INTEGER),
+    };
+  };
   const cleanOverlayAction = (event: OverlayEngagementEvent): OverlayEngagementEvent | null => {
     if (!event || !overlayKinds.has(event.kind)) return null;
     const room = overlayRoom(event.room);
@@ -150,6 +188,7 @@ export function bindHub(
         message: cleanText(event.payload?.message, "", 72),
         color,
         count,
+        customAsset: cleanCustomAsset(event.payload?.customAsset),
       },
     };
   };

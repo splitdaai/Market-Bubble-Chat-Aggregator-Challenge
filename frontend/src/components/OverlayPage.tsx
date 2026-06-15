@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useOverlayStore } from "@/store/overlayStore";
 import { useModeStore } from "@/store/modeStore";
 import { OverlayChip } from "./OverlayChip";
@@ -28,6 +28,28 @@ export function OverlayPage() {
   const room = params.get("room") || ENGAGE_ROOM;
   const showQr = params.get("qr") !== "0";
 
+  // OBS injects `window.obsstudio` into browser sources. When it's ABSENT, this
+  // page was opened directly in a normal browser — without a backdrop it reads as
+  // a blank black void (everything here is transparent for chroma-free OBS
+  // compositing). So in that case we paint a labelled preview backdrop. `?preview=0`
+  // force-hides it; `?preview=1` force-shows it (handy for screenshots).
+  const [previewMode, setPreviewMode] = useState(false);
+  useEffect(() => {
+    const force = params.get("preview");
+    if (force === "0") return;
+    if (force === "1") {
+      setPreviewMode(true);
+      return;
+    }
+    const isObs = () => typeof (window as unknown as { obsstudio?: unknown }).obsstudio !== "undefined";
+    if (isObs()) return;
+    // obsstudio can be injected a tick late — re-check briefly before committing.
+    const t = window.setTimeout(() => {
+      if (!isObs()) setPreviewMode(true);
+    }, 450);
+    return () => window.clearTimeout(t);
+  }, [params]);
+
   // Pin the data mode on load so an OBS Browser Source isn't at the mercy of
   // whatever the Demo/Live toggle was last left on (mirrors the broadcast route).
   useEffect(() => {
@@ -50,6 +72,29 @@ export function OverlayPage() {
 
   return (
     <div className="fixed inset-0">
+      {/* Preview-only backdrop + explainer (never rendered inside OBS). Keeps the
+          actual overlay layers fully transparent so OBS compositing is unaffected. */}
+      {previewMode && (
+        <>
+          <div
+            className="pointer-events-none absolute inset-0"
+            style={{
+              background:
+                "radial-gradient(120% 90% at 50% -10%, rgba(217,165,71,0.12), transparent 60%), linear-gradient(160deg, #0b0a08, #060504 70%)",
+            }}
+          />
+          <div className="pointer-events-none absolute left-1/2 top-4 z-50 w-[min(640px,92vw)] -translate-x-1/2 rounded-2xl border border-[#d9a547]/30 bg-[#0b0a08]/90 px-4 py-3 text-center shadow-[0_18px_60px_rgba(0,0,0,0.6)] backdrop-blur">
+            <div className="text-[11px] font-black uppercase tracking-[0.18em] text-[#d9a547]">OBS Overlay Source</div>
+            <div className="mt-1 text-[13px] font-semibold leading-snug text-white/85">
+              This is the transparent browser-source for OBS — viewer badges, live vote meter, and crowd effects render on top of your stream.
+            </div>
+            <div className="mt-1 text-[11px] leading-snug text-white/55">
+              Add this URL as a Browser Source in OBS for a see-through overlay. Scan the QR (bottom-right) to control it live.
+            </div>
+          </div>
+        </>
+      )}
+
       {elements.filter((el) => el.visible).map((el) => (
         <div key={el.id} className="absolute" style={{ left: el.x, top: el.y }}>
           {el.source === "chat" ? (

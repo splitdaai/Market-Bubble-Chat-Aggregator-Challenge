@@ -72,13 +72,15 @@ export default function App() {
     }
   }, []);
 
-  // Standalone OBS routes: floating viewer overlay (browser source) or the
-  // compact dock panel (Custom Browser Dock).
+  // Standalone OBS routes — accept BOTH the query form (?overlay=1) and the clean
+  // path form (/overlay), so the URLs in the README/QR resolve either way.
   const params = new URLSearchParams(window.location.search);
-  if (params.has("overlay")) return <Suspense fallback={null}><OverlayPage /></Suspense>;
-  if (params.has("dock")) return <Suspense fallback={null}><DockView /></Suspense>;
-  if (params.has("engage")) return <Suspense fallback={null}><EngagePage /></Suspense>;
-  if (params.has("broadcast")) {
+  const path = window.location.pathname.replace(/\/+$/, "").toLowerCase();
+  const route = (name: string) => params.has(name) || path === `/${name}`;
+  if (route("overlay")) return <Suspense fallback={null}><OverlayPage /></Suspense>;
+  if (route("dock")) return <Suspense fallback={null}><DockView /></Suspense>;
+  if (route("engage")) return <Suspense fallback={null}><EngagePage /></Suspense>;
+  if (route("broadcast")) {
     // Full chat toolkit rides along: click-a-user card (history / timeout /
     // ban / tip via TipModal inside UserCard) + toasts for mod confirmations.
     return (

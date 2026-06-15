@@ -115,10 +115,6 @@ function appendMessages(s: ChatState, rawMessages: ChatMessage[]): Partial<ChatS
     if (s.deleted.has(rawMsg.id)) continue;
     seen.add(rawMsg.id);
 
-    // Replies clutter the broadcast feed — show only standalone live chat.
-    // A reply leads with one or more @mentions (X/Twitch reply format).
-    if (/^\s*@[A-Za-z0-9_]/.test(rawMsg.message)) continue;
-
     // Auto-mod: drop hard slurs entirely, censor profanity in everything else.
     const mod = moderate(rawMsg.message);
     if (mod.blocked) continue;

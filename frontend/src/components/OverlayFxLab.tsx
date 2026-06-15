@@ -112,9 +112,22 @@ export function OverlayFxLab({ onClose }: { onClose: () => void }) {
 
   const handleUpload = async (file: File | undefined) => {
     if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      push({ message: "That file isn't an image", tone: "error" });
+      if (inputRef.current) inputRef.current.value = "";
+      return;
+    }
+    if (file.size > MAX_UPLOAD_BYTES) {
+      push({ message: `Image is ${(file.size / 1048576).toFixed(1)} MB — keep it under ${MAX_UPLOAD_BYTES / 1048576} MB`, tone: "error" });
+      if (inputRef.current) inputRef.current.value = "";
+      return;
+    }
     setProcessing(true);
     try {
-      const originalSrc = await readFile(file);
+      const raw = await readFile(file);
+      // Keep a DOWNSCALED source for re-running the cutout, so a multi-MB original
+      // never gets persisted into the overlay store (it overflows localStorage).
+      const originalSrc = await downscaleImage(raw, MAX_ORIGINAL_DIM);
       const src = await cutoutToPng(originalSrc, threshold, feather);
       const id = typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`;
       const next: OverlayCustomAsset = {
@@ -133,6 +146,10 @@ export function OverlayFxLab({ onClose }: { onClose: () => void }) {
         feather,
         createdAt: Date.now(),
       };
+      if (!canPersistAsset(next)) {
+        push({ message: "Overlay storage is full — delete a custom asset and try again", tone: "error" });
+        return;
+      }
       addCustomAsset(next);
       setSelectedAsset(next.id);
       setTab("custom");
@@ -488,6 +505,16 @@ function tabButton(active: boolean): string {
   return `inline-flex h-10 items-center justify-center gap-2 rounded-lg px-3 text-xs font-black transition-[background-color,color] ${active ? "bg-white text-black" : "bg-white/[0.06] text-white/62 hover:text-white"}`;
 }
 
+/** Raw upload cap — bigger than this and the browser canvas/localStorage choke. */
+const MAX_UPLOAD_BYTES = 12 * 1024 * 1024; // 12 MB
+/** Longest edge we keep for the re-cuttable source (bounds persisted size). */
+const MAX_ORIGINAL_DIM = 1100;
+/** Overlay store persist key (zustand `persist` name). */
+const OVERLAY_STORE_KEY = "vibechat-overlay-v3";
+/** Stay safely under the ~5 MB localStorage ceiling. */
+const STORAGE_SOFT_LIMIT = 4_600_000;
+const STORAGE_PROBE_KEY = "__mb_overlay_probe__";
+
 function readFile(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -495,6 +522,43 @@ function readFile(file: File): Promise<string> {
     reader.onerror = () => reject(reader.error);
     reader.readAsDataURL(file);
   });
+}
+
+/** Downscale an image to `max` px on its longest edge, re-encoded as JPEG to
+ *  keep the stored source compact. Returns the original if already small. */
+async function downscaleImage(src: string, max: number): Promise<string> {
+  try {
+    const image = await loadImage(src);
+    const ratio = Math.min(1, max / Math.max(image.naturalWidth, image.naturalHeight));
+    if (ratio >= 1 && src.length < 700_000) return src;
+    const width = Math.max(1, Math.round(image.naturalWidth * ratio));
+    const height = Math.max(1, Math.round(image.naturalHeight * ratio));
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return src;
+    ctx.drawImage(image, 0, 0, width, height);
+    return canvas.toDataURL("image/jpeg", 0.85);
+  } catch {
+    return src;
+  }
+}
+
+/** True if this asset will fit in localStorage alongside what's already stored.
+ *  Estimates the new size AND does a real probe write to catch the true quota. */
+function canPersistAsset(asset: OverlayCustomAsset): boolean {
+  try {
+    const existing = localStorage.getItem(OVERLAY_STORE_KEY)?.length ?? 0;
+    const addition = JSON.stringify(asset).length;
+    if (existing + addition > STORAGE_SOFT_LIMIT) return false;
+    localStorage.setItem(STORAGE_PROBE_KEY, "x".repeat(addition));
+    localStorage.removeItem(STORAGE_PROBE_KEY);
+    return true;
+  } catch {
+    try { localStorage.removeItem(STORAGE_PROBE_KEY); } catch { /* ignore */ }
+    return false;
+  }
 }
 
 async function cutoutToPng(src: string, threshold: number, feather: number): Promise<string> {

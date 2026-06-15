@@ -240,6 +240,9 @@ export function applyTheme(theme: Theme): void {
   r.style.setProperty("--vc-accent2", theme.accent2);
   r.style.setProperty("--vc-text", theme.text);
   r.style.setProperty("--vc-text-muted", theme.textMuted);
+  // Faint = muted brightened toward the body text, so tiny labels stay legible on
+  // every theme (the old hardcoded cool-grey #6b7280 failed contrast on On Air).
+  r.style.setProperty("--vc-text-faint", `color-mix(in srgb, ${theme.textMuted} 62%, ${theme.text})`);
   r.style.setProperty("--vc-glow", String(theme.glow));
   r.style.setProperty("--vc-radius", `${theme.radius}px`);
   r.style.setProperty("--vc-font", `"${theme.font}"`);

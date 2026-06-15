@@ -6,6 +6,7 @@
 const CG = "https://api.coingecko.com/api/v3";
 
 let cache: { exp: number; data: MarketData } | null = null;
+let marketInflight: Promise<MarketData> | null = null;
 
 export interface MarketData {
   global: { sym: string; name: string; price: number; chg: number; spark: number[]; cls: "crypto" | "index" | "commodity" }[];
@@ -146,7 +147,13 @@ async function yahoo() {
 
 export async function getMarketData(): Promise<MarketData> {
   if (cache && Date.now() < cache.exp) return cache.data;
+  // Single-flight: concurrent cold-cache callers share one upstream fetch (no herd).
+  if (marketInflight) return marketInflight;
+  marketInflight = buildMarketData().finally(() => { marketInflight = null; });
+  return marketInflight;
+}
 
+async function buildMarketData(): Promise<MarketData> {
   const data: MarketData = { global: [], narratives: [], movers: [], gauges: { fearGreed: 50, fearGreedLabel: "—", btcDominance: 0, totalMcap: 0, altSeason: 0 }, polymarket: [] };
 
   // Global markets — top 10 crypto by mcap + indices + commodities.
@@ -217,7 +224,10 @@ export async function getMarketData(): Promise<MarketData> {
     });
   } catch { /* leave empty */ }
 
-  cache = { exp: Date.now() + 300_000, data };
+  // Don't cache an empty result over a good one — serve the last-good data on a
+  // transient upstream blip instead of pinning empty for the full TTL.
+  if (data.global.length) { cache = { exp: Date.now() + 300_000, data }; return data; }
+  if (cache) return cache.data;
   return data;
 }
 
@@ -261,7 +271,7 @@ export async function getPriceHistory(sym: string): Promise<{ sym: string; point
 }
 
 /* ---- Real trader leaderboards (Hyperliquid + Polymarket) ---- */
-let lbCache: { exp: number; data: { hyperliquid: unknown[]; polymarket: unknown[]; updated: number } } | null = null;
+let lbCache: { exp: number; data: { hyperliquid: unknown[]; polymarket: unknown[]; linked: unknown[]; updated: number } } | null = null;
 
 /** Curated, publicly-disclosed KOL wallets linked to their X accounts (verified). */
 const LINKED_WALLETS: { name: string; xHandle: string; id: string; chain: "hl" | "evm" }[] = [
@@ -382,9 +392,14 @@ export async function getLeaderboards() {
         return { name: k.name, xHandle: k.xHandle, chain: k.chain, addr: w.addr, value: w.totalUsd, pnl: 0, top: w.holdings[0]?.sym ?? "" };
       } catch { return { name: k.name, xHandle: k.xHandle, chain: k.chain, addr: k.id, value: 0, pnl: 0, top: "" }; }
     }));
+    // Hide curated KOLs whose wallet currently resolves to $0 (withdrawn / empty
+    // perp / unresolved) — a flagship name showing "$0" reads as broken data.
+    data.linked = (data.linked as { value: number }[]).filter((k) => k.value > 0);
   } catch { /* leave empty */ }
 
-  lbCache = { exp: Date.now() + 900_000, data };
+  // Don't pin an empty board over a good one on a transient blip — serve stale.
+  if (data.hyperliquid.length || data.polymarket.length) { lbCache = { exp: Date.now() + 900_000, data }; return data; }
+  if (lbCache) return lbCache.data;
   return data;
 }
 

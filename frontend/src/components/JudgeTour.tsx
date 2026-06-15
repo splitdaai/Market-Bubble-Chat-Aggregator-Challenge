@@ -73,7 +73,9 @@ export function JudgeTour() {
     <>
     {active && STEPS[step]?.overlay && (
       <div className="pointer-events-none fixed inset-0 z-[68]">
-        <OverlayEngagementLayer room={ENGAGE_ROOM} />
+        {/* Pushed below the dashboard Topbar (~h-28 logo + padding) so the vote
+            meter never overlaps the nav during the judge tour. */}
+        <OverlayEngagementLayer room={ENGAGE_ROOM} meterTop={150} />
       </div>
     )}
     <AnimatePresence>

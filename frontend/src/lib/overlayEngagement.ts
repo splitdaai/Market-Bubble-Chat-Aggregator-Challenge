@@ -51,6 +51,13 @@ function overlayTransport(): OverlaySocket | null {
   return overlaySocket;
 }
 
+/** True when the overlay relay socket is live — in which case the server's
+ *  aggregated `crowd-*-pressure` event is the single source of vote counts, so
+ *  the local echo must NOT be counted again (avoids double-counting the meter). */
+export function overlayRelayConnected(): boolean {
+  return !!(getSocket() as OverlaySocket | null)?.connected || !!overlaySocket?.connected;
+}
+
 export const OVERLAY_ACTIONS: OverlayActionDef[] = [
   { id: "charging-bull", kind: "vote", label: "Charging Bull", cost: 350, description: "Send a hyper-real bull charging across the source.", cta: "Release bull", accent: "#16e6a4" },
   { id: "bear-slash", kind: "vote", label: "Bear Slash", cost: 350, description: "Rip the screen with a hyper-real bear claw attack.", cta: "Slash screen", accent: "#ff5c7a" },
