@@ -29,13 +29,24 @@ export function OnboardingChrome({ demo }: { demo: boolean }) {
     else setHints(true);
   }, []);
 
+  // Dismiss the coachmarks the moment the operator interacts with the page, so a
+  // hint can never sit on top of a live control (e.g. the Copy OBS URL dropdown).
+  useEffect(() => {
+    if (!hints) return;
+    const dismiss = () => setHints(false);
+    window.addEventListener("pointerdown", dismiss, { once: true });
+    return () => window.removeEventListener("pointerdown", dismiss);
+  }, [hints]);
+
   const closeFeatures = () => {
     setFeatures(false);
     setHints(true);
     try { localStorage.setItem(SEEN_KEY, "1"); } catch { /* ignore */ }
   };
 
-  const card = "pointer-events-auto absolute rounded-xl px-3 py-2.5 text-[12px] leading-snug shadow-[0_12px_34px_rgba(0,0,0,0.6)]";
+  // Explainer cards are non-interactive — they must never intercept clicks meant
+  // for the controls underneath (the Copy OBS URL dropdown sits right below one).
+  const card = "pointer-events-none absolute rounded-xl px-3 py-2.5 text-[12px] leading-snug shadow-[0_12px_34px_rgba(0,0,0,0.6)]";
   const cardStyle = { background: "#14100a", border: "1px solid rgba(217,165,71,0.45)", color: "#f3efe7", backdropFilter: "blur(6px)" } as const;
 
   return createPortal(
