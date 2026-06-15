@@ -326,7 +326,8 @@ export async function getLeaderboards() {
     const ranked = rows.map((r) => ({ r, m: perf(r, "month") })).filter(({ m }) => m.pnl > 0).sort((a, b) => b.m.pnl - a.m.pnl);
 
     // Probe the top candidates' live perp account (batched to be gentle on the API).
-    const candidates = ranked.slice(0, 120);
+    // Widened to 160 so the active-funded list reliably reaches the 20 the UI shows.
+    const candidates = ranked.slice(0, 160);
     const probed: Array<{ r: typeof rows[number]; m: { pnl: number; roi: number }; perpValue: number; hasPositions: boolean }> = [];
     for (let i = 0; i < candidates.length; i += 20) {
       const batch = candidates.slice(i, i + 20);

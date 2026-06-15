@@ -206,6 +206,14 @@ export function MarketTabClassic() {
   const indices = d.global.filter((m) => m.cls === "index").slice(0, 10);
   const commodities = d.global.filter((m) => m.cls === "commodity").slice(0, 10);
 
+  // All three trader/vault leaderboards show the SAME number of rows — the
+  // common count across what's loaded (capped at LEADERBOARD_LIMIT) — so we
+  // never get e.g. 17 traders next to 20 vaults. Falls back to the cap while
+  // any list is still loading.
+  const lbCounts = [lb?.hyperliquid?.length, vaults?.length, lb?.polymarket?.length].filter((n): n is number => typeof n === "number" && n > 0);
+  const lbRows = lbCounts.length === 3 ? Math.min(LEADERBOARD_LIMIT, ...lbCounts) : LEADERBOARD_LIMIT;
+  const lbRowsStyle = { gridTemplateRows: `repeat(${lbRows}, minmax(0, 1fr))` };
+
   return (
     <div className="mb-tab" data-text="serif">
       <div className="mx-auto max-w-[1500px] px-4 py-6 sm:px-6">
@@ -236,8 +244,8 @@ export function MarketTabClassic() {
                   <div className={`${leaderboardHead} grid-cols-[2rem_minmax(0,1fr)_4.7rem_3rem_4.3rem]`}>
                     <span>#</span><span>Trader</span><span className="text-right">PNL 30D</span><span className="text-right">ROI</span><span className="pl-2 text-right">Trend</span>
                   </div>
-                  <div className={leaderboardBody} style={leaderboardRowsStyle}>
-                    {(lb?.hyperliquid ?? []).slice(0, LEADERBOARD_LIMIT).map((t, i) => {
+                  <div className={leaderboardBody} style={lbRowsStyle}>
+                    {(lb?.hyperliquid ?? []).slice(0, lbRows).map((t, i) => {
                       const open = () => { if (!t.addr) return; setDetail({ kind: "hltrader", t: { name: t.name, addr: t.addr, pnl: t.pnl, roi: t.roi, value: t.value ?? 0 } }); };
                       return (
                       <div key={t.addr ?? t.name} role="button" tabIndex={0} onClick={open} onKeyDown={(e) => onRowKey(e, open)} className={`${leaderboardRow} grid-cols-[2rem_minmax(0,1fr)_4.7rem_3rem_4.3rem]`}>
@@ -259,8 +267,8 @@ export function MarketTabClassic() {
                   <div className={`${leaderboardHead} grid-cols-[2rem_minmax(0,1fr)_5rem_4rem]`}>
                     <span>#</span><span>Vault</span><span className="text-right">TVL</span><span className="text-right">APR</span>
                   </div>
-                  <div className={leaderboardBody} style={leaderboardRowsStyle}>
-                    {(vaults ?? []).slice(0, LEADERBOARD_LIMIT).map((v, i) => {
+                  <div className={leaderboardBody} style={lbRowsStyle}>
+                    {(vaults ?? []).slice(0, lbRows).map((v, i) => {
                       const open = () => window.open(`https://app.hyperliquid.xyz/vaults/${v.addr}`, "_blank", "noopener");
                       return (
                         <div key={v.addr} role="button" tabIndex={0} onClick={open} onKeyDown={(e) => onRowKey(e, open)} className={`${leaderboardRow} grid-cols-[2rem_minmax(0,1fr)_5rem_4rem]`}>
@@ -282,8 +290,8 @@ export function MarketTabClassic() {
                   <div className={`${leaderboardHead} grid-cols-[2rem_minmax(0,1fr)_5rem]`}>
                     <span>#</span><span>Trader</span><span className="text-right">PNL 30D</span>
                   </div>
-                  <div className={leaderboardBody} style={leaderboardRowsStyle}>
-                    {(lb?.polymarket ?? []).slice(0, LEADERBOARD_LIMIT).map((t, i) => {
+                  <div className={leaderboardBody} style={lbRowsStyle}>
+                    {(lb?.polymarket ?? []).slice(0, lbRows).map((t, i) => {
                       const open = () => setDetail({ kind: "polytrader", t: { name: t.name, addr: t.addr, pnl: t.pnl, win: 0, trend: [] } });
                       return (
                       <div key={t.addr ?? t.name} role="button" tabIndex={0} onClick={open} onKeyDown={(e) => onRowKey(e, open)} className={`${leaderboardRow} grid-cols-[2rem_minmax(0,1fr)_5rem]`}>
