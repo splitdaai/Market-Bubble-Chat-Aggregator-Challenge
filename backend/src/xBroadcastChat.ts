@@ -20,11 +20,14 @@ import type { ChatMessage, ModerationRequest, ModerationResult } from "../../sha
 
 const PSCP_HEADERS = { "Content-Type": "application/json", Referer: "https://x.com/", Origin: "https://x.com", "User-Agent": X_UA };
 const ID_RE = /^[A-Za-z0-9]+$/;
-const LIVE_HISTORY_FIRST_POLL_MS = 500;
-const LIVE_HISTORY_POLL_MS = 750;
-const LIVE_HISTORY_ERROR_RETRY_MS = 1500;
-const LIVE_REST_CACHE_MS = 750;
-const LIVE_WS_RECONNECT_MS = 1200;
+// Tuned for low-latency live X chat: the chatnow websocket is the realtime path,
+// and history polling is the safety net — kept tight so messages the socket
+// misses still land within a few hundred ms (rate-limit-safe at ~3 req/s).
+const LIVE_HISTORY_FIRST_POLL_MS = 250;
+const LIVE_HISTORY_POLL_MS = 350;
+const LIVE_HISTORY_ERROR_RETRY_MS = 1000;
+const LIVE_REST_CACHE_MS = 400;
+const LIVE_WS_RECONNECT_MS = 800;
 
 interface ChatAccess { endpoint: string; accessToken: string; roomId: string; replay: boolean; title: string; state: string }
 
