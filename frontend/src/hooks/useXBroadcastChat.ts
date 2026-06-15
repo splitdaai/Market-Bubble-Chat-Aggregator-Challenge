@@ -55,11 +55,11 @@ export function useXBroadcastChat(broadcastId: string = LATEST_EPISODE_BID) {
       fetch(`${BACKEND}/api/x-broadcast-chat/${broadcastId}`)
         .then((r) => r.json())
         .then((d: { messages?: XMsg[] }) => {
-          // Show the real X broadcast chat as-is — including @-replies, which are
-          // genuine chat. (An earlier filter that dropped every @-led message was
-          // too aggressive and hid most of the feed.)
-          const msgs = d.messages ?? [];
-          if (alive && msgs.length) drip(msgs);
+          // Keep only standalone live X chat — drop @-reply pings to the host.
+          // (The filter lives HERE, not in the central store, so it never touches
+          // a host's or viewer's own composer message.)
+          const clean = (d.messages ?? []).filter((m) => !/^\s*@[A-Za-z0-9_]/.test(m.text));
+          if (alive && clean.length) drip(clean);
         })
         .catch(() => {});
     };

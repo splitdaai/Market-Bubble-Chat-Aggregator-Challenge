@@ -285,7 +285,7 @@ export function EngagePage() {
     setLast(`${action.label} sent. ${compact(balanceRef.current)} BB left.`);
   };
 
-  // Top up THIS handle's demo grant (the "+250" demo button), then re-derive.
+  // Top up THIS handle's demo grant (the "+10,000" demo button), then re-derive.
   const earn = (n: number) => {
     try { localStorage.setItem(grantKey(user), String(grantOf(user) + n)); } catch { /* ignore */ }
     refreshBalance();
@@ -330,8 +330,8 @@ export function EngagePage() {
                   </div>
                   <div className="mt-1 text-[12px] font-bold text-white/45">Bubble Bucks</div>
                 </div>
-                <button onClick={() => earn(250)} className="rounded-xl bg-[#d9a547] px-4 py-3 text-[13px] font-black text-[#14100a] shadow-[0_0_24px_rgba(217,165,71,0.35)] transition-transform hover:brightness-110 active:scale-[0.96]">
-                  +250 demo BB
+                <button onClick={() => earn(10000)} className="rounded-xl bg-[#d9a547] px-4 py-3 text-[13px] font-black text-[#14100a] shadow-[0_0_24px_rgba(217,165,71,0.35)] transition-transform hover:brightness-110 active:scale-[0.96]">
+                  +10,000 demo BB
                 </button>
               </div>
 
