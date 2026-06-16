@@ -96,8 +96,11 @@ export function ConnectionsManager({ open, onClose }: { open: boolean; onClose: 
       push({ message: `Added ${ch} (${platformLabel(p)}) to the feed`, tone: "ok" });
     }
   };
-  const watchXBroadcast = async () => {
-    const url = (watchInput.x ?? "").trim();
+  // Attach an X broadcast's chat by URL/ID. `key` selects which input holds the
+  // value: "x" = the platform-level fallback box; an account id = that account's
+  // own per-row box (so each connected X account can paste its live broadcast).
+  const watchXBroadcast = async (key = "x") => {
+    const url = (watchInput[key] ?? "").trim();
     if (!url) { push({ message: "Paste an X broadcast URL or ID", tone: "error" }); return; }
     if (demo) { push({ message: "Switch to LIVE to watch an X broadcast chat", tone: "info" }); return; }
     if (!BACKEND) { push({ message: "X broadcast chat needs the backend — set VITE_BACKEND_URL and run the server", tone: "info" }); return; }
@@ -111,8 +114,8 @@ export function ConnectionsManager({ open, onClose }: { open: boolean; onClose: 
       const j = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(j.error || `HTTP ${r.status}`);
       const title = String(j.title || "X Broadcast");
-      addAccount("x", String(j.id), title);
-      setWatchInput((s) => ({ ...s, x: "" }));
+      if (key === "x") addAccount("x", String(j.id), title); // platform-level: register the broadcast as a source
+      setWatchInput((s) => ({ ...s, [key]: "" }));
       push({ message: `Watching ${title} — ${Number(j.messages ?? 0)} X messages backfilled`, tone: "ok" });
     } catch (e) {
       push({ message: `Couldn't watch X broadcast: ${e instanceof Error ? e.message : e}`, tone: "error" });
@@ -293,30 +296,54 @@ export function ConnectionsManager({ open, onClose }: { open: boolean; onClose: 
                     <div className="space-y-1">
                       {list.length === 0 && <div className="px-1 py-1 text-[11px] text-muted opacity-70">No channels yet.</div>}
                       {list.map((a) => (
-                        <div key={a.id} className="flex items-center justify-between rounded-lg bg-white/[0.02] px-2 py-1.5">
-                          <div className="flex items-center gap-2">
-                            <span className={`h-1.5 w-1.5 rounded-full ${a.connected ? "bg-emerald-400" : "bg-white/25"}`} />
-                            <span className="text-sm font-semibold text-ink">{a.displayName}</span>
-                            <span className="text-[10px] text-muted">{a.handle}</span>
-                            {a.connected ? (
-                              <span className="flex items-center gap-0.5 rounded-full bg-emerald-400/15 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-emerald-300">
-                                <Check size={9} /> Connected
-                              </span>
-                            ) : (
-                              <span className="rounded-full bg-white/8 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-muted">
-                                Paused
-                              </span>
-                            )}
+                        <div key={a.id} className="rounded-lg bg-white/[0.02]">
+                          <div className="flex items-center justify-between px-2 py-1.5">
+                            <div className="flex items-center gap-2">
+                              <span className={`h-1.5 w-1.5 rounded-full ${a.connected ? "bg-emerald-400" : "bg-white/25"}`} />
+                              <span className="text-sm font-semibold text-ink">{a.displayName}</span>
+                              <span className="text-[10px] text-muted">{a.handle}</span>
+                              {a.connected ? (
+                                <span className="flex items-center gap-0.5 rounded-full bg-emerald-400/15 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-emerald-300">
+                                  <Check size={9} /> Connected
+                                </span>
+                              ) : (
+                                <span className="rounded-full bg-white/8 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-muted">
+                                  Paused
+                                </span>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <button onClick={() => toggleAccount(a.id)} title={a.connected ? "Disconnect" : "Connect"}
+                                className={`rounded p-1 transition ${a.connected ? "text-emerald-400 hover:text-emerald-300" : "text-muted hover:text-ink"}`}>
+                                <Power size={13} />
+                              </button>
+                              <button onClick={() => removeAccountFull(a.id)} className="rounded p-1 text-muted transition hover:text-red-300" title="Remove">
+                                <Trash2 size={12} />
+                              </button>
+                            </div>
                           </div>
-                          <div className="flex items-center gap-1">
-                            <button onClick={() => toggleAccount(a.id)} title={a.connected ? "Disconnect" : "Connect"}
-                              className={`rounded p-1 transition ${a.connected ? "text-emerald-400 hover:text-emerald-300" : "text-muted hover:text-ink"}`}>
-                              <Power size={13} />
-                            </button>
-                            <button onClick={() => removeAccountFull(a.id)} className="rounded p-1 text-muted transition hover:text-red-300" title="Remove">
-                              <Trash2 size={12} />
-                            </button>
-                          </div>
+                          {/* Per-account live broadcast: auto-detected from this account's
+                              go-live post, or paste the link here to attach instantly. */}
+                          {p === "x" && a.connected && (
+                            <form
+                              onSubmit={(e) => { e.preventDefault(); void watchXBroadcast(a.id); }}
+                              className="flex items-center gap-1.5 border-t border-white/5 px-2 py-1.5"
+                            >
+                              <input
+                                value={watchInput[a.id] ?? ""}
+                                onChange={(e) => setWatchInput((s) => ({ ...s, [a.id]: e.target.value }))}
+                                placeholder="Live broadcast link (auto-detected from your go-live post, or paste here)"
+                                className="vc-input flex-1 text-[11px]"
+                              />
+                              <button
+                                type="submit"
+                                disabled={!(watchInput[a.id] ?? "").trim()}
+                                className="flex items-center gap-1 rounded-md border border-white/15 px-2.5 py-1.5 text-[10px] font-bold text-muted transition hover:border-accent/50 hover:text-accent disabled:opacity-40"
+                              >
+                                <Plus size={11} /> Watch
+                              </button>
+                            </form>
+                          )}
                         </div>
                       ))}
                     </div>
@@ -343,7 +370,10 @@ export function ConnectionsManager({ open, onClose }: { open: boolean; onClose: 
                         </button>
                       </form>
                     )}
-                    {p === "x" && (
+                    {/* No X account connected yet → a general fallback box to watch any
+                        broadcast by link. Once accounts are connected, each gets its own
+                        per-row box above instead. */}
+                    {p === "x" && list.length === 0 && (
                       <form
                         onSubmit={(e) => { e.preventDefault(); void watchXBroadcast(); }}
                         className="mt-1.5 flex items-center gap-1.5"
@@ -351,7 +381,7 @@ export function ConnectionsManager({ open, onClose }: { open: boolean; onClose: 
                         <input
                           value={watchInput.x ?? ""}
                           onChange={(e) => setWatchInput((s) => ({ ...s, x: e.target.value }))}
-                          placeholder="Paste X broadcast URL — x.com/i/broadcasts/..."
+                          placeholder="Paste any X broadcast URL — x.com/i/broadcasts/..."
                           className="vc-input flex-1 text-xs"
                         />
                         <button
