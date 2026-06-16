@@ -28,6 +28,9 @@ const LIVE_HISTORY_POLL_MS = 350;
 const LIVE_HISTORY_ERROR_RETRY_MS = 1000;
 const LIVE_REST_CACHE_MS = 400;
 const LIVE_WS_RECONNECT_MS = 800;
+// Watchdog cadence: re-resolve the broadcast so a TIMED_OUT→RUNNING blip
+// (same id) re-attaches itself with a fresh chat grant, and a real end stops it.
+const LIVE_RECHECK_MS = 15_000;
 
 interface ChatAccess { endpoint: string; accessToken: string; roomId: string; replay: boolean; title: string; state: string }
 
@@ -130,39 +133,55 @@ export class XBroadcastChatConnector extends BaseConnector {
   readonly platform = "x" as const;
   private ws: WebSocket | null = null;
   private stopped = false;
+  private ended = false;
   private seen = new Set<string>();
   private cursor = "";
+  private access: ChatAccess | null = null;
   private historyTimer: ReturnType<typeof setTimeout> | null = null;
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+  private recheckTimer: ReturnType<typeof setTimeout> | null = null;
   constructor(private broadcastId: string, label = "X Broadcast") {
     super("x", label);
   }
 
   async start() {
     this.stopped = false;
+    this.ended = false;
     try {
       const access = await resolveBroadcastChat(this.broadcastId);
-      if (!access) { this.setStatus({ connected: false, error: "no_broadcast" }); return; }
+      if (!access) {
+        // Not resolvable yet (e.g. TIMED_OUT between segments) — don't fail; keep
+        // the watchdog running so we auto-attach the instant it's live.
+        this.setStatus({ connected: false, error: "awaiting_broadcast" });
+        this.scheduleRecheck();
+        return;
+      }
+      this.access = access;
       this.setStatus({ channel: access.title || this.status().channel || "X Broadcast" });
 
       // Backfill whatever chat already happened before the connector was added,
       // then keep polling history as a safety net. X Live chat websockets can be
       // quiet or close during low-traffic tests; history polling catches those
       // messages without duplicating websocket frames.
-      await this.catchUpHistory(access, access.replay ? 60 : 10);
+      await this.catchUpHistory(access.replay ? 60 : 10);
 
       if (access.replay) {
+        this.ended = true;
         this.setStatus({ connected: true });
         return;
       }
-      this.scheduleHistoryPoll(access, LIVE_HISTORY_FIRST_POLL_MS);
-      this.connectWs(access);
+      this.scheduleHistoryPoll(LIVE_HISTORY_FIRST_POLL_MS);
+      this.connectWs();
+      this.scheduleRecheck();
     } catch (e) {
       this.setStatus({ connected: false, error: String(e) });
+      this.scheduleRecheck();
     }
   }
 
-  private async catchUpHistory(access: ChatAccess, maxPages = 4) {
+  private async catchUpHistory(maxPages = 4) {
+    const access = this.access;
+    if (!access) return;
     for (let i = 0; i < maxPages && !this.stopped; i++) {
       const page = await replayChatPage(access, this.cursor);
       for (const m of page.messages) this.emit(m);
@@ -172,40 +191,91 @@ export class XBroadcastChatConnector extends BaseConnector {
     }
   }
 
-  private scheduleHistoryPoll(access: ChatAccess, delay = LIVE_HISTORY_POLL_MS) {
-    if (this.stopped) return;
+  private scheduleHistoryPoll(delay = LIVE_HISTORY_POLL_MS) {
+    if (this.stopped || this.ended) return;
     if (this.historyTimer) clearTimeout(this.historyTimer);
-    this.historyTimer = setTimeout(() => void this.pollHistory(access), delay);
+    this.historyTimer = setTimeout(() => void this.pollHistory(), delay);
   }
 
-  private async pollHistory(access: ChatAccess) {
-    if (this.stopped) return;
+  private async pollHistory() {
+    if (this.stopped || this.ended) return;
     try {
-      await this.catchUpHistory(access, 2);
+      await this.catchUpHistory(2);
       this.setStatus({ connected: true, error: undefined });
     } catch (e) {
       this.setStatus({ connected: false, error: `history_poll_failed: ${e instanceof Error ? e.message : String(e)}` });
     } finally {
-      this.scheduleHistoryPoll(access, this.status().connected ? LIVE_HISTORY_POLL_MS : LIVE_HISTORY_ERROR_RETRY_MS);
+      this.scheduleHistoryPoll(this.status().connected ? LIVE_HISTORY_POLL_MS : LIVE_HISTORY_ERROR_RETRY_MS);
     }
   }
 
-  private connectWs(access: ChatAccess) {
+  /** Watchdog: periodically re-resolve the broadcast. If it resumed after a
+   *  TIMED_OUT blip (same id, fresh chat grant) we re-attach automatically; if it
+   *  truly ended we grab the tail and stop. No re-paste needed either way. */
+  private scheduleRecheck() {
+    if (this.stopped || this.ended) return;
+    if (this.recheckTimer) clearTimeout(this.recheckTimer);
+    this.recheckTimer = setTimeout(() => void this.recheck(), LIVE_RECHECK_MS);
+  }
+
+  private async recheck() {
+    if (this.stopped || this.ended) return;
+    try {
+      const fresh = await resolveBroadcastChat(this.broadcastId);
+      if (fresh && (fresh.replay || (fresh.state || "").toUpperCase() === "ENDED")) {
+        // Broadcast truly ended — grab the tail of the chat, then stand down.
+        this.access = fresh;
+        await this.catchUpHistory(6);
+        this.ended = true;
+        this.teardownLive();
+        this.setStatus({ connected: false, error: "broadcast_ended" });
+        return; // terminal — no reschedule
+      }
+      if (fresh) {
+        // Live. Re-attach if our chat grant is stale or the socket died (typical
+        // after a TIMED_OUT→RUNNING blip, which mints a new chat token).
+        const stale = !this.access || this.access.endpoint !== fresh.endpoint || this.access.accessToken !== fresh.accessToken;
+        const wsDead = !this.ws || this.ws.readyState !== WebSocket.OPEN;
+        if (stale || wsDead) {
+          this.access = fresh;
+          this.scheduleHistoryPoll(LIVE_HISTORY_FIRST_POLL_MS);
+          this.connectWs();
+          this.setStatus({ connected: true, error: undefined, channel: fresh.title || this.status().channel });
+          console.log(`✓ x-broadcast: re-attached ${this.broadcastId} (resumed after blip)`);
+        }
+      }
+      // fresh === null → transient / TIMED_OUT window: keep watching, retry.
+    } catch { /* transient — retry next tick */ }
+    this.scheduleRecheck();
+  }
+
+  private connectWs() {
+    const access = this.access;
+    if (!access || this.stopped || this.ended) return;
+    if (this.reconnectTimer) { clearTimeout(this.reconnectTimer); this.reconnectTimer = null; }
+    if (this.ws) { try { this.ws.removeAllListeners(); this.ws.terminate(); } catch { /* ignore */ } this.ws = null; }
     const url = `${access.endpoint.replace(/^http/, "ws")}/chatapi/v1/chatnow`;
-    this.ws = new WebSocket(url, { headers: { Origin: "https://x.com", "User-Agent": X_UA } });
-    this.ws.on("open", () => {
+    const ws = new WebSocket(url, { headers: { Origin: "https://x.com", "User-Agent": X_UA } });
+    this.ws = ws;
+    ws.on("open", () => {
       this.setStatus({ connected: true, error: undefined });
-      this.ws?.send(JSON.stringify({ payload: JSON.stringify({ access_token: access.accessToken, room_id: access.roomId }), kind: 1 }));
+      ws.send(JSON.stringify({ payload: JSON.stringify({ access_token: access.accessToken, room_id: access.roomId }), kind: 1 }));
     });
-    this.ws.on("message", (raw) => {
+    ws.on("message", (raw) => {
       try { const m = parseMsg(JSON.parse(raw.toString())); if (m) this.emit(m); } catch { /* ignore */ }
     });
-    this.ws.on("close", () => {
-      if (this.stopped) return;
+    ws.on("close", () => {
+      if (this.stopped || this.ended || this.ws !== ws) return; // superseded by a re-attach
       this.setStatus({ connected: this.status().connected, error: "socket_closed_history_polling" });
-      this.reconnectTimer = setTimeout(() => this.connectWs(access), LIVE_WS_RECONNECT_MS);
+      this.reconnectTimer = setTimeout(() => this.connectWs(), LIVE_WS_RECONNECT_MS);
     });
-    this.ws.on("error", (e) => this.setStatus({ connected: false, error: String(e) }));
+    ws.on("error", (e) => this.setStatus({ connected: false, error: String(e) }));
+  }
+
+  private teardownLive() {
+    if (this.historyTimer) { clearTimeout(this.historyTimer); this.historyTimer = null; }
+    if (this.reconnectTimer) { clearTimeout(this.reconnectTimer); this.reconnectTimer = null; }
+    if (this.ws) { try { this.ws.removeAllListeners(); this.ws.terminate(); } catch { /* ignore */ } this.ws = null; }
   }
 
   private emit(m: { username: string; displayName: string; text: string; t: number }) {
@@ -229,7 +299,8 @@ export class XBroadcastChatConnector extends BaseConnector {
     this.stopped = true;
     if (this.historyTimer) clearTimeout(this.historyTimer);
     if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
-    this.ws?.close();
+    if (this.recheckTimer) clearTimeout(this.recheckTimer);
+    try { this.ws?.removeAllListeners(); this.ws?.close(); } catch { /* ignore */ }
     this.setStatus({ connected: false });
   }
 
