@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Plug, ShieldCheck, MonitorPlay, Loader2, Check, ExternalLink, Plus, Trash2, Power, LogIn, LayoutDashboard, Copy, Wallet, MessagesSquare } from "lucide-react";
+import { X, Plug, ShieldCheck, MonitorPlay, Loader2, Check, ExternalLink, Plus, Trash2, Power, LogIn, LayoutDashboard, Copy, Wallet, MessagesSquare, Info } from "lucide-react";
 import type { Platform } from "@shared/types";
 import { CHAT_PLATFORMS, SourceBadge, platformLabel, platformColor } from "./SourceBadge";
 import { useConnectionsStore } from "@/store/connectionsStore";
@@ -291,6 +291,18 @@ export function ConnectionsManager({ open, onClose }: { open: boolean; onClose: 
                         </button>
                       </div>
                     </div>
+
+                    {/* X needs a live broadcast to read chat — make the requirement explicit. */}
+                    {p === "x" && (
+                      <div className="mb-2 flex items-start gap-1.5 rounded-lg border border-[#d9a547]/30 bg-[#d9a547]/10 px-2 py-1.5 text-[10.5px] leading-snug text-[#e8c987]">
+                        <Info size={12} className="mt-0.5 shrink-0" />
+                        <span>
+                          <b>For X live chat to show:</b> when you go live, let X&apos;s &ldquo;Go Live&rdquo; post publish
+                          (it&apos;s auto-detected) — <b>or</b> paste your broadcast link in the box under your account below.
+                          Without one of those, X can&apos;t be pulled in.
+                        </span>
+                      </div>
+                    )}
 
                     {/* account rows */}
                     <div className="space-y-1">
