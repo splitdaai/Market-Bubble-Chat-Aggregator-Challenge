@@ -100,6 +100,40 @@ export function bindHub(
     broadcastStatus();
   };
 
+  /**
+   * Stop + remove a connector for a given platform/channel — used when an account
+   * is disconnected (or a watched channel removed) so its chat STOPS appearing in
+   * the unified feed. Also purges that channel's messages from the rolling buffer
+   * and tells every connected client to drop them, so the feed reflects exactly
+   * what is currently connected — never a ghost channel that lingers after removal.
+   * Returns true if a connector was found and removed.
+   */
+  const removeConnector = async (platform: string, channel: string): Promise<boolean> => {
+    const norm = (channel ?? "").replace(/^[#@]/, "").toLowerCase();
+    const key = `${platform}:${norm}`;
+    const c = registry.get(key);
+    if (c) {
+      try { await c.stop(); } catch { /* best-effort */ }
+      registry.delete(key);
+    }
+    // Purge this channel's backlog so a refresh/late-join can't replay it, and
+    // tell live clients to remove any already-rendered messages from it.
+    for (let i = messageBuffer.length - 1; i >= 0; i--) {
+      const m = messageBuffer[i];
+      if (m.platform === platform && (m.channel ?? "").replace(/^[#@]/, "").toLowerCase() === norm) {
+        messageBuffer.splice(i, 1);
+        io.emit("message:deleted", m.id);
+      }
+    }
+    // If no connector remains for this platform, clear its status entry so the
+    // health row doesn't show a stale "connected" badge for a dead platform.
+    if (![...registry.values()].some((r) => r.platform === platform)) {
+      statuses.delete(platform);
+    }
+    broadcastStatus();
+    return Boolean(c);
+  };
+
   // Broadcast the real stats snapshot every 2s.
   const statsTimer = setInterval(() => io.emit("stats", aggregator.snapshot()), 2000);
 
@@ -335,6 +369,7 @@ export function bindHub(
   return {
     broadcastStatus,
     addConnector,
+    removeConnector,
     stop: () => {
       clearInterval(statsTimer);
       for (const bucket of overlayVoteBuckets.values()) {

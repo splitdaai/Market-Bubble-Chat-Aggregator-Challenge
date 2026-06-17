@@ -362,10 +362,23 @@ async function main() {
 
   // OAuth connect flow — pushes the authed account list to all clients on change
   // and wires up a chat reader for any newly-connected Twitch/Kick channel.
-  mountAuth(app, PUBLIC_URL, () => {
-    io.emit("accounts", getAccounts());
-    syncAccountConnectors();
-  });
+  mountAuth(
+    app,
+    PUBLIC_URL,
+    () => {
+      io.emit("accounts", getAccounts());
+      syncAccountConnectors();
+    },
+    (removed) => {
+      // Disconnected an account / watched channel — stop its live chat reader so
+      // its messages STOP appearing in the feed, and forget it from `linked` so a
+      // later reconnect spins up a fresh reader.
+      linked.delete(removed.id);
+      const channel = removed.handle.replace(/^[@#]/, "").toLowerCase();
+      watched.delete(`${removed.platform}:${channel}`);
+      void hub.removeConnector(removed.platform, channel);
+    },
+  );
   io.on("connection", (socket) => socket.emit("accounts", getAccounts()));
 
   // Accounts restored from the 30-day auth store: start their chat readers now.

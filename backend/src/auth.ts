@@ -225,8 +225,10 @@ export async function refreshToken(accountId: string): Promise<string | null> {
   }
 }
 
-/** Mount the auth routes. `publicUrl` is the externally-reachable backend URL. */
-export function mountAuth(app: Express, publicUrl: string, onChange: () => void) {
+/** Mount the auth routes. `publicUrl` is the externally-reachable backend URL.
+ *  `onRemove(account)` is called when an account/watched channel is disconnected,
+ *  so the caller can stop that channel's live chat reader. */
+export function mountAuth(app: Express, publicUrl: string, onChange: () => void, onRemove?: (account: Account) => void) {
   const redirectUri = (p: string) => `${publicUrl}/auth/${p}/callback`;
 
   app.get("/auth/config", (_req, res) => {
@@ -341,10 +343,12 @@ export function mountAuth(app: Express, publicUrl: string, onChange: () => void)
   app.delete("/auth/account/:id", (req: Request, res: Response) => {
     const i = accounts.findIndex((a) => a.id === req.params.id);
     if (i >= 0) {
-      tokens.delete(accounts[i].id);
-      connectedAt.delete(accounts[i].id);
+      const removed = accounts[i];
+      tokens.delete(removed.id);
+      connectedAt.delete(removed.id);
       accounts.splice(i, 1);
       persistStore();
+      onRemove?.(removed); // stop this channel's live chat reader + purge its feed
       onChange();
     }
     res.json({ ok: true });
