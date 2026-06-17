@@ -81,28 +81,31 @@ export function ContentTab() {
         </div>
       </div>
 
-      {/* ── THE COVER — featured episode with a live preview + overlaid title ── */}
-      <div className="group relative mt-6 overflow-hidden rounded-[20px] border border-white/12 bg-black shadow-[0_40px_120px_-50px_rgba(0,0,0,0.95)]">
-        <div className="relative aspect-[21/9] max-h-[560px] w-full">
-          {/* looping show b-roll = an always-on preview of the episode */}
-          <video src="/stream-preview.mp4" autoPlay muted loop playsInline className="absolute inset-0 h-full w-full bg-black object-cover" />
+      {/* ── THE COVER — clean live preview on top, title band below ─────── */}
+      <div className="mt-6 overflow-hidden rounded-[20px] border border-white/12 shadow-[0_40px_120px_-50px_rgba(0,0,0,0.95)]">
+        {/* preview — the clip carries its own on-screen graphics, so we keep it
+            clean (no overlay) and let our title live in the band beneath it */}
+        <div className="relative aspect-[2.4/1] w-full bg-black">
+          <video src="/stream-preview.mp4" autoPlay muted loop playsInline className="absolute inset-0 h-full w-full object-cover" style={{ objectPosition: "center 28%" }} />
+          <div className="pointer-events-none absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-[var(--vc-bg)] to-transparent" />
         </div>
-        <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/88 via-black/20 to-black/45" />
-        <div className="pointer-events-none absolute inset-0 ring-1 ring-inset ring-white/10" />
-        <div className="absolute inset-x-0 bottom-0 flex flex-col gap-3 p-6 sm:p-9">
-          <span className="flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.22em] text-accent">
-            <span className="relative flex h-2 w-2"><span className="absolute h-full w-full animate-ping rounded-full bg-accent/70" /><span className="relative h-2 w-2 rounded-full bg-accent" /></span>
-            Latest episode
-          </span>
-          <h2 className="serif max-w-[18ch] text-[2.4rem] font-bold uppercase leading-[0.98] text-white drop-shadow-[0_2px_24px_rgba(0,0,0,0.7)] sm:text-[4.2rem]">{featured.title}</h2>
-          <div className="flex flex-wrap items-center gap-2.5">
-            {[featured.date, featured.duration, `${featured.views} views`].map((m) => (
-              <span key={m} className="rounded-full border border-white/25 bg-black/30 px-3 py-1 text-[12px] font-semibold text-white/90 backdrop-blur">{m}</span>
-            ))}
-            <a href={watchHref} target="_blank" rel="noreferrer" className="ml-1 inline-flex items-center gap-2 rounded-full bg-accent px-4 py-1.5 text-[13px] font-bold text-[var(--vc-bg)] transition hover:brightness-110">
-              <Play size={15} /> Watch full replay on X
-            </a>
+        {/* title band */}
+        <div className="flex flex-col gap-3 border-t border-white/10 p-6 sm:flex-row sm:items-end sm:justify-between sm:p-7" style={{ background: "color-mix(in srgb, var(--vc-bg) 86%, #fff 4%)" }}>
+          <div>
+            <span className="flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.22em] text-accent">
+              <span className="relative flex h-2 w-2"><span className="absolute h-full w-full animate-ping rounded-full bg-accent/70" /><span className="relative h-2 w-2 rounded-full bg-accent" /></span>
+              Latest episode
+            </span>
+            <h2 className="serif mt-2 max-w-[20ch] text-[2.1rem] font-bold uppercase leading-[0.98] text-ink sm:text-[3.1rem]">{featured.title}</h2>
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              {[featured.date, featured.duration, `${featured.views} views`].map((m) => (
+                <span key={m} className="rounded-full border border-white/15 px-2.5 py-0.5 text-[12px] font-semibold text-muted">{m}</span>
+              ))}
+            </div>
           </div>
+          <a href={watchHref} target="_blank" rel="noreferrer" className="inline-flex shrink-0 items-center gap-2 self-start rounded-full bg-accent px-4 py-2 text-[13px] font-bold text-[var(--vc-bg)] transition hover:brightness-110 sm:self-end">
+            <Play size={15} /> Watch full replay on X
+          </a>
         </div>
       </div>
 
