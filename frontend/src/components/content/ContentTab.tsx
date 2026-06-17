@@ -2,6 +2,7 @@ import { useState } from "react";
 import { motion } from "framer-motion";
 import { BadgeCheck, Repeat2, Heart, BarChart3, Play, Flame } from "lucide-react";
 import { compact } from "../../lib/format";
+import { XVodPlayer, EPISODE_SLATE_SKIP } from "../XVodPlayer";
 
 /* ── Top tweets ("On X") ────────────────────────────────────────────────── */
 const FEED = [
@@ -86,7 +87,9 @@ export function ContentTab() {
         {/* preview — the clip carries its own on-screen graphics, so we keep it
             clean (no overlay) and let our title live in the band beneath it */}
         <div className="relative aspect-[2.4/1] w-full bg-black">
-          <video src="/stream-preview.mp4" autoPlay muted loop playsInline className="absolute inset-0 h-full w-full object-cover" style={{ objectPosition: "center 28%" }} />
+          {/* the actual featured episode replay (X broadcast). Plays muted as a
+              clean cover preview; the band's CTA opens the full replay with sound */}
+          <XVodPlayer key={vodId} id={vodId} autoPlay startAt={EPISODE_SLATE_SKIP} controls={false} className="absolute inset-0 h-full w-full bg-black object-cover" />
           <div className="pointer-events-none absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-[var(--vc-bg)] to-transparent" />
         </div>
         {/* title band */}
