@@ -125,7 +125,30 @@ export const BULLPEN_GOLD_THEME: Theme = {
   textStyle: "tight",
 };
 
-export const DEFAULT_THEME: Theme = ON_AIR_THEME;
+/** Market Bubble · Stock — the editorial broadcast look from the live site
+ *  (market-bubble-nine.vercel.app): warm espresso "paper", cream Playfair
+ *  headlines, muted-tan micro-labels, a restrained CREAM accent (no gold/neon),
+ *  and hairline cream borders. Tokens sampled 1:1 from the reference site. The
+ *  shipped default for every visitor. */
+export const MARKET_BUBBLE_STOCK_THEME: Theme = {
+  name: "Market Bubble · Stock",
+  bg: "#1a1917",
+  surface: "rgba(243, 235, 218, 0.055)",
+  accent: "#f3ebda",
+  accent2: "#cdc4b3",
+  text: "#f3ebda",
+  textMuted: "#b0a99b",
+  glow: 0.12,
+  radius: 12,
+  font: "Inter",
+  bubbleStyle: "flat",
+  tile: "flat",
+  btn: "sharp",
+  btnFx: "none",
+  textStyle: "serif",
+};
+
+export const DEFAULT_THEME: Theme = MARKET_BUBBLE_STOCK_THEME;
 
 /** Terminal Pro — dense Bloomberg-style: mono everywhere, sharp corners,
  *  hairline borders, electric blue, minimal glow. */
@@ -177,6 +200,7 @@ export const NEON_BUBBLE_THEME: Theme = {
 
 
 export const THEME_PRESETS: Theme[] = [
+  MARKET_BUBBLE_STOCK_THEME,
   ON_AIR_THEME,
   BULLPEN_GOLD_THEME,
   MONO_TERMINAL_THEME,
