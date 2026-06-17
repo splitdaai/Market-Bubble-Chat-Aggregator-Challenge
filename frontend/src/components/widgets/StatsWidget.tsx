@@ -28,9 +28,9 @@ export function StatsWidget() {
     : "grid grid-cols-[minmax(88px,1.3fr)_70px_1fr_48px_58px_44px] items-center gap-x-1.5";
 
   return (
-    <div className="flex h-full flex-col gap-2 overflow-hidden p-3">
+    <div className="flex h-full flex-col gap-1.5 overflow-hidden p-3">
       {/* prominent combined total */}
-      <div className="rounded-xl border border-white/10 bg-white/[0.02] px-3 py-2">
+      <div className="rounded-xl border border-white/10 bg-white/[0.02] px-3 py-1.5">
         <div className="flex items-center justify-between">
           <span className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-widest text-muted">
             <Clock size={11} /> {elapsed(snap.elapsedMs)}
@@ -52,7 +52,7 @@ export function StatsWidget() {
             key={Math.round(t.viewers / 5)}
             initial={{ opacity: 0.5, y: -2 }}
             animate={{ opacity: 1, y: 0 }}
-            className="text-[2.1rem] font-black leading-none text-accent"
+            className="text-[1.7rem] font-black leading-none text-accent"
             style={{ textShadow: "0 0 22px color-mix(in srgb, var(--vc-accent) 55%, transparent)" }}
           >
             {compact(t.viewers)}
@@ -64,7 +64,7 @@ export function StatsWidget() {
         </div>
 
         {/* main KPI chips */}
-        <div className="mt-2 grid grid-cols-3 gap-1.5">
+        <div className="mt-1.5 grid grid-cols-3 gap-1">
           <Kpi icon={<Users size={15} />} value={compact(t.uniqueChatters)} label="chatters" sub={`${compact(t.activeChatters)} active`} />
           <Kpi icon={<Clock size={15} />} value={wtTotal.value} label={wtTotal.unit === "min" ? "minutes" : "hours"} />
           <Kpi icon={<Zap size={15} />} value={String(t.messagesPerMin)} label="msg/min" />
@@ -83,7 +83,7 @@ export function StatsWidget() {
       </div>
 
       {/* hierarchical breakdown */}
-      <div className="vc-scroll flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto pr-1">
+      <div className="vc-scroll flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto pr-1 -mt-0.5">
         {ALL.map((p) => {
           const s = snap.perPlatform[p];
           const wt = watchTime(s.watchTimeMinutes);
@@ -92,7 +92,7 @@ export function StatsWidget() {
           return (
             <div key={p} className="rounded-lg border border-white/8 bg-white/[0.02]">
               {/* platform total */}
-              <div className={`${cols} px-2 py-1`}>
+              <div className={`${cols} px-2 py-0.5`}>
                 <span className="truncate text-[13px] font-extrabold" style={{ color: platformColor(p) }}>{platformLabel(p)}</span>
                 <span className="flex items-center justify-end gap-1 text-[13px] font-bold tabular-nums text-ink"><Eye size={11} className="text-muted" /> {compact(s.viewers)}</span>
                 {trends && <Sparkline data={s.history} color={platformColor(p)} width={56} height={16} strokeWidth={2} />}
@@ -108,7 +108,7 @@ export function StatsWidget() {
                     const cwt = watchTime(c.watchTimeMinutes);
                     const share = s.viewers > 0 ? (c.viewers / s.viewers) * 100 : 0;
                     return (
-                      <div key={c.accountId} className={`${cols} px-2 py-[2px]`}>
+                      <div key={c.accountId} className={`${cols} px-2 py-0`}>
                         <span className="flex items-center gap-1.5 truncate">
                           <span className="h-3 w-0.5 shrink-0 rounded" style={{ background: `color-mix(in srgb, ${platformColor(p)} 60%, transparent)` }} />
                           <span className="truncate text-[12px] font-bold text-ink/85">{c.displayName}</span>
@@ -134,10 +134,10 @@ export function StatsWidget() {
 
 function Kpi({ icon, value, label, sub }: { icon: React.ReactNode; value: string; label: string; sub?: string }) {
   return (
-    <div className="flex items-center gap-2 rounded-lg border border-white/8 bg-white/[0.02] px-2 py-1">
+    <div className="flex items-center gap-2 rounded-lg border border-white/8 bg-white/[0.02] px-2 py-0.5">
       <span className="text-accent">{icon}</span>
       <div className="leading-tight">
-        <div className="text-[15px] font-extrabold text-ink">{value}</div>
+        <div className="text-[14px] font-extrabold text-ink">{value}</div>
         <div className="text-[9px] uppercase tracking-wider text-muted">{sub ? `${label} · ${sub}` : label}</div>
       </div>
     </div>
