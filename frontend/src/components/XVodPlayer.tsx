@@ -9,7 +9,7 @@ export { LATEST_EPISODE_BID, EPISODE_SLATE_SKIP };
  * Plays an X broadcast replay (full episode) via the guest HLS proxy — hls.js in
  * Chrome/Firefox, native HLS in Safari. Falls back to a "Watch on X" link.
  */
-export function XVodPlayer({ id, autoPlay, startAt, onError, className = "aspect-video w-full rounded-xl border border-white/10 bg-black" }: { id: string; autoPlay?: boolean; startAt?: number; onError?: () => void; className?: string }) {
+export function XVodPlayer({ id, autoPlay, startAt, onError, controls = true, className = "aspect-video w-full rounded-xl border border-white/10 bg-black" }: { id: string; autoPlay?: boolean; startAt?: number; onError?: () => void; controls?: boolean; className?: string }) {
   const ref = useRef<HTMLVideoElement>(null);
   const [err, setErr] = useState(false);
   const fail = () => { setErr(true); onError?.(); };
@@ -66,5 +66,5 @@ export function XVodPlayer({ id, autoPlay, startAt, onError, className = "aspect
       </div>
     );
   }
-  return <video ref={ref} controls autoPlay={autoPlay} muted={autoPlay} playsInline className={className} />;
+  return <video ref={ref} controls={controls} autoPlay={autoPlay} muted={autoPlay} playsInline className={className} />;
 }

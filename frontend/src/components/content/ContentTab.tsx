@@ -1,49 +1,41 @@
-import { useState, useRef, useEffect } from "react";
-import { Radio, Film, TrendingUp, Play, BadgeCheck, MessageCircle, Repeat2, Heart, BarChart3 } from "lucide-react";
+import { useState } from "react";
+import { motion } from "framer-motion";
+import { BadgeCheck, Repeat2, Heart, BarChart3, Play, Flame } from "lucide-react";
 import { compact } from "../../lib/format";
-import { BubbleScroll } from "../BubbleScroll";
-import { PageGrid } from "../PageGrid";
-import { useLayoutStore } from "@/store/layoutStore";
-import { XVodPlayer, EPISODE_SLATE_SKIP } from "../XVodPlayer";
 
-
-/* ── feed: Ansem / Banks / Market Bubble only (demo until an X list is wired) ── */
+/* ── Top tweets ("On X") ────────────────────────────────────────────────── */
 const FEED = [
-  { name: "Ansem", handle: "@blknoiz06", v: 1, text: "sol doing sol things. nothing to see here 🤝", likes: 4200, reposts: 510, views: 312000, d1h: 184, ticker: "SOL", cat: "spiking" },
-  { name: "Banks", handle: "@banks", v: 1, text: "going live with ansem this week. it's going to be chaos.", likes: 8900, reposts: 1100, views: 690000, d1h: 58, ticker: "—", cat: "rising" },
-  { name: "Market Bubble", handle: "@marketbubble", v: 1, text: "tonight's show 1PM PST — Fed day special with Mike Majlak 🫧", likes: 3300, reposts: 420, views: 198000, d1h: 27, ticker: "—", cat: "active" },
-  { name: "Ansem", handle: "@blknoiz06", v: 1, text: "VIRTUAL chart looking like 2021 alt season fractals", likes: 5600, reposts: 690, views: 420000, d1h: 96, ticker: "VIRTUAL", cat: "spiking" },
-  { name: "Banks", handle: "@banks", v: 1, text: "the faZe treasury play is more bullish than people realize", likes: 6100, reposts: 740, views: 480000, d1h: 41, ticker: "—", cat: "rising" },
-  { name: "Market Bubble", handle: "@marketbubble", v: 1, text: "clip of the day: ansem calling the SOL bottom live 🎯", likes: 2400, reposts: 310, views: 140000, d1h: 33, ticker: "SOL", cat: "active" },
-  { name: "Ansem", handle: "@blknoiz06", v: 1, text: "memecoins are the casino and the casino is open 24/7", likes: 7200, reposts: 880, views: 520000, d1h: 62, ticker: "WIF", cat: "rising" },
-  { name: "Market Bubble", handle: "@marketbubble", v: 1, text: "$50k Polymarket giveaway stream this weekend. don't miss it.", likes: 4800, reposts: 600, views: 260000, d1h: 48, ticker: "—", cat: "spiking" },
+  { name: "Market Bubble", handle: "@marketbubble", text: "Ansem is up +450% in two weeks, leading the Bullpen comp by ~$100k. $25K → $137K, every trade called live on the show.", likes: 9800, reposts: 1400, views: 720000, time: "2h" },
+  { name: "Banks", handle: "@banks", text: "going live with ansem this week. it's going to be chaos.", likes: 8900, reposts: 1100, views: 690000, time: "8m" },
+  { name: "Ansem", handle: "@blknoiz06", text: "memecoins are the casino and the casino is open 24/7", likes: 7200, reposts: 880, views: 520000, time: "1h" },
+  { name: "Banks", handle: "@banks", text: "the faZe treasury play is more bullish than people realize", likes: 6100, reposts: 740, views: 480000, time: "31m" },
+  { name: "Ansem", handle: "@blknoiz06", text: "VIRTUAL chart looking like 2021 alt season fractals", likes: 5600, reposts: 690, views: 420000, time: "23m" },
+  { name: "Ansem", handle: "@blknoiz06", text: "sol doing sol things. nothing to see here 🤝", likes: 4200, reposts: 510, views: 312000, time: "2m" },
 ];
 const xUrl = (h: string) => `https://x.com/${h.replace(/^@/, "")}`;
-const chip = "rounded-md border border-white/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-muted";
-const FEED_TIMES = ["2m", "8m", "14m", "23m", "31m", "47m", "1h", "1h"];
+
+/* ── Full episodes (the actual content videos) ──────────────────────────── */
+const EPISODES: { ep: number; title: string; date: string; duration: string; views: string; bid: string | null }[] = [
+  { ep: 5, title: "The Dollar Is Going to Zero", date: "Jun 5, 2026", duration: "4h 42m", views: "83K", bid: "1dxYllbQZELJX" },
+  { ep: 4, title: "Why Ansem Thinks Ethereum Is Done", date: "May 22, 2026", duration: "2h 54m", views: "144K", bid: "1OxwbldAYLDJB" },
+  { ep: 3, title: "How to Get Rich Playing GTA 6", date: "May 15, 2026", duration: "3h 33m", views: "40K", bid: "1DGleEgbRRzJL" },
+  { ep: 2, title: "Why AI Is Beating Crypto Right Now", date: "May 8, 2026", duration: "3h 45m", views: "173K", bid: "1DGleEqQkYVJL" },
+  { ep: 1, title: "The Truth About Crypto in 2026", date: "May 1, 2026", duration: "1h 6m", views: "228K", bid: null },
+];
+
+const STATS = [
+  { v: "1.9M", l: "combined reach" },
+  { v: "5", l: "episodes" },
+  { v: "16h", l: "streamed" },
+  { v: "4", l: "platforms" },
+];
 
 /** Real X profile picture (via unavatar) with a colored-initial fallback. */
-function XAvatar({ handle, name }: { handle: string; name: string }) {
+function XAvatar({ handle, name, size = 44 }: { handle: string; name: string; size?: number }) {
   const [err, setErr] = useState(false);
   const h = handle.replace(/^@/, "");
-  if (err) return <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-accent/20 text-[13px] font-black text-accent">{name[0]}</span>;
-  return <img src={`https://unavatar.io/twitter/${h}`} alt={name} onError={() => setErr(true)} className="h-10 w-10 shrink-0 rounded-full bg-white/5 object-cover" />;
-}
-
-/** Editorial section header — a small uppercase eyebrow, an italic-serif
- *  headline, and a hairline rule beneath. Echoes the show site's magazine
- *  rhythm without copying its open layout. */
-function SectionHead({ icon, eyebrow, title, meta }: { icon: React.ReactNode; eyebrow: string; title: string; meta?: React.ReactNode }) {
-  return (
-    <div className="mb-3 border-b border-white/10 pb-2.5">
-      <div className="flex items-center gap-2">
-        {icon}
-        <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-faint">{eyebrow}</span>
-        {meta && <span className="ml-auto flex items-center gap-2">{meta}</span>}
-      </div>
-      <h3 className="serif mt-1.5 text-[18px] font-bold italic leading-none text-ink">{title}</h3>
-    </div>
-  );
+  if (err) return <span className="grid shrink-0 place-items-center rounded-full bg-accent/15 font-black text-accent" style={{ height: size, width: size, fontSize: size * 0.34 }}>{name[0]}</span>;
+  return <img src={`https://unavatar.io/twitter/${h}`} alt={name} onError={() => setErr(true)} className="shrink-0 rounded-full bg-white/5 object-cover" style={{ height: size, width: size }} />;
 }
 
 /** The X logo glyph. */
@@ -55,188 +47,135 @@ function XLogo({ className = "h-3.5 w-3.5" }: { className?: string }) {
   );
 }
 
-/* Past full episodes — numbered by episode (EP1 = oldest), newest first for display.
- * Real Spotify video episodes; the most recent autoplays in the featured player. */
-// Full episodes = the official X broadcast replays (VODs), played in our own
-// HLS player via the guest-only /api/x-vod proxy. Newest = highest EP number.
-// EP1 only has a highlight clip (no full replay posted), so it has no broadcast id.
-const EPISODES: { ep: number; title: string; date: string; duration: string; bid: string | null }[] = [
-  { ep: 5, title: "The Dollar Is Going to Zero", date: "Jun 5, 2026", duration: "4h 42m", bid: "1dxYllbQZELJX" },
-  { ep: 4, title: "Why Ansem Thinks Ethereum Is Done", date: "May 22, 2026", duration: "2h 54m", bid: "1OxwbldAYLDJB" },
-  { ep: 3, title: "How to Get Rich Playing GTA 6", date: "May 15, 2026", duration: "3h 33m", bid: "1DGleEgbRRzJL" },
-  { ep: 2, title: "Why AI Is Beating Crypto Right Now", date: "May 8, 2026", duration: "3h 45m", bid: "1DGleEqQkYVJL" },
-  { ep: 1, title: "The Truth About Crypto in 2026", date: "May 1, 2026", duration: "1h 6m", bid: null },
-];
-
-
-const FEED_ACCOUNTS = [
-  { name: "Ansem", handle: "blknoiz06" },
-  { name: "Banks", handle: "Banks" },
-  { name: "Market Bubble", handle: "marketbubble" },
-];
-/** Real X timeline (official embed) with auto-fallback to the native cards
- *  when the widget can't load (adblock / script blocked). */
-function XLiveTimeline({ handle, fallback }: { handle: string; fallback: React.ReactNode }) {
-  const ref = useRef<HTMLDivElement>(null);
-  const [failed, setFailed] = useState(false);
-  useEffect(() => {
-    setFailed(false);
-    const el = ref.current;
-    if (!el) return;
-    el.innerHTML = `<a class="twitter-timeline" data-theme="dark" data-chrome="noheader nofooter noborders transparent" data-tweet-limit="10" href="https://twitter.com/${handle}">Loading @${handle}…</a>`;
-    const w = window as unknown as { twttr?: { widgets: { load: (e?: HTMLElement) => void } } };
-    const tryLoad = () => w.twttr?.widgets?.load(el);
-    tryLoad();
-    const iv = setInterval(tryLoad, 500);
-    const to = setTimeout(() => { clearInterval(iv); if (!el.querySelector("iframe")) setFailed(true); }, 5000);
-    return () => { clearInterval(iv); clearTimeout(to); };
-  }, [handle]);
-  if (failed) return <>{fallback}</>;
-  return <div ref={ref} className="min-h-[300px] [&_iframe]:!w-full" />;
+/** Editorial section rule — serif heading left, meta right, hairline under. */
+function SectionRule({ title, meta }: { title: string; meta?: React.ReactNode }) {
+  return (
+    <div className="mb-5 mt-12 flex items-baseline justify-between gap-4 border-b border-white/12 pb-2.5">
+      <h2 className="serif flex items-center gap-2.5 text-[24px] font-bold italic leading-none text-ink sm:text-[28px]">
+        <span className="inline-block h-5 w-1 rounded-full bg-accent" /> {title}
+      </h2>
+      {meta && <span className="shrink-0 text-[11px] font-bold uppercase tracking-[0.14em] text-faint">{meta}</span>}
+    </div>
+  );
 }
 
 export function ContentTab() {
-  const [feedHandle, setFeedHandle] = useState("all");
-  const [vodId, setVodId] = useState<string>(EPISODES[0].bid!); // default = most recent full replay (EP5)
-  const editMode = useLayoutStore((s) => s.editMode);
-  const topPosts = [...FEED].sort((a, b) => b.views - a.views).slice(0, 6);
-  const feedTabs = [{ name: "All", handle: "all" }, ...FEED_ACCOUNTS];
+  const [vodId, setVodId] = useState<string>(EPISODES[0].bid!);
+  const featured = EPISODES.find((e) => e.bid === vodId) ?? EPISODES[0];
+  const watchHref = featured.bid ? `https://x.com/i/broadcasts/${featured.bid}` : "https://x.com/MarketBubble";
 
-  const nativeCards = (
-    <div className="space-y-2">
-      {(feedHandle === "all" ? FEED : FEED.filter((f) => f.handle.replace(/^@/, "").toLowerCase() === feedHandle.toLowerCase())).map((p, i) => (
-        <a key={i} href={xUrl(p.handle)} target="_blank" rel="noreferrer" className="block rounded-2xl border border-white/10 bg-white/[0.02] p-3 transition hover:bg-white/[0.05]">
-          <div className="flex gap-2.5">
-            <XAvatar handle={p.handle} name={p.name} />
+  return (
+    <div className="mb-tab mx-auto max-w-[1240px] px-4 py-6 sm:px-6">
+      {/* masthead */}
+      <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-2 border-b border-white/12 pb-4">
+        <div>
+          <h1 className="serif text-[2.75rem] font-bold leading-none tracking-tight sm:text-[3.5rem]">Content</h1>
+          <p className="mt-2.5 max-w-xl text-[14px] text-muted">The latest from the show — the episodes, the moments, and what the timeline is saying.</p>
+        </div>
+        <div className="mb-1 flex items-center gap-4 text-[11px] font-bold uppercase tracking-[0.14em] text-faint">
+          {STATS.map((s) => (
+            <span key={s.l} className="flex items-baseline gap-1.5">
+              <span className="serif text-[18px] font-bold not-italic text-ink">{s.v}</span> {s.l}
+            </span>
+          ))}
+        </div>
+      </div>
+
+      {/* ── THE COVER — featured episode with a live preview + overlaid title ── */}
+      <div className="group relative mt-6 overflow-hidden rounded-[20px] border border-white/12 bg-black shadow-[0_40px_120px_-50px_rgba(0,0,0,0.95)]">
+        <div className="relative aspect-[21/9] max-h-[560px] w-full">
+          {/* looping show b-roll = an always-on preview of the episode */}
+          <video src="/stream-preview.mp4" autoPlay muted loop playsInline className="absolute inset-0 h-full w-full bg-black object-cover" />
+        </div>
+        <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/88 via-black/20 to-black/45" />
+        <div className="pointer-events-none absolute inset-0 ring-1 ring-inset ring-white/10" />
+        <div className="absolute inset-x-0 bottom-0 flex flex-col gap-3 p-6 sm:p-9">
+          <span className="flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.22em] text-accent">
+            <span className="relative flex h-2 w-2"><span className="absolute h-full w-full animate-ping rounded-full bg-accent/70" /><span className="relative h-2 w-2 rounded-full bg-accent" /></span>
+            Latest episode
+          </span>
+          <h2 className="serif max-w-[18ch] text-[2.4rem] font-bold uppercase leading-[0.98] text-white drop-shadow-[0_2px_24px_rgba(0,0,0,0.7)] sm:text-[4.2rem]">{featured.title}</h2>
+          <div className="flex flex-wrap items-center gap-2.5">
+            {[featured.date, featured.duration, `${featured.views} views`].map((m) => (
+              <span key={m} className="rounded-full border border-white/25 bg-black/30 px-3 py-1 text-[12px] font-semibold text-white/90 backdrop-blur">{m}</span>
+            ))}
+            <a href={watchHref} target="_blank" rel="noreferrer" className="ml-1 inline-flex items-center gap-2 rounded-full bg-accent px-4 py-1.5 text-[13px] font-bold text-[var(--vc-bg)] transition hover:brightness-110">
+              <Play size={15} /> Watch full replay on X
+            </a>
+          </div>
+        </div>
+      </div>
+
+      {/* ── TOP TWEETS — a clean list ──────────────────────────────────── */}
+      <SectionRule title="Top Tweets" meta={<a href="https://x.com/MarketBubble" target="_blank" rel="noreferrer" className="transition hover:text-accent">On X ↗</a>} />
+      <div className="overflow-hidden rounded-2xl border border-white/10">
+        {FEED.map((p, i) => (
+          <a
+            key={i}
+            href={xUrl(p.handle)}
+            target="_blank"
+            rel="noreferrer"
+            className={`flex gap-3.5 px-4 py-3.5 transition hover:bg-white/[0.03] ${i > 0 ? "border-t border-white/8" : ""}`}
+          >
+            <XAvatar handle={p.handle} name={p.name} size={40} />
             <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-1 text-[13px]">
+              <div className="flex items-center gap-1.5 text-[13px]">
                 <span className="truncate font-bold text-ink">{p.name}</span>
                 <BadgeCheck size={14} className="shrink-0 text-[#1d9bf0]" />
                 <span className="truncate text-muted">{p.handle}</span>
-                <span className="shrink-0 text-muted">· {FEED_TIMES[i % FEED_TIMES.length]}</span>
+                <span className="shrink-0 text-faint">· {p.time}</span>
+                {i === 0 && <span className="ml-1 inline-flex shrink-0 items-center gap-1 rounded-full bg-accent/15 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider text-accent"><Flame size={10} /> Top</span>}
                 <XLogo className="ml-auto h-3.5 w-3.5 shrink-0 text-muted" />
               </div>
-              <p className="mt-0.5 whitespace-pre-wrap text-[14px] leading-snug text-ink">{p.text}</p>
-              <div className="mt-2.5 flex items-center justify-between pr-4 text-[12px] text-muted">
-                <span className="flex items-center gap-1.5 transition hover:text-[#1d9bf0]"><MessageCircle size={15} /> {compact(Math.round(p.reposts * 0.4))}</span>
-                <span className="flex items-center gap-1.5 transition hover:text-up"><Repeat2 size={16} /> {compact(p.reposts)}</span>
-                <span className="flex items-center gap-1.5 transition hover:text-down"><Heart size={15} /> {compact(p.likes)}</span>
-                <span className="flex items-center gap-1.5"><BarChart3 size={15} /> {compact(p.views)}</span>
+              <p className="mt-0.5 text-[14px] leading-snug text-ink">{p.text}</p>
+              <div className="mt-2 flex items-center gap-5 text-[12px] text-muted">
+                <span className="flex items-center gap-1.5"><Repeat2 size={14} /> {compact(p.reposts)}</span>
+                <span className="flex items-center gap-1.5"><Heart size={13} /> {compact(p.likes)}</span>
+                <span className="flex items-center gap-1.5"><BarChart3 size={13} /> {compact(p.views)}</span>
               </div>
             </div>
-          </div>
-        </a>
-      ))}
-    </div>
-  );
-
-  const feedNode = (
-    <div className="vc-glass flex h-full flex-col rounded-2xl p-3">
-          <SectionHead icon={<Radio size={14} className="text-down" />} eyebrow="Live Feed" title="The Dispatch" />
-          <div className="mb-2 flex flex-wrap gap-1">
-            {feedTabs.map((a) => (
-              <button
-                key={a.handle}
-                onClick={() => setFeedHandle(a.handle)}
-                className={`rounded-md px-2.5 py-1 text-[11px] font-bold transition ${feedHandle === a.handle ? "bg-accent/15 text-accent" : "text-muted hover:text-ink"}`}
-              >
-                {a.name}
-              </button>
-            ))}
-          </div>
-          <BubbleScroll className="flex-1">
-            {feedHandle === "all"
-              ? nativeCards
-              : <XLiveTimeline key={feedHandle} handle={feedHandle} fallback={nativeCards} />}
-          </BubbleScroll>
-    </div>
-  );
-
-  const episodesNode = (
-    <div className="vc-glass h-full overflow-y-auto rounded-2xl p-4">
-            <SectionHead
-              icon={<Film size={14} className="text-accent" />}
-              eyebrow="Full Episodes"
-              title="The Rewatch"
-              meta={<a href="https://x.com/MarketBubble" target="_blank" rel="noreferrer" className="text-[11px] font-bold text-accent hover:underline">All on X ↗</a>}
-            />
-
-            {/* featured player — autoplays the most recent (or the selected) full episode */}
-            <XVodPlayer key={vodId} id={vodId} autoPlay startAt={EPISODE_SLATE_SKIP} className="aspect-video max-h-[420px] w-full rounded-xl border border-white/10 bg-black object-contain" />
-
-            {/* numbered episode list — click to load into the player above */}
-            <div className="mt-3 space-y-1.5">
-              {EPISODES.map((e) => {
-                const on = e.bid === vodId;
-                const noReplay = !e.bid;
-                return (
-                  <button
-                    key={e.ep}
-                    disabled={noReplay}
-                    onClick={() => e.bid && setVodId(e.bid)}
-                    className={`flex w-full items-center gap-3 rounded-xl border px-3 py-2 text-left transition ${on ? "border-accent/60 bg-accent/10" : noReplay ? "border-white/8 bg-white/[0.01] opacity-50" : "border-white/8 bg-white/[0.02] hover:border-accent/40"}`}
-                  >
-                    <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-lg text-[13px] font-black ${on ? "bg-accent text-black" : "bg-white/8 text-accent"}`}>{e.ep}</span>
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate text-[13px] font-bold">{e.title}</span>
-                      <span className="block text-[10px] text-faint">EP {e.ep} · {e.date} · {e.duration}</span>
-                    </span>
-                    {noReplay ? <span className="shrink-0 text-[10px] font-bold uppercase tracking-wider text-faint">Highlight only</span> : on ? <span className="shrink-0 text-[10px] font-bold uppercase tracking-wider text-accent">▶ Now playing</span> : <Play size={15} className="shrink-0 text-muted" />}
-                  </button>
-                );
-              })}
-            </div>
-    </div>
-  );
-
-  const topPostsNode = (
-    <div className="vc-glass h-full overflow-y-auto rounded-2xl p-4">
-            <SectionHead
-              icon={<TrendingUp size={14} className="text-accent" />}
-              eyebrow="Trending"
-              title="Top Posts"
-              meta={<span className={chip}>most viewed</span>}
-            />
-            <div className="space-y-1.5">
-              {topPosts.map((p, i) => (
-                <a key={i} href={xUrl(p.handle)} target="_blank" rel="noreferrer" className="grid grid-cols-[1.2rem_1fr_auto] items-center gap-3 rounded-lg border border-white/8 bg-white/[0.02] px-3 py-2 transition hover:border-accent/40">
-                  <span className="text-[12px] font-bold tabular-nums text-faint">{i + 1}</span>
-                  <div className="min-w-0"><span className="text-[12px] font-bold">{p.name}</span> <span className="truncate font-mono text-[10px] text-faint">{p.handle}</span><div className="truncate text-[12px] text-muted">{p.text}</div></div>
-                  <div className="text-right"><div className="font-mono text-[12px] font-bold tabular-nums">{compact(p.views)}</div><div className="text-[10px] font-bold text-up">+{p.d1h}% 1h</div></div>
-                </a>
-              ))}
-            </div>
-    </div>
-  );
-
-  return (
-    <div className="mb-tab">
-    <div className="mx-auto max-w-[1500px] px-4 py-6 sm:px-6">
-      <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-1">
-        <div>
-          <h1 className="serif text-3xl font-bold tracking-tight sm:text-4xl">Content Radar</h1>
-          <p className="mt-1 text-[13px] text-muted">Real-time X feed, trending tickers, the streams that are live, and the clips that pop — all in one place.</p>
-        </div>
-        <a href="https://x.com/MarketBubble" target="_blank" rel="noreferrer" className="mb-1 shrink-0 text-[11px] font-bold uppercase tracking-[0.16em] text-faint transition hover:text-accent">
-          Live Thursdays · 1PM PST ↗
-        </a>
+          </a>
+        ))}
       </div>
-      <div className="mt-4 border-t border-white/10" />
 
-      <div className="mt-5">
-        <PageGrid
-          pageKey="content-v1"
-          editMode={editMode}
-          titles={{ feed: "Live Feed", episodes: "Full Episodes", topposts: "Top Posts" }}
-          items={[
-            { id: "feed", x: 0, y: 0, w: 4, h: 17, node: feedNode },
-            { id: "episodes", x: 4, y: 0, w: 8, h: 14, node: episodesNode },
-            { id: "topposts", x: 4, y: 14, w: 8, h: 7, node: topPostsNode },
-          ]}
-        />
+      {/* ── EPISODES — the actual content videos ───────────────────────── */}
+      <SectionRule title="Episodes" meta="All on X ↗" />
+      <div className="grid gap-3.5 sm:grid-cols-2 lg:grid-cols-4">
+        {EPISODES.map((e) => {
+          const on = e.bid === vodId;
+          const noReplay = !e.bid;
+          return (
+            <motion.button
+              key={e.ep}
+              disabled={noReplay}
+              onClick={() => e.bid && setVodId(e.bid)}
+              whileHover={noReplay ? undefined : { y: -4 }}
+              className={`group/ep flex flex-col overflow-hidden rounded-2xl border text-left transition-colors ${on ? "border-accent/60" : noReplay ? "border-white/8 opacity-55" : "border-white/10 hover:border-accent/40"}`}
+            >
+              <div className="relative aspect-video overflow-hidden" style={{ background: "radial-gradient(130% 130% at 70% 0%, color-mix(in srgb, var(--vc-accent) 18%, transparent), transparent 55%), linear-gradient(150deg, color-mix(in srgb, var(--vc-bg) 55%, #000), var(--vc-bg))" }}>
+                <span className="serif absolute -bottom-4 right-2 text-[6rem] font-black leading-none text-white/[0.06]">{e.ep}</span>
+                <span className="absolute left-2.5 top-2.5 rounded-md bg-black/55 px-1.5 py-0.5 text-[10px] font-bold tabular-nums text-white/90 backdrop-blur">{e.duration}</span>
+                {on ? (
+                  <span className="absolute right-2.5 top-2.5 flex items-center gap-1 rounded-md bg-accent px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider text-[var(--vc-bg)]"><span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[var(--vc-bg)]" /> On cover</span>
+                ) : noReplay ? (
+                  <span className="absolute right-2.5 top-2.5 rounded-md bg-black/55 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-white/70 backdrop-blur">Highlight</span>
+                ) : (
+                  <span className="absolute inset-0 grid place-items-center opacity-0 transition-opacity group-hover/ep:opacity-100">
+                    <span className="grid h-12 w-12 place-items-center rounded-full border border-white/70 bg-black/50 text-white"><Play size={20} className="ml-0.5" /></span>
+                  </span>
+                )}
+              </div>
+              <div className="flex flex-1 flex-col gap-1 p-3.5">
+                <span className="text-[9px] font-bold uppercase tracking-[0.16em] text-accent/80">Episode {e.ep}</span>
+                <span className="serif text-[15px] font-bold leading-tight text-ink">{e.title}</span>
+                <span className="mt-auto pt-1 text-[11px] text-faint">{e.date} · {e.views} views</span>
+              </div>
+            </motion.button>
+          );
+        })}
       </div>
-      <p className="mt-5 text-center text-[11px] text-faint"><span className="font-bold text-up">● Live</span> — full episodes are the real X broadcast replays (guest stream, no login). Watch player &amp; clips are real Twitch; feed &amp; trending are demo until an X tracked-list key is added.</p>
-    </div>
+
+      <p className="mt-12 text-center text-[11px] text-faint">Full episodes are the real X broadcast replays (guest stream, no login). Tweets &amp; stats are demo until an X tracked-list key is added.</p>
     </div>
   );
 }
