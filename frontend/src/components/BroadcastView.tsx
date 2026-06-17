@@ -40,20 +40,20 @@ const MAX_MESSAGE_LIMIT = 220;
 /** Per-streamer viewer chip — hover reveals that streamer's platform split. */
 function StreamerChip({ name, viewers, breakdown }: { name: string; viewers: number; breakdown: { platform: Platform; viewers: number }[] }) {
   return (
-    <span className="group relative flex cursor-default items-center gap-1 whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-bold" style={{ color: "#e8c987", background: "rgba(217,165,71,0.08)", border: "1px solid rgba(217,165,71,0.3)" }}>
+    <span className="group relative flex cursor-default items-center gap-1 whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-bold" style={{ color: "var(--vc-accent)", background: "color-mix(in srgb, var(--vc-accent) 8%, transparent)", border: "1px solid color-mix(in srgb, var(--vc-accent) 30%, transparent)" }}>
       {name}
-      <span className="tabular-nums" style={{ color: "#f3efe7" }}>{compact(viewers)}</span>
+      <span className="tabular-nums" style={{ color: "var(--vc-text)" }}>{compact(viewers)}</span>
 
       {/* Hover: per-platform breakdown */}
-      <span className="pointer-events-none absolute right-0 top-full z-50 mt-1.5 hidden min-w-[148px] flex-col gap-1 rounded-xl p-2.5 group-hover:flex" style={{ background: "#14100a", border: "1px solid rgba(217,165,71,0.35)", boxShadow: "0 12px 32px rgba(0,0,0,0.65)" }}>
-        <span className="mb-0.5 text-[9px] font-black uppercase tracking-[0.14em]" style={{ color: "#9a8f7e" }}>{name} · by platform</span>
+      <span className="pointer-events-none absolute right-0 top-full z-50 mt-1.5 hidden min-w-[148px] flex-col gap-1 rounded-xl p-2.5 group-hover:flex" style={{ background: "var(--vc-bg)", border: "1px solid color-mix(in srgb, var(--vc-accent) 35%, transparent)", boxShadow: "0 12px 32px rgba(0,0,0,0.65)" }}>
+        <span className="mb-0.5 text-[9px] font-black uppercase tracking-[0.14em]" style={{ color: "var(--vc-text-muted)" }}>{name} · by platform</span>
         {breakdown.map((b) => (
           <span key={b.platform} className="flex items-center justify-between gap-3">
             <span className="flex items-center gap-1.5 text-[11px] font-bold" style={{ color: platformColor(b.platform) }}>
               <span className="grid place-items-center">{platformIcon(b.platform)}</span>
               {platformLabel(b.platform)}
             </span>
-            <span className="text-[11px] font-bold tabular-nums" style={{ color: "#f3efe7" }}>{compact(b.viewers)}</span>
+            <span className="text-[11px] font-bold tabular-nums" style={{ color: "var(--vc-text)" }}>{compact(b.viewers)}</span>
           </span>
         ))}
       </span>
@@ -160,22 +160,22 @@ export function BroadcastView({ onOpenConnections, landing = false }: { onOpenCo
       className="relative flex h-full flex-col overflow-hidden"
       style={{
         fontSize: fontPx,
-        color: "#f3efe7",
+        color: "var(--vc-text)",
         background: transparent ? "transparent" : "#080706",
       }}
     >
       {/* ── Header strip (On Air broadcast lower-third) ── */}
       <header
         className="relative flex shrink-0 items-center justify-between px-4 pt-2.5 pb-3"
-        style={{ background: transparent ? "rgba(20,16,10,0.78)" : "linear-gradient(180deg, rgba(40,33,22,0.55), rgba(8,7,6,0))" }}
+        style={{ background: transparent ? "color-mix(in srgb, var(--vc-bg) 80%, transparent)" : "linear-gradient(180deg, color-mix(in srgb, var(--vc-bg) 82%, transparent), transparent)" }}
       >
         {/* Left: real logo + LIVE pill + timer */}
         <div className="flex shrink-0 items-center gap-2.5">
           <img src="/market-bubble-logo.svg" alt="Market Bubble" className="h-8 w-auto" />
-          <div className="flex items-center gap-1.5 whitespace-nowrap rounded-full px-2 py-0.5" style={{ border: "1px solid rgba(217,165,71,0.4)", background: "rgba(217,165,71,0.1)" }}>
-            <span className="h-1.5 w-1.5 animate-pulse rounded-full" style={{ background: "#d9a547" }} />
-            <span className="text-[11px] font-bold uppercase tracking-[0.14em]" style={{ color: "#e8c987" }}>Live</span>
-            <LiveTimer className="text-[11px] font-bold tabular-nums text-[#e8c987]/70" />
+          <div className="flex items-center gap-1.5 whitespace-nowrap rounded-full px-2 py-0.5" style={{ border: "1px solid color-mix(in srgb, var(--vc-accent) 40%, transparent)", background: "color-mix(in srgb, var(--vc-accent) 10%, transparent)" }}>
+            <span className="h-1.5 w-1.5 animate-pulse rounded-full" style={{ background: "var(--vc-accent)" }} />
+            <span className="text-[11px] font-bold uppercase tracking-[0.14em]" style={{ color: "var(--vc-accent)" }}>Live</span>
+            <LiveTimer className="text-[11px] font-bold tabular-nums text-[var(--vc-accent)] opacity-70" />
           </div>
         </div>
 
@@ -185,7 +185,7 @@ export function BroadcastView({ onOpenConnections, landing = false }: { onOpenCo
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" style={{ color: "rgba(243,239,231,0.45)" }} aria-hidden>
               <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" /><circle cx="12" cy="12" r="3" />
             </svg>
-            <span className="text-[15px] font-black tabular-nums" style={{ color: "#f3efe7" }}>{compact(totalViewers)}</span>
+            <span className="text-[15px] font-black tabular-nums" style={{ color: "var(--vc-text)" }}>{compact(totalViewers)}</span>
           </div>
 
           <div className="flex items-center gap-1.5">
@@ -195,14 +195,14 @@ export function BroadcastView({ onOpenConnections, landing = false }: { onOpenCo
           </div>
 
           {demo && !stage && (
-            <span className="rounded-full px-2 py-0.5 text-[10px] font-black uppercase tracking-wider" style={{ border: "1px solid rgba(217,165,71,0.3)", background: "rgba(217,165,71,0.1)", color: "#e8c987" }}>
+            <span className="rounded-full px-2 py-0.5 text-[10px] font-black uppercase tracking-wider" style={{ border: "1px solid color-mix(in srgb, var(--vc-accent) 30%, transparent)", background: "color-mix(in srgb, var(--vc-accent) 10%, transparent)", color: "var(--vc-accent)" }}>
               Demo
             </span>
           )}
         </div>
 
         {/* Gold sheen baseline — the broadcast lower-third accent */}
-        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-px" style={{ background: "linear-gradient(90deg, rgba(217,165,71,0) 0%, rgba(217,165,71,0.65) 25%, rgba(232,201,135,0.85) 50%, rgba(217,165,71,0.65) 75%, rgba(217,165,71,0) 100%)" }} />
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-px" style={{ background: "linear-gradient(90deg, color-mix(in srgb, var(--vc-accent) 0%, transparent) 0%, color-mix(in srgb, var(--vc-accent) 65%, transparent) 25%, color-mix(in srgb, var(--vc-accent2) 85%, transparent) 50%, color-mix(in srgb, var(--vc-accent) 65%, transparent) 75%, color-mix(in srgb, var(--vc-accent) 0%, transparent) 100%)" }} />
       </header>
 
       {/* ── Chat feed ── */}
@@ -239,7 +239,7 @@ export function BroadcastView({ onOpenConnections, landing = false }: { onOpenCo
               if (el) { el.scrollTop = el.scrollHeight; setPinned(true); }
             }}
             className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-1.5 rounded-full px-4 py-1.5 text-[12px] font-black"
-            style={{ background: "#d9a547", color: "#14100a", boxShadow: "0 6px 22px rgba(217,165,71,0.4)" }}
+            style={{ background: "var(--vc-accent)", color: "var(--vc-bg)", boxShadow: "0 6px 22px color-mix(in srgb, var(--vc-accent) 40%, transparent)" }}
           >
             ↓ Jump to live
           </motion.button>
@@ -371,7 +371,7 @@ function StageView({ panel, onOpenConnections, landing = false }: { panel: React
         <a
           href="/?app"
           className="flex items-center gap-1.5 rounded-xl px-3 py-2 text-[13px] font-bold transition hover:brightness-125"
-          style={{ background: "rgba(8,7,6,0.82)", border: "1px solid rgba(217,165,71,0.4)", color: "#e8c987", backdropFilter: "blur(6px)" }}
+          style={{ background: "color-mix(in srgb, var(--vc-bg) 82%, transparent)", border: "1px solid color-mix(in srgb, var(--vc-accent) 40%, transparent)", color: "var(--vc-accent)", backdropFilter: "blur(6px)" }}
         >
           ← Dashboard
         </a>
@@ -384,7 +384,7 @@ function StageView({ panel, onOpenConnections, landing = false }: { panel: React
             onClick={onOpenConnections}
             title="Open platform and OBS connections"
             className="flex items-center gap-1.5 rounded-xl px-3 py-2 text-[13px] font-bold transition hover:brightness-125"
-            style={{ background: "rgba(8,7,6,0.82)", border: "1px solid rgba(217,165,71,0.4)", color: "#e8c987", backdropFilter: "blur(6px)" }}
+            style={{ background: "color-mix(in srgb, var(--vc-bg) 82%, transparent)", border: "1px solid color-mix(in srgb, var(--vc-accent) 40%, transparent)", color: "var(--vc-accent)", backdropFilter: "blur(6px)" }}
           >
             <Plug size={14} />
             Connections
@@ -396,13 +396,13 @@ function StageView({ panel, onOpenConnections, landing = false }: { panel: React
           className="flex items-center gap-1.5 rounded-xl px-3 py-2 text-[13px] font-black uppercase tracking-[0.12em] transition hover:brightness-125"
           style={
             demo
-              ? { background: "rgba(217,165,71,0.92)", border: "1px solid rgba(217,165,71,0.95)", color: "#14100a", boxShadow: "0 4px 14px rgba(217,165,71,0.35)" }
+              ? { background: "color-mix(in srgb, var(--vc-accent) 92%, transparent)", border: "1px solid color-mix(in srgb, var(--vc-accent) 95%, transparent)", color: "var(--vc-bg)", boxShadow: "0 4px 14px color-mix(in srgb, var(--vc-accent) 35%, transparent)" }
               : { background: "rgba(22,230,164,0.18)", border: "1px solid rgba(22,230,164,0.55)", color: "#86ffd5", backdropFilter: "blur(6px)" }
           }
         >
           <span
             className="h-1.5 w-1.5 rounded-full"
-            style={{ background: demo ? "#14100a" : "#16e6a4" }}
+            style={{ background: demo ? "var(--vc-bg)" : "#16e6a4" }}
           />
           {demo ? "Demo" : "Live"}
         </button>
@@ -443,7 +443,7 @@ function CopyObsUrlButton() {
         onClick={() => setOpen((v) => !v)}
         title="Copy the OBS Browser Source URL — choose Live or Demo"
         className="flex items-center gap-1.5 rounded-xl px-3 py-2 text-[13px] font-bold transition hover:brightness-125"
-        style={{ background: "#d9a547", color: "#14100a", boxShadow: "0 4px 14px rgba(217,165,71,0.35)" }}
+        style={{ background: "var(--vc-accent)", color: "var(--vc-bg)", boxShadow: "0 4px 14px color-mix(in srgb, var(--vc-accent) 35%, transparent)" }}
       >
         ⧉ Copy OBS URL <span style={{ opacity: 0.7 }}>▾</span>
       </button>
@@ -453,7 +453,7 @@ function CopyObsUrlButton() {
           <div className="fixed inset-0 z-30" onClick={() => setOpen(false)} />
           <div
             className="absolute left-0 top-full z-40 mt-1.5 w-60 overflow-hidden rounded-xl text-[13px]"
-            style={{ background: "#14100a", border: "1px solid rgba(217,165,71,0.4)", boxShadow: "0 16px 40px rgba(0,0,0,0.7)" }}
+            style={{ background: "var(--vc-bg)", border: "1px solid color-mix(in srgb, var(--vc-accent) 40%, transparent)", boxShadow: "0 16px 40px rgba(0,0,0,0.7)" }}
           >
             <button
               onClick={() => copy("live")}
@@ -462,17 +462,17 @@ function CopyObsUrlButton() {
             >
               <span className="h-2 w-2 rounded-full" style={{ background: "#16e6a4" }} />
               <span className="font-bold">{copied === "live" ? "✓ Copied Live URL" : "Copy LIVE URL"}</span>
-              <span className="ml-auto text-[10px] uppercase tracking-wider" style={{ color: "#9a8f7e" }}>real data</span>
+              <span className="ml-auto text-[10px] uppercase tracking-wider" style={{ color: "var(--vc-text-muted)" }}>real data</span>
             </button>
-            <div style={{ height: 1, background: "rgba(217,165,71,0.18)" }} />
+            <div style={{ height: 1, background: "color-mix(in srgb, var(--vc-accent) 18%, transparent)" }} />
             <button
               onClick={() => copy("demo")}
               className="flex w-full items-center gap-2 px-3 py-2.5 text-left transition hover:brightness-125"
-              style={{ color: "#e8c987" }}
+              style={{ color: "var(--vc-accent)" }}
             >
-              <span className="h-2 w-2 rounded-full" style={{ background: "#d9a547" }} />
+              <span className="h-2 w-2 rounded-full" style={{ background: "var(--vc-accent)" }} />
               <span className="font-bold">{copied === "demo" ? "✓ Copied Demo URL" : "Copy DEMO URL"}</span>
-              <span className="ml-auto text-[10px] uppercase tracking-wider" style={{ color: "#9a8f7e" }}>mock</span>
+              <span className="ml-auto text-[10px] uppercase tracking-wider" style={{ color: "var(--vc-text-muted)" }}>mock</span>
             </button>
           </div>
         </>
