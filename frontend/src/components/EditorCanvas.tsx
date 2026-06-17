@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import GridLayout, { WidthProvider, type Layout as RGLLayout } from "react-grid-layout";
 import { useToastStore } from "@/store/toastStore";
 import {GripVertical, X, Plus, MessageSquare, Activity, BarChart3, Flame, Zap, Smile, Scissors, Trophy, Film, Users, Monitor, LayoutGrid, TrendingUp, CalendarClock } from "lucide-react";
@@ -91,14 +91,36 @@ export function EditorCanvas({ onEditButton }: { onEditButton: (b?: ActionButton
     [layout.panels],
   );
 
+  // Locked (live) view: size each grid row so the whole dashboard fits the
+  // viewport with no scroll. Edit mode keeps a roomy fixed row height so panels
+  // are comfortable to drag/resize (and the page scrolls normally).
+  const MARGIN_X = 14, MARGIN_Y = 8, EDIT_ROW_H = 36;
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const [rowHeight, setRowHeight] = useState(EDIT_ROW_H);
+  useEffect(() => {
+    if (editMode) { setRowHeight(EDIT_ROW_H); return; }
+    const calc = () => {
+      const rows = Math.max(1, ...layout.panels.map((p) => p.y + p.h));
+      const top = wrapRef.current?.getBoundingClientRect().top ?? 180;
+      const avail = window.innerHeight - top - 24; // matches <main> bottom padding
+      const rh = (avail - (rows + 1) * MARGIN_Y) / rows;
+      // Floor only guards against pathological tiny viewports; on any normal
+      // screen the computed value wins, so the grid always fills without scroll.
+      setRowHeight(Math.max(8, Math.floor(rh)));
+    };
+    calc();
+    window.addEventListener("resize", calc);
+    return () => window.removeEventListener("resize", calc);
+  }, [layout.panels, editMode]);
+
   return (
-    <div className={`relative z-10 ${editMode ? "" : "vc-locked"}`}>
+    <div ref={wrapRef} className={`relative z-10 ${editMode ? "" : "vc-locked"}`}>
       <Grid
         className="layout"
         layout={rglLayout}
         cols={12}
-        rowHeight={36}
-        margin={[14, 14]}
+        rowHeight={rowHeight}
+        margin={[MARGIN_X, MARGIN_Y]}
         isDraggable={editMode}
         isResizable={editMode}
         draggableHandle=".vc-drag-handle"

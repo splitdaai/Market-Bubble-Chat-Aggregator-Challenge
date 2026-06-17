@@ -128,7 +128,7 @@ export default function App() {
         onOpenFeatures={() => setFeaturesOpen(true)}
       />
 
-      <main className="relative z-10 px-4 pb-24">
+      <main className="relative z-10 px-4 pb-6">
         <Suspense fallback={null}>
           {view === "analytics" ? (
             <AnalyticsTab />

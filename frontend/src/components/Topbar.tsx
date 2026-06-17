@@ -56,9 +56,9 @@ export function Topbar({ onOpenTheme, onOpenConnections, onOpenFeatures }: { onO
   }, [hintDismissed]);
 
   return (
-    <header className="relative z-20 flex flex-wrap items-center justify-between gap-y-2 px-3 py-3 sm:px-5">
+    <header className="relative z-20 flex flex-wrap items-center justify-between gap-y-2 px-3 py-2 sm:px-5">
       <div className="flex items-center gap-3">
-        <img src="/market-bubble-logo.svg" alt="Market Bubble" className="h-28 w-auto shrink-0" />
+        <img src="/market-bubble-logo.svg" alt="Market Bubble" className="h-16 w-auto shrink-0" />
       </div>
 
       {/* view tabs */}

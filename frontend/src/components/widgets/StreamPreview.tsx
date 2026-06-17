@@ -290,7 +290,7 @@ export function StreamPreview() {
           />
         ) : showEpisode ? (
           /* No live stream active → play the most recent full episode replay. */
-          <XVodPlayer key={playEpisodeId ?? ""} id={playEpisodeId ?? LATEST_EPISODE_BID} autoPlay startAt={EPISODE_SLATE_SKIP} onError={() => setEpFailed(true)} className="absolute inset-0 h-full w-full object-contain" />
+          <XVodPlayer key={playEpisodeId ?? ""} id={playEpisodeId ?? LATEST_EPISODE_BID} autoPlay startAt={EPISODE_SLATE_SKIP} onError={() => setEpFailed(true)} className="absolute inset-0 h-full w-full object-cover" />
         ) : (
           <video
             ref={videoRef}
@@ -305,7 +305,7 @@ export function StreamPreview() {
             onTimeUpdate={(e) => setProgress(e.currentTarget.currentTime)}
             onLoadedMetadata={(e) => setDuration(e.currentTarget.duration)}
             onClick={togglePlay}
-            className={`absolute inset-0 h-full w-full cursor-pointer object-contain ${videoOk ? "" : "hidden"}`}
+            className={`absolute inset-0 h-full w-full cursor-pointer object-cover ${videoOk ? "" : "hidden"}`}
           />
         )}
         {/* big center play affordance when paused */}
