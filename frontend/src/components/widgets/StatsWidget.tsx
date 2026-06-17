@@ -90,9 +90,9 @@ export function StatsWidget() {
           const engagement = s.viewers > 0 ? (s.activeChatters / s.viewers) * 100 : 0;
           const channels = snap.accounts.filter((a) => a.platform === p);
           return (
-            <div key={p} className="rounded-lg border border-white/8 bg-white/[0.02]">
+            <div key={p} className="flex min-h-0 flex-col rounded-lg border border-white/8 bg-white/[0.02]" style={{ flexGrow: 1 + channels.length, flexBasis: 0 }}>
               {/* platform total */}
-              <div className={`${cols} px-2 py-0.5`}>
+              <div className={`${cols} min-h-[26px] flex-1 px-2 py-0.5`}>
                 <span className="truncate text-[13px] font-extrabold" style={{ color: platformColor(p) }}>{platformLabel(p)}</span>
                 <span className="flex items-center justify-end gap-1 text-[13px] font-bold tabular-nums text-ink"><Eye size={11} className="text-muted" /> {compact(s.viewers)}</span>
                 {trends && <Sparkline data={s.history} color={platformColor(p)} width={56} height={16} strokeWidth={2} />}
@@ -103,12 +103,12 @@ export function StatsWidget() {
               </div>
               {/* nested channels */}
               {channels.length > 0 && (
-                <div className="border-t border-white/5">
+                <div className="flex min-h-0 flex-col border-t border-white/5" style={{ flexGrow: channels.length, flexBasis: 0 }}>
                   {channels.map((c) => {
                     const cwt = watchTime(c.watchTimeMinutes);
                     const share = s.viewers > 0 ? (c.viewers / s.viewers) * 100 : 0;
                     return (
-                      <div key={c.accountId} className={`${cols} px-2 py-0`}>
+                      <div key={c.accountId} className={`${cols} min-h-[20px] flex-1 px-2 py-0`}>
                         <span className="flex items-center gap-1.5 truncate">
                           <span className="h-3 w-0.5 shrink-0 rounded" style={{ background: `color-mix(in srgb, ${platformColor(p)} 60%, transparent)` }} />
                           <span className="truncate text-[12px] font-bold text-ink/85">{c.displayName}</span>
