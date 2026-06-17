@@ -4,7 +4,7 @@ import { compact } from "../../lib/format";
 import { BubbleScroll } from "../BubbleScroll";
 import { PageGrid } from "../PageGrid";
 import { useLayoutStore } from "@/store/layoutStore";
-import { XVodPlayer } from "../XVodPlayer";
+import { XVodPlayer, EPISODE_SLATE_SKIP } from "../XVodPlayer";
 
 
 /* ── feed: Ansem / Banks / Market Bubble only (demo until an X list is wired) ── */
@@ -146,7 +146,7 @@ export function ContentTab() {
             </div>
 
             {/* featured player — autoplays the most recent (or the selected) full episode */}
-            <XVodPlayer key={vodId} id={vodId} autoPlay className="aspect-video max-h-[420px] w-full rounded-xl border border-white/10 bg-black object-contain" />
+            <XVodPlayer key={vodId} id={vodId} autoPlay startAt={EPISODE_SLATE_SKIP} className="aspect-video max-h-[420px] w-full rounded-xl border border-white/10 bg-black object-contain" />
 
             {/* numbered episode list — click to load into the player above */}
             <div className="mt-3 space-y-1.5">

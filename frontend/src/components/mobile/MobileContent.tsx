@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { MSection, MCard } from "./ui";
-import { XVodPlayer } from "../XVodPlayer";
+import { XVodPlayer, EPISODE_SLATE_SKIP } from "../XVodPlayer";
 
 /* Past full episodes = the official X broadcast replays (VODs), played via the
  * guest-only /api/x-vod proxy. Newest = highest EP number; EP1 has only a
@@ -22,7 +22,7 @@ export function MobileContent() {
       <MSection title="Full Episodes">
         {/* featured player — autoplays the most recent (or selected) full episode */}
         <MCard className="overflow-hidden">
-          <XVodPlayer key={vodId} id={vodId} autoPlay />
+          <XVodPlayer key={vodId} id={vodId} autoPlay startAt={EPISODE_SLATE_SKIP} />
         </MCard>
 
         {/* numbered episode list — tap to load above */}
