@@ -228,55 +228,35 @@ export function StreamPreview() {
         </div>
       </div>
 
-      {/* viewer pills — Chat-Only style (name + count + platform split on hover),
-          scaled up and theme-tinted so they pop; click a streamer to watch */}
+      {/* viewer counts — editorial serif: combined hero + serif-italic streamer
+          names with tabular counts, hairline dividers, accent on the watched
+          one. Click a name to watch; hover shows the per-platform split. */}
       {people.length > 0 && (
-        <div className="mb-2.5 flex flex-wrap items-center gap-2">
+        <div className="mb-2.5 flex flex-wrap items-center gap-y-2">
           {/* combined total — the hero count */}
-          <div
-            className="flex shrink-0 items-center gap-2.5 rounded-full py-1.5 pl-3 pr-4"
-            style={{
-              border: "1px solid color-mix(in srgb, var(--vc-accent) 42%, transparent)",
-              background: "color-mix(in srgb, var(--vc-accent) 12%, transparent)",
-              boxShadow: "0 0 22px color-mix(in srgb, var(--vc-accent) 18%, transparent)",
-            }}
-          >
-            <span className="relative flex h-2 w-2">
-              <span className="absolute h-full w-full animate-ping rounded-full bg-accent/70" />
-              <span className="relative h-2 w-2 rounded-full bg-accent" />
+          <div className="flex shrink-0 flex-col pr-5">
+            <AnimNum value={totalViewers} className="text-[26px] font-bold tabular-nums leading-none text-ink" />
+            <span className="mt-1.5 flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-[0.18em] text-faint">
+              <span className="relative flex h-1.5 w-1.5"><span className="absolute h-full w-full animate-ping rounded-full bg-accent/70" /><span className="relative h-1.5 w-1.5 rounded-full bg-accent" /></span>
+              on air
             </span>
-            <AnimNum value={totalViewers} className="text-[26px] font-black tabular-nums leading-none text-accent" />
-            <span className="text-[9px] font-bold uppercase leading-[1.15] tracking-[0.13em] text-faint">combined<br />viewers</span>
           </div>
 
           {people.map((p) => {
             const on = p.name === (focused?.meta?.displayName ?? "");
             return (
-              <div key={p.name} className="group/p relative">
+              <div key={p.name} className="group/p relative flex items-center">
+                {/* hairline divider */}
+                <span className="mr-4 h-7 w-px bg-white/15" />
                 <motion.button
-                  whileHover={{ y: -2 }}
-                  whileTap={{ scale: 0.97 }}
+                  whileHover={{ y: -1 }}
+                  whileTap={{ scale: 0.98 }}
                   onClick={() => { setPick(p.top); selectBroadcast("live"); }}
-                  className="flex items-center gap-2.5 rounded-full py-1.5 pl-4 pr-4 transition-colors"
-                  style={{
-                    border: on ? "1px solid color-mix(in srgb, var(--vc-accent) 55%, transparent)" : "1px solid rgba(255,255,255,0.1)",
-                    background: on ? "color-mix(in srgb, var(--vc-accent) 14%, transparent)" : "rgba(255,255,255,0.035)",
-                    boxShadow: on ? "0 0 22px color-mix(in srgb, var(--vc-accent) 24%, transparent)" : undefined,
-                  }}
+                  className="flex items-baseline gap-2 pr-4 text-left transition-opacity"
                 >
-                  <div className="flex flex-col items-start leading-none">
-                    <span className="text-[13.5px] font-bold leading-tight text-ink">{p.name}</span>
-                    <span className="mt-1 flex items-center gap-1">
-                      {p.byPlatform.map((b) => <SourceBadge key={b.platform} platform={b.platform} compact />)}
-                    </span>
-                  </div>
-                  <AnimNum value={p.total} className="ml-1.5 text-[23px] font-black tabular-nums leading-none" style={{ color: on ? "var(--vc-accent)" : "var(--vc-text)" }} />
-                  {on && (
-                    <span className="relative flex h-1.5 w-1.5">
-                      <span className="absolute h-full w-full animate-ping rounded-full bg-accent/70" />
-                      <span className="relative h-1.5 w-1.5 rounded-full bg-accent" />
-                    </span>
-                  )}
+                  <span className={`serif text-[17px] italic leading-none ${on ? "text-ink" : "text-ink/80"}`}>{p.name}</span>
+                  <AnimNum value={p.total} className="text-[17px] font-semibold tabular-nums leading-none" style={{ color: on ? "var(--vc-accent)" : "var(--vc-text-muted)" }} />
+                  {on && <span className="text-[12px] leading-none text-accent">›</span>}
                 </motion.button>
                 {/* hover: per-platform viewer split */}
                 <div className="pointer-events-none absolute left-0 top-full z-30 mt-1.5 hidden min-w-[160px] rounded-xl border border-white/10 bg-[#0b0b0b] p-1.5 shadow-xl group-hover/p:block">

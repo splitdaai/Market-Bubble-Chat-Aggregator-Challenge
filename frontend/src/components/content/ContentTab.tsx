@@ -30,6 +30,22 @@ function XAvatar({ handle, name }: { handle: string; name: string }) {
   return <img src={`https://unavatar.io/twitter/${h}`} alt={name} onError={() => setErr(true)} className="h-10 w-10 shrink-0 rounded-full bg-white/5 object-cover" />;
 }
 
+/** Editorial section header — a small uppercase eyebrow, an italic-serif
+ *  headline, and a hairline rule beneath. Echoes the show site's magazine
+ *  rhythm without copying its open layout. */
+function SectionHead({ icon, eyebrow, title, meta }: { icon: React.ReactNode; eyebrow: string; title: string; meta?: React.ReactNode }) {
+  return (
+    <div className="mb-3 border-b border-white/10 pb-2.5">
+      <div className="flex items-center gap-2">
+        {icon}
+        <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-faint">{eyebrow}</span>
+        {meta && <span className="ml-auto flex items-center gap-2">{meta}</span>}
+      </div>
+      <h3 className="serif mt-1.5 text-[18px] font-bold italic leading-none text-ink">{title}</h3>
+    </div>
+  );
+}
+
 /** The X logo glyph. */
 function XLogo({ className = "h-3.5 w-3.5" }: { className?: string }) {
   return (
@@ -116,7 +132,7 @@ export function ContentTab() {
 
   const feedNode = (
     <div className="vc-glass flex h-full flex-col rounded-2xl p-3">
-          <div className="mb-2 flex items-center gap-2"><Radio size={14} className="text-down" /><span className="text-[12px] font-bold uppercase tracking-[0.12em] text-muted">Live Feed</span></div>
+          <SectionHead icon={<Radio size={14} className="text-down" />} eyebrow="Live Feed" title="The Dispatch" />
           <div className="mb-2 flex flex-wrap gap-1">
             {feedTabs.map((a) => (
               <button
@@ -138,12 +154,12 @@ export function ContentTab() {
 
   const episodesNode = (
     <div className="vc-glass h-full overflow-y-auto rounded-2xl p-4">
-            <div className="mb-3 flex items-center gap-2">
-              <Film size={14} className="text-accent" />
-              <span className="text-[12px] font-bold uppercase tracking-[0.12em] text-muted">Full Episodes</span>
-              <span className={`${chip}`}>Rewatch</span>
-              <a href="https://x.com/MarketBubble" target="_blank" rel="noreferrer" className="ml-auto text-[11px] font-bold text-accent hover:underline">All on X ↗</a>
-            </div>
+            <SectionHead
+              icon={<Film size={14} className="text-accent" />}
+              eyebrow="Full Episodes"
+              title="The Rewatch"
+              meta={<a href="https://x.com/MarketBubble" target="_blank" rel="noreferrer" className="text-[11px] font-bold text-accent hover:underline">All on X ↗</a>}
+            />
 
             {/* featured player — autoplays the most recent (or the selected) full episode */}
             <XVodPlayer key={vodId} id={vodId} autoPlay startAt={EPISODE_SLATE_SKIP} className="aspect-video max-h-[420px] w-full rounded-xl border border-white/10 bg-black object-contain" />
@@ -175,7 +191,12 @@ export function ContentTab() {
 
   const topPostsNode = (
     <div className="vc-glass h-full overflow-y-auto rounded-2xl p-4">
-            <div className="mb-3 flex items-center gap-2"><TrendingUp size={14} className="text-accent" /><span className="text-[12px] font-bold uppercase tracking-[0.12em] text-muted">Top Posts</span><span className={`ml-auto ${chip}`}>most viewed</span></div>
+            <SectionHead
+              icon={<TrendingUp size={14} className="text-accent" />}
+              eyebrow="Trending"
+              title="Top Posts"
+              meta={<span className={chip}>most viewed</span>}
+            />
             <div className="space-y-1.5">
               {topPosts.map((p, i) => (
                 <a key={i} href={xUrl(p.handle)} target="_blank" rel="noreferrer" className="grid grid-cols-[1.2rem_1fr_auto] items-center gap-3 rounded-lg border border-white/8 bg-white/[0.02] px-3 py-2 transition hover:border-accent/40">
@@ -191,8 +212,16 @@ export function ContentTab() {
   return (
     <div className="mb-tab">
     <div className="mx-auto max-w-[1500px] px-4 py-6 sm:px-6">
-      <h1 className="serif text-3xl font-bold tracking-tight sm:text-4xl">Content Radar</h1>
-      <p className="mt-1 text-[13px] text-muted">Real-time X feed, trending tickers, the streams that are live, and the clips that pop — all in one place.</p>
+      <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-1">
+        <div>
+          <h1 className="serif text-3xl font-bold tracking-tight sm:text-4xl">Content Radar</h1>
+          <p className="mt-1 text-[13px] text-muted">Real-time X feed, trending tickers, the streams that are live, and the clips that pop — all in one place.</p>
+        </div>
+        <a href="https://x.com/MarketBubble" target="_blank" rel="noreferrer" className="mb-1 shrink-0 text-[11px] font-bold uppercase tracking-[0.16em] text-faint transition hover:text-accent">
+          Live Thursdays · 1PM PST ↗
+        </a>
+      </div>
+      <div className="mt-4 border-t border-white/10" />
 
       <div className="mt-5">
         <PageGrid
