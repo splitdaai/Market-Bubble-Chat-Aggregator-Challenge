@@ -185,26 +185,14 @@ history.load();
 const publicWriteRateLimit = createIpRateLimit({ name: "public-write", windowMs: 60_000, max: 30 });
 const publicTriggerRateLimit = createIpRateLimit({ name: "public-trigger", windowMs: 60_000, max: 10 });
 
+// The live feed is connection-driven ONLY: chat comes from accounts connected
+// via OAuth or channels/broadcasts added via link (the Connections panel) — never
+// from hard-coded env channels. So the feed always reflects exactly what's shown
+// connected, and is empty when nothing is connected. Channel readers are spun up
+// in syncAccountConnectors() (auth + watched links) and the /watch endpoints
+// (pasted Twitch/Kick channels + X broadcast links).
 function buildConnectors(): Connector[] {
-  const connectors: Connector[] = [];
-  if (process.env.TWITCH_CHANNEL) {
-    connectors.push(new TwitchConnector(process.env.TWITCH_CHANNEL, process.env.TWITCH_USERNAME, process.env.TWITCH_OAUTH));
-  }
-  if (process.env.KICK_CHANNEL) {
-    connectors.push(new KickConnector(process.env.KICK_CHANNEL, process.env.KICK_BEARER));
-  }
-  if (process.env.X_BEARER_TOKEN) {
-    const rules = (process.env.X_STREAM_RULES ?? "").split(",").map((s) => s.trim()).filter(Boolean);
-    connectors.push(new XConnector({ bearer: process.env.X_BEARER_TOKEN, rules }));
-  }
-  const xBroadcastId = normalizeBroadcastId(process.env.X_BROADCAST_ID);
-  if (xBroadcastId) {
-    connectors.push(new XBroadcastChatConnector(xBroadcastId, process.env.X_BROADCAST_LABEL || "X Broadcast"));
-  }
-  if (process.env.YOUTUBE_VIDEO_ID && process.env.YOUTUBE_API_KEY) {
-    connectors.push(new YouTubeConnector({ videoId: process.env.YOUTUBE_VIDEO_ID, apiKey: process.env.YOUTUBE_API_KEY }));
-  }
-  return connectors;
+  return [];
 }
 
 /** Poll the real platform APIs for live viewer counts into the aggregator.
@@ -224,16 +212,15 @@ function bumpFollows(p: "twitch" | "kick" | "youtube" | "x", total: number) {
 
 function startViewerPollers() {
   const tick = async () => {
-    const { TWITCH_CLIENT_ID, TWITCH_CLIENT_SECRET, TWITCH_CHANNEL, KICK_CHANNEL, YOUTUBE_VIDEO_ID, YOUTUBE_API_KEY } = process.env;
+    const { TWITCH_CLIENT_ID, TWITCH_CLIENT_SECRET, YOUTUBE_VIDEO_ID, YOUTUBE_API_KEY } = process.env;
     const connected = getAccounts().filter((a) => a.connected);
     const channelsFor = (p: string) => {
       const set = new Set(connected.filter((a) => a.platform === p).map((a) => a.handle.replace(/^@/, "").toLowerCase()));
       return [...set];
     };
 
-    // Twitch: sum viewers across every connected Twitch channel (+ env fallback).
+    // Twitch: sum viewers across every connected Twitch channel (connection-driven).
     const tw = channelsFor("twitch");
-    if (TWITCH_CHANNEL && !tw.includes(TWITCH_CHANNEL.toLowerCase())) tw.push(TWITCH_CHANNEL.toLowerCase());
     if (tw.length && TWITCH_CLIENT_ID && TWITCH_CLIENT_SECRET) {
       let total = 0;
       for (const ch of tw) { const v = await twitchViewers(ch, TWITCH_CLIENT_ID, TWITCH_CLIENT_SECRET); if (v != null) total += v; }
@@ -267,7 +254,6 @@ function startViewerPollers() {
     // Kick: one call per channel gets viewers AND follower totals (curl-first —
     // Cloudflare blocks Node fetch's TLS fingerprint on kick.com).
     const kk = channelsFor("kick");
-    if (KICK_CHANNEL && !kk.includes(KICK_CHANNEL.toLowerCase())) kk.push(KICK_CHANNEL.toLowerCase());
     if (kk.length) {
       let total = 0; let fTotal = 0; let fOk = true;
       for (const ch of kk) {
@@ -321,11 +307,9 @@ async function main() {
   // uses the account's OAuth token to find its own active live broadcast. X is a
   // tweet filtered-stream (app-level), so it stays env-configured.
   const linked = new Set<string>(); // account ids that already have a live chat reader
-  // Channels already watched by an env-configured connector — so the OAuth
-  // account flow never double-subscribes (which would show every message twice).
+  // Channels already covered by a running reader — so two accounts for the same
+  // channel never double-subscribe (which would show every message twice).
   const watched = new Set<string>();
-  if (process.env.TWITCH_CHANNEL) watched.add(`twitch:${process.env.TWITCH_CHANNEL.toLowerCase()}`);
-  if (process.env.KICK_CHANNEL) watched.add(`kick:${process.env.KICK_CHANNEL.toLowerCase()}`);
   const syncAccountConnectors = () => {
     for (const a of getAccounts()) {
       if (!a.connected || linked.has(a.id)) continue;
@@ -437,13 +421,10 @@ async function main() {
   // re-reads getAccounts()), so viewer counts work as accounts connect.
   const pollers = startViewerPollers();
 
-  if (connectors.length === 0) {
-    console.warn("⚠  No platform credentials configured — backend is idle. See .env.example.");
-  }
-
+  const liveChannels = getAccounts().filter((a) => a.connected).length;
   httpServer.listen(PORT, () => {
     console.log(`\n🎛  Market Bubble backend on http://localhost:${PORT}`);
-    console.log(`   Chat connectors: ${connectors.map((c) => c.platform).join(", ") || "none"}`);
+    console.log(`   Live feed: connection-driven (${liveChannels} connected account(s)/link(s) on boot)`);
     console.log(`   Viewer pollers:  ${pollers ? "on" : "off (no API keys)"}\n`);
   });
 }
