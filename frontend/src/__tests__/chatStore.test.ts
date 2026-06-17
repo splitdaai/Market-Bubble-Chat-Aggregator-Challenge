@@ -22,7 +22,7 @@ function msg(id: string, platform: ChatMessage["platform"], timestamp: number): 
   };
 }
 
-describe("chat store refresh cache", () => {
+describe("chat store (connection-driven feed)", () => {
   beforeEach(() => {
     vi.stubGlobal("window", { localStorage: makeStorage() });
     useChatStore.setState({
@@ -35,7 +35,7 @@ describe("chat store refresh cache", () => {
     });
   });
 
-  it("restores all live platforms after a browser refresh", () => {
+  it("starts empty on a mode switch and rebuilds from the backend replay (no stale local cache)", () => {
     useChatStore.getState().resetForMode(false);
     useChatStore.getState().addMessages([
       msg("t1", "twitch", 1000),
@@ -43,21 +43,26 @@ describe("chat store refresh cache", () => {
       msg("x1", "x", 1002),
     ]);
 
-    useChatStore.getState().resetForMode(true);
+    // A refresh / reconnect must NOT resurrect the previous feed from local
+    // storage — the connection-driven backend buffer is the single source.
+    useChatStore.getState().resetForMode(false);
     expect(useChatStore.getState().messages).toHaveLength(0);
 
-    useChatStore.getState().resetForMode(false);
+    // Backend replays its (clean) buffer on connect → feed repopulates.
+    useChatStore.getState().addMessages([
+      msg("t1", "twitch", 1000),
+      msg("k1", "kick", 1001),
+      msg("x1", "x", 1002),
+    ]);
     expect(useChatStore.getState().messages.map((m) => m.platform)).toEqual(["twitch", "kick", "x"]);
   });
 
-  it("dedupes backend backlog replay and keeps chronological order", () => {
+  it("dedupes overlapping backend replay and keeps chronological order", () => {
     useChatStore.getState().resetForMode(false);
     useChatStore.getState().addMessages([
       msg("t1", "twitch", 1000),
       msg("x1", "x", 1002),
     ]);
-
-    useChatStore.getState().resetForMode(false);
     useChatStore.getState().addMessages([
       msg("k1", "kick", 1001),
       msg("x1", "x", 1002),
@@ -67,7 +72,7 @@ describe("chat store refresh cache", () => {
     expect(useChatStore.getState().messages.map((m) => m.id)).toEqual(["t1", "k1", "x1", "t2"]);
   });
 
-  it("removes deleted messages from the feed, history, and live refresh cache", () => {
+  it("keeps deleted messages out of the feed even across a reconnect/replay", () => {
     useChatStore.getState().resetForMode(false);
     useChatStore.getState().addMessages([
       msg("t1", "twitch", 1000),
@@ -79,7 +84,13 @@ describe("chat store refresh cache", () => {
     expect(useChatStore.getState().messages.map((m) => m.id)).toEqual(["t1"]);
     expect(useChatStore.getState().history["kick:kick-user"]).toBeUndefined();
 
+    // Reconnect: feed clears, backend replays — the deleted id stays suppressed.
     useChatStore.getState().resetForMode(false);
+    expect(useChatStore.getState().messages).toHaveLength(0);
+    useChatStore.getState().addMessages([
+      msg("t1", "twitch", 1000),
+      msg("k1", "kick", 1001),
+    ]);
     expect(useChatStore.getState().messages.map((m) => m.id)).toEqual(["t1"]);
   });
 });

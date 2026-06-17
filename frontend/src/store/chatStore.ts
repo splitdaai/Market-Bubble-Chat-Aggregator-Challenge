@@ -6,7 +6,6 @@ import { registerEmotes } from "@/lib/emotes";
 /** Hard cap so the live feed never leaks memory during a long stream. */
 const MAX_MESSAGES = 300;
 const LIVE_CACHE_KEY = "vibechat-live-chat-cache-v1";
-const LIVE_CACHE_TTL_MS = 12 * 60 * 60 * 1000;
 /** Per-user history cap — kept separate from the feed so a user's profile can
  *  show useful recent context without retaining an unbounded session log. */
 const MAX_PER_USER = 160;
@@ -82,18 +81,20 @@ export const useChatStore = create<ChatState>((set) => ({
       deleted.add(id);
       const messages = s.messages.filter((m) => m.id !== id);
       const history = removeFromHistory(s.history, id);
-      if (s.cacheMode === "live") writeLiveCache(messages);
       return { deleted, messages, history };
     }),
 
   setMock: (isMock) => set({ isMock }),
-  resetForMode: (demo) => set(() => {
-    if (demo) return { messages: [], history: {}, cacheMode: null };
-    const messages = readLiveCache();
-    return { messages, history: buildHistory(messages), cacheMode: "live" };
+  // The live feed is connection-driven and authoritative from the backend's
+  // buffer replay on (re)connect — we no longer persist a local message cache,
+  // which used to replay chat from channels that are no longer connected. Always
+  // start empty on a mode switch and wipe any legacy cache.
+  resetForMode: () => set(() => {
+    clearLiveCache();
+    return { messages: [], history: {}, cacheMode: null };
   }),
-  clear: () => set((s) => {
-    if (s.cacheMode === "live") clearLiveCache();
+  clear: () => set(() => {
+    clearLiveCache();
     return { messages: [], history: {} };
   }),
 }));
@@ -131,8 +132,6 @@ function appendMessages(s: ChatState, rawMessages: ChatMessage[]): Partial<ChatS
   if (accepted.length === 0) return s;
 
   const combined = mergeFeed(s.messages, accepted);
-  if (s.cacheMode === "live") writeLiveCache(combined);
-
   return { messages: combined, history: trimHistoryUsers(nextHistory) };
 }
 
@@ -154,15 +153,6 @@ function mergeHistory(current: ChatMessage[], incoming: ChatMessage): ChatMessag
     .slice(-MAX_PER_USER);
 }
 
-function buildHistory(messages: ChatMessage[]): Record<string, ChatMessage[]> {
-  const history: Record<string, ChatMessage[]> = {};
-  for (const m of messages) {
-    const key = userKey(m.platform, m.username);
-    history[key] = mergeHistory(history[key] ?? [], m);
-  }
-  return trimHistoryUsers(history);
-}
-
 function removeFromHistory(history: Record<string, ChatMessage[]>, id: string): Record<string, ChatMessage[]> {
   let changed = false;
   const next: Record<string, ChatMessage[]> = {};
@@ -174,48 +164,7 @@ function removeFromHistory(history: Record<string, ChatMessage[]>, id: string): 
   return changed ? next : history;
 }
 
-function readLiveCache(): ChatMessage[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const raw = window.localStorage.getItem(LIVE_CACHE_KEY);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw) as { savedAt?: unknown; messages?: unknown };
-    const savedAt = typeof parsed.savedAt === "number" ? parsed.savedAt : 0;
-    if (!savedAt || Date.now() - savedAt > LIVE_CACHE_TTL_MS) {
-      clearLiveCache();
-      return [];
-    }
-    if (!Array.isArray(parsed.messages)) return [];
-    return mergeFeed([], parsed.messages.filter(isChatMessage));
-  } catch {
-    clearLiveCache();
-    return [];
-  }
-}
-
-function writeLiveCache(messages: ChatMessage[]) {
-  if (typeof window === "undefined") return;
-  try {
-    window.localStorage.setItem(LIVE_CACHE_KEY, JSON.stringify({ savedAt: Date.now(), messages }));
-  } catch {
-    // Quota/privacy mode should not break live chat.
-  }
-}
-
 function clearLiveCache() {
   if (typeof window === "undefined") return;
   try { window.localStorage.removeItem(LIVE_CACHE_KEY); } catch { /* ignore */ }
-}
-
-function isChatMessage(value: unknown): value is ChatMessage {
-  if (!value || typeof value !== "object") return false;
-  const m = value as Partial<ChatMessage>;
-  return (
-    typeof m.id === "string" &&
-    (m.platform === "twitch" || m.platform === "kick" || m.platform === "x" || m.platform === "youtube") &&
-    typeof m.username === "string" &&
-    typeof m.message === "string" &&
-    typeof m.timestamp === "number" &&
-    Number.isFinite(m.timestamp)
-  );
 }
