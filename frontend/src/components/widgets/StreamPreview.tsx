@@ -275,9 +275,10 @@ export function StreamPreview() {
         </div>
       )}
 
-      {/* 16:9 preview — real stream video (fully visible, never cropped), with
-          the chat-velocity chart as a fallback skin */}
-      <div className="relative min-h-0 flex-1 overflow-hidden rounded-xl border border-white/10 bg-black">
+      {/* 16:9 preview — locked to a centered 16:9 box that fits whatever height
+          the tile leaves, so resizing the panel never stretches/over-crops it. */}
+      <div className="flex min-h-0 flex-1 items-center justify-center">
+      <div className="relative aspect-video max-h-full w-full overflow-hidden rounded-xl border border-white/10 bg-black">
         {embedUrl ? (
           /* Live mode: the focused channel's real platform player. */
           <iframe
@@ -355,6 +356,7 @@ export function StreamPreview() {
           </span>
         )}
         <span className="absolute bottom-2 right-2 z-[4] rounded-md bg-black/55 px-1.5 py-0.5 text-[9px] tabular-nums text-muted backdrop-blur">{velocity[velocity.length - 1] ?? 0} msg/min</span>
+      </div>
       </div>
 
       {/* transport — play/pause + seek the whole clip */}
