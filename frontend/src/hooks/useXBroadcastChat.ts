@@ -3,7 +3,8 @@ import { useChatStore } from "@/store/chatStore";
 import { useModeStore } from "@/store/modeStore";
 import { LATEST_EPISODE_BID } from "@/lib/broadcastConstants";
 
-const BACKEND = (import.meta.env.VITE_BACKEND_URL as string | undefined) ?? "https://3-213-104-77.nip.io";
+// Same-origin: /api/x-broadcast-chat is a Vercel function now (EC2 retired).
+const BACKEND = (import.meta.env.VITE_VOD_BASE as string | undefined) ?? "";
 
 interface XMsg { username: string; displayName: string; text: string; t: number }
 

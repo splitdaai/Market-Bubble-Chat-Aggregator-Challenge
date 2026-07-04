@@ -6,6 +6,9 @@
   "routes": [
     { "src": "/api/x-vod/([^/]+)", "dest": "/api/x-vod/[id]?id=$1" },
     { "src": "/api/x-hls.*", "dest": "/api/x-hls" },
+    { "src": "/api/x-broadcast-chat/([^/]+)", "dest": "/api/x-broadcast-chat/[id]?id=$1" },
+    { "src": "/api/x-chat-access/([^/]+)", "dest": "/api/x-chat-access/[id]?id=$1" },
+    { "src": "/api/x-chat-history", "dest": "/api/x-chat-history" },
     { "handle": "filesystem" },
     { "src": "/.*", "dest": "/index.html" }
   ]
