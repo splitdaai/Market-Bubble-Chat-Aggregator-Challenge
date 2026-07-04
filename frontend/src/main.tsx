@@ -6,6 +6,10 @@ installDebugCapture();
 // media element mounts so the venue wall never gets an audible flash.
 import "./lib/embedVolume";
 
+// Shared DEMO/LIVE wall mode: embedded wall copies follow the backend flag;
+// the standalone site publishes its toggle to that flag.
+import "./lib/wallMode";
+
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";

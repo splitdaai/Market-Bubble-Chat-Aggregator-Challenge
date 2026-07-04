@@ -406,6 +406,21 @@ async function main() {
     res.json({ ok: true, session });
   });
 
+  // Shared wall mode: the Return to Memes venue embeds this app on a wall
+  // screen; the wall follows THIS flag (polled) instead of its own local
+  // demo toggle, so flipping DEMO/LIVE on the site drives the venue screen.
+  const WALL_MODE_FILE = process.env.WALL_MODE_FILE ?? "data/wall-mode.json";
+  let wallMode: { demo: boolean; updatedAt: string } = { demo: true, updatedAt: new Date().toISOString() };
+  try { wallMode = { ...wallMode, ...JSON.parse(readFileSync(WALL_MODE_FILE, "utf8")) }; } catch { /* first boot */ }
+  app.get("/api/wall-mode", (_req, res) => res.json(wallMode));
+  app.post("/api/wall-mode", publicWriteRateLimit, (req, res) => {
+    if (typeof req.body?.demo !== "boolean") return res.status(400).json({ error: "demo must be boolean" });
+    wallMode = { demo: req.body.demo, updatedAt: new Date().toISOString() };
+    try { mkdirSync(dirname(WALL_MODE_FILE), { recursive: true }); writeFileSync(WALL_MODE_FILE, JSON.stringify(wallMode)); } catch { /* best-effort */ }
+    res.json({ ok: true, ...wallMode }); // wall copies poll every 10s
+
+  });
+
   await Promise.allSettled(
     connectors.map(async (c) => {
       try {
