@@ -2,6 +2,10 @@ import { installDebugCapture, track } from "./lib/debugLog";
 // Install error capture FIRST so any module-init throw still lands in the log.
 installDebugCapture();
 
+// Wall-embed volume bridge (no-op outside an iframe) — must install before any
+// media element mounts so the venue wall never gets an audible flash.
+import "./lib/embedVolume";
+
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
