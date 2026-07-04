@@ -12,6 +12,7 @@ import { WatchStar } from "../WatchStar";
 import { IntelFeed } from "./IntelFeed";
 import { compact } from "../../lib/format";
 import { FALLBACK_MARKET_DATA } from "../../lib/marketFallback";
+import { fetchDirectLeaderboards, fetchDirectVaults } from "../../lib/liveLeaderboards";
 
 interface HlRow { name: string; addr?: string; pnl: number; roi?: number; value?: number; trend?: number[] }
 interface LinkedRow { name: string; xHandle: string; addr: string; chain: "hl" | "evm"; value: number; pnl: number; top?: string }
@@ -192,8 +193,31 @@ export function MarketTabClassic() {
     let timer: ReturnType<typeof setTimeout>;
     const load = async () => {
       let ok = false;
-      try { const j = await (await fetch(`${BACKEND}/api/leaderboards?t=${Math.floor(Date.now() / 300000)}`)).json(); if (on && Array.isArray(j.hyperliquid)) { setLb(j); ok = true; } } catch { /* retry below */ }
-      try { const v = await (await fetch(`${BACKEND}/api/vaults`)).json(); if (on && Array.isArray(v) && v.length) { setVaults(v); ok = true; } } catch { /* retry below */ }
+      try {
+        const r = await fetch(`${BACKEND}/api/leaderboards?t=${Math.floor(Date.now() / 300000)}`);
+        if (!r.ok) throw new Error(String(r.status));
+        const j = await r.json();
+        const hasRows = Array.isArray(j.hyperliquid) && j.hyperliquid.length > 0 && Array.isArray(j.polymarket) && j.polymarket.length > 0;
+        if (!hasRows) throw new Error("empty leaderboards");
+        if (on) { setLb(j); ok = true; }
+      } catch {
+        try {
+          const direct = await fetchDirectLeaderboards();
+          if (on) { setLb(direct); ok = true; }
+        } catch { /* retry below */ }
+      }
+      try {
+        const r = await fetch(`${BACKEND}/api/vaults`);
+        if (!r.ok) throw new Error(String(r.status));
+        const v = await r.json();
+        if (!Array.isArray(v) || !v.length) throw new Error("empty vaults");
+        if (on) { setVaults(v); ok = true; }
+      } catch {
+        try {
+          const direct = await fetchDirectVaults();
+          if (on) { setVaults(direct); ok = true; }
+        } catch { /* retry below */ }
+      }
       if (!on) return;
       // Retry on a cold/failed backend so the panels never get stuck on "Loading…".
       if (ok) { fails = 0; timer = setTimeout(load, 600_000); }
