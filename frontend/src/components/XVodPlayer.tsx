@@ -2,7 +2,10 @@ import { useEffect, useRef, useState } from "react";
 import type HlsType from "hls.js";
 import { LATEST_EPISODE_BID, EPISODE_SLATE_SKIP } from "@/lib/broadcastConstants";
 
-const BACKEND = (import.meta.env.VITE_BACKEND_URL as string | undefined) ?? "https://3-213-104-77.nip.io";
+// VOD/HLS proxy base. Same-origin by default: the EC2 backend was retired and
+// /api/x-vod + /api/x-hls now run as Vercel functions on this very deployment.
+// VITE_VOD_BASE overrides for local dev against a real backend.
+const BACKEND = (import.meta.env.VITE_VOD_BASE as string | undefined) ?? "";
 export { LATEST_EPISODE_BID, EPISODE_SLATE_SKIP };
 
 /**

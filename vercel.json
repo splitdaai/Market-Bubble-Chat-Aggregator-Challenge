@@ -4,6 +4,8 @@
   "buildCommand": "cd frontend && npm run build",
   "outputDirectory": "frontend/dist",
   "routes": [
+    { "src": "/api/x-vod/([^/]+)", "dest": "/api/x-vod/[id]?id=$1" },
+    { "src": "/api/x-hls.*", "dest": "/api/x-hls" },
     { "handle": "filesystem" },
     { "src": "/.*", "dest": "/index.html" }
   ]

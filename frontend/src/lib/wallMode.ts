@@ -8,14 +8,16 @@ import { useModeStore } from "@/store/modeStore";
  *    also writes the shared flag — so switching DEMO/LIVE on the site switches
  *    the chat on the venue wall for everyone.
  */
-const BACKEND = (import.meta.env.VITE_BACKEND_URL as string | undefined) ?? "https://3-213-104-77.nip.io";
+// The flag lives in the venue's control-plane Lambda (persistent, always on) —
+// the retired EC2 backend used to hold it; Vercel functions can't keep state.
+const WALL_MODE_URL = (import.meta.env.VITE_WALL_MODE_URL as string | undefined) ?? "https://wjyl99umu0.execute-api.eu-west-1.amazonaws.com/public/wall-mode";
 const embedded = typeof window !== "undefined" && window.self !== window.top;
 
 let applyingRemote = false;
 
 async function pullWallMode(): Promise<void> {
   try {
-    const r = await fetch(`${BACKEND}/api/wall-mode`, { signal: AbortSignal.timeout(8_000) });
+    const r = await fetch(WALL_MODE_URL, { signal: AbortSignal.timeout(8_000) });
     if (!r.ok) return;
     const j = (await r.json()) as { demo?: unknown };
     if (typeof j.demo !== "boolean") return;
@@ -38,7 +40,7 @@ if (embedded) {
   useModeStore.subscribe((s) => {
     if (s.demo === last || applyingRemote) return;
     last = s.demo;
-    void fetch(`${BACKEND}/api/wall-mode`, {
+    void fetch(WALL_MODE_URL, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ demo: s.demo }),
