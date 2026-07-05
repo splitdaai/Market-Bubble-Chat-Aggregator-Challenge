@@ -362,13 +362,6 @@ export function StreamPreview() {
         )}
         <span className="absolute bottom-2 right-2 z-[4] rounded-md bg-black/55 px-1.5 py-0.5 text-[9px] tabular-nums text-muted backdrop-blur">{velocity[velocity.length - 1] ?? 0} msg/min</span>
       </div>
-      {/* Embedded wall screen: Market Bubble wordmark (same asset as the site
-          header) fills the leftover strip under the video. */}
-      {IS_EMBEDDED && (
-        <div className="flex min-h-0 w-full flex-1 items-center justify-center py-1">
-          <img src="/market-bubble-logo.svg" alt="Market Bubble" className="max-h-full w-auto" style={{ height: 72 }} />
-        </div>
-      )}
       </div>
 
       {/* transport — play/pause + seek the whole clip (hidden on embedded wall screen) */}

@@ -156,6 +156,13 @@ export function SimpleApp() {
 
       <main className="relative z-10 min-h-0 flex-1 overflow-y-auto px-3 pb-6">
         {!IS_EMBEDDED && <div className="px-1"><ScheduleBanner /></div>}
+        {/* Embedded wall screen: Market Bubble wordmark in the strip under the
+            video (aligned to the stream column — the left 3/4 of the grid). */}
+        {IS_EMBEDDED && (
+          <div className="pointer-events-none absolute bottom-1 left-0 flex w-3/4 justify-center">
+            <img src="/market-bubble-logo.svg" alt="Market Bubble" style={{ height: 64, width: "auto", opacity: 0.95 }} />
+          </div>
+        )}
         <Suspense fallback={null}>
           <PageGrid pageKey="simple-v4" items={items} editMode={edit} titles={TITLES} defaultHidden={DEFAULT_HIDDEN} />
         </Suspense>
