@@ -76,11 +76,30 @@ export function ChatFeed({ panel }: { panel: PanelLayout }) {
   }, [visible, pinned]);
 
   const onScroll = () => {
+    // Embedded wall screen: read-only display with no one to click "jump to live",
+    // so NEVER unpin — the feed must stay live and flowing forever.
+    if (IS_EMBEDDED) return;
     const el = scrollRef.current;
     if (!el) return;
     const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 60;
     setPinned(atBottom);
   };
+
+  // Embedded wall: keep the feed glued to the newest message no matter what.
+  // The newestId effect handles new messages, but async emote/avatar images grow
+  // the height AFTER that scroll, and reflows can nudge it off-bottom — with no
+  // user to recover, it would silently freeze. So re-pin on any image load (capture,
+  // since load doesn't bubble) plus a slow safety interval. Belt and suspenders.
+  useEffect(() => {
+    if (!IS_EMBEDDED) return;
+    const el = scrollRef.current;
+    if (!el) return;
+    const pin = () => { el.scrollTop = el.scrollHeight; };
+    pin();
+    el.addEventListener("load", pin, true);
+    const id = window.setInterval(pin, 1000);
+    return () => { el.removeEventListener("load", pin, true); window.clearInterval(id); };
+  }, []);
 
   const handleModerate = async (msg: ChatMessage, action: ModerationAction) => {
     if (action.kind === "delete") markDeleted(msg.id);
