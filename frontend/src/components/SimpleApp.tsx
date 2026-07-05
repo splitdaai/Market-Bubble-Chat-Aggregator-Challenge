@@ -93,7 +93,11 @@ export function SimpleApp() {
   const items = useMemo(
     () =>
       ALL.map((kind) => {
-        const [x, y, w, h] = GEO[kind] ?? [0, 40, 4, 5];
+        let [x, y, w, h] = GEO[kind] ?? [0, 40, 4, 5];
+        // Embedded wall screen (no header/banner): shorten the two hero tiles so
+        // the video + full chat box fit the 914px-tall wall canvas with no clip.
+        // 15 rows = 15*40 + 14*16 = 824px.
+        if (IS_EMBEDDED && (kind === "stream-preview" || kind === "chat-feed")) h = 15;
         const panel: PanelLayout = { i: kind, widget: kind, x, y, w, h };
         return { id: kind, x, y, w, h, node: <div className="vc-glass h-full overflow-hidden rounded-2xl">{renderWidget(panel, () => {})}</div> };
       }),
@@ -104,6 +108,9 @@ export function SimpleApp() {
 
   return (
     <div className="vc-aurora vc-grid-texture relative flex h-screen flex-col bg-[var(--vc-bg)] text-ink">
+      {/* Embedded wall screen: no logo header at all — every vertical pixel goes
+          to the video + chat (the venue frame provides the branding context). */}
+      {!IS_EMBEDDED && (
       <header className="relative z-10 flex shrink-0 items-center gap-3 px-4 py-3">
         <img src="/market-bubble-logo.svg" alt="Market Bubble" className="h-24 w-auto" />
         {/* Control cluster (DEMO/Chat Only/theme/connections/wallet/Edit/Pro) is
@@ -145,9 +152,10 @@ export function SimpleApp() {
         </div>
         )}
       </header>
+      )}
 
       <main className="relative z-10 min-h-0 flex-1 overflow-y-auto px-3 pb-6">
-        <div className="px-1"><ScheduleBanner /></div>
+        {!IS_EMBEDDED && <div className="px-1"><ScheduleBanner /></div>}
         <Suspense fallback={null}>
           <PageGrid pageKey="simple-v4" items={items} editMode={edit} titles={TITLES} defaultHidden={DEFAULT_HIDDEN} />
         </Suspense>

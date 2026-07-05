@@ -279,8 +279,10 @@ export function StreamPreview() {
       )}
 
       {/* 16:9 preview — locked to a centered 16:9 box that fits whatever height
-          the tile leaves, so resizing the panel never stretches/over-crops it. */}
-      <div className="flex min-h-0 flex-1 items-center justify-center">
+          the tile leaves, so resizing the panel never stretches/over-crops it.
+          Embedded wall screen: top-align instead, so there's no dead band above
+          the video on the venue billboard. */}
+      <div className={`flex min-h-0 flex-1 justify-center ${IS_EMBEDDED ? "items-start" : "items-center"}`}>
       <div className="relative aspect-video max-h-full w-full overflow-hidden rounded-xl border border-white/10 bg-black">
         {embedUrl ? (
           /* Live mode: the focused channel's real platform player. */
