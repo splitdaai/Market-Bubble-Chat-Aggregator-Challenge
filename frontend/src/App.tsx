@@ -8,6 +8,7 @@ import { useWalletStore } from "./store/walletStore";
 import { useTourStore } from "./store/tourStore";
 import { useXBroadcastChat } from "./hooks/useXBroadcastChat";
 import { useXLiveChat } from "./hooks/useXLiveChat";
+import { useTwitchLiveChat } from "./hooks/useTwitchLiveChat";
 import { ScheduleBanner } from "./components/widgets/ShowSchedule";
 import { useIsMobile } from "./hooks/useIsMobile";
 import { useUiModeStore } from "./store/uiModeStore";
@@ -44,6 +45,7 @@ export default function App() {
   useChatConnection();
   useXBroadcastChat(); // real X broadcast chat into the feed (guest, zero ban risk)
   useXLiveChat(); // LIVE mode: real-time X chat via browser WS + serverless access (no backend)
+  useTwitchLiveChat(); // LIVE mode: real-time Twitch chat via browser WS (anon IRC, no backend, $0)
 
   // Re-attach to an already-authorized EVM wallet + watch for account changes.
   useEffect(() => useWalletStore.getState().hydrate(), []);
