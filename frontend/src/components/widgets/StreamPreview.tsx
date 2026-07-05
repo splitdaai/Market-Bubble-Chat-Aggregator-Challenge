@@ -280,9 +280,9 @@ export function StreamPreview() {
 
       {/* 16:9 preview — locked to a centered 16:9 box that fits whatever height
           the tile leaves, so resizing the panel never stretches/over-crops it.
-          Embedded wall screen: top-align instead, so there's no dead band above
-          the video on the venue billboard. */}
-      <div className={`flex min-h-0 flex-1 justify-center ${IS_EMBEDDED ? "items-start" : "items-center"}`}>
+          Embedded wall screen: top-align as a column — video first, then the
+          Market Bubble wordmark fills the leftover strip under it (no dead space). */}
+      <div className={`flex min-h-0 flex-1 justify-center ${IS_EMBEDDED ? "flex-col items-center" : "items-center"}`}>
       <div className="relative aspect-video max-h-full w-full overflow-hidden rounded-xl border border-white/10 bg-black">
         {embedUrl ? (
           /* Live mode: the focused channel's real platform player. */
@@ -362,6 +362,13 @@ export function StreamPreview() {
         )}
         <span className="absolute bottom-2 right-2 z-[4] rounded-md bg-black/55 px-1.5 py-0.5 text-[9px] tabular-nums text-muted backdrop-blur">{velocity[velocity.length - 1] ?? 0} msg/min</span>
       </div>
+      {/* Embedded wall screen: Market Bubble wordmark (same asset as the site
+          header) fills the leftover strip under the video. */}
+      {IS_EMBEDDED && (
+        <div className="flex min-h-0 w-full flex-1 items-center justify-center py-1">
+          <img src="/market-bubble-logo.svg" alt="Market Bubble" className="max-h-full w-auto" style={{ height: 72 }} />
+        </div>
+      )}
       </div>
 
       {/* transport — play/pause + seek the whole clip (hidden on embedded wall screen) */}
