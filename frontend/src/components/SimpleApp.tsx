@@ -95,9 +95,10 @@ export function SimpleApp() {
       ALL.map((kind) => {
         let [x, y, w, h] = GEO[kind] ?? [0, 40, 4, 5];
         // Embedded wall screen (no header/banner): shorten the two hero tiles so
-        // the video + full chat box fit the 914px-tall wall canvas with no clip.
-        // 15 rows = 15*40 + 14*16 = 824px.
-        if (IS_EMBEDDED && (kind === "stream-preview" || kind === "chat-feed")) h = 15;
+        // the video + full chat box fit the 914px-tall wall canvas with no clip,
+        // leaving a ~130px branded strip at the bottom for the wordmark.
+        // 14 rows = 14*40 + 13*16 = 768px; video needs 654px inside — still full size.
+        if (IS_EMBEDDED && (kind === "stream-preview" || kind === "chat-feed")) h = 14;
         const panel: PanelLayout = { i: kind, widget: kind, x, y, w, h };
         return { id: kind, x, y, w, h, node: <div className="vc-glass h-full overflow-hidden rounded-2xl">{renderWidget(panel, () => {})}</div> };
       }),
@@ -159,12 +160,14 @@ export function SimpleApp() {
         {/* Embedded wall screen: Market Bubble wordmark in the strip under the
             video (aligned to the stream column — the left 3/4 of the grid). */}
         {IS_EMBEDDED && (
-          <div className="pointer-events-none absolute bottom-1 left-0 flex w-3/4 justify-center">
-            <img src="/market-bubble-logo.svg" alt="Market Bubble" style={{ height: 64, width: "auto", opacity: 0.95 }} />
+          <div className="pointer-events-none absolute left-0 flex w-3/4 justify-center" style={{ bottom: 10 }}>
+            <img src="/market-bubble-logo.svg" alt="Market Bubble" style={{ height: 110, width: "auto", opacity: 0.95 }} />
           </div>
         )}
         <Suspense fallback={null}>
-          <PageGrid pageKey="simple-v4" items={items} editMode={edit} titles={TITLES} defaultHidden={DEFAULT_HIDDEN} />
+          {/* Embedded wall uses its own layout key: saved/stale local layouts must
+              never override the tuned wall geometry (tile heights, etc.). */}
+          <PageGrid pageKey={IS_EMBEDDED ? "simple-wall-v1" : "simple-v4"} items={items} editMode={edit} titles={TITLES} defaultHidden={DEFAULT_HIDDEN} />
         </Suspense>
       </main>
 
