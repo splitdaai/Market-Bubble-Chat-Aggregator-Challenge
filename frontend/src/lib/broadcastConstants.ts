@@ -4,7 +4,9 @@
  *  (x.com/i/broadcasts/<id>) and replace the id below. Previous: EP5 1dxYllbQZELJX. */
 export const LATEST_EPISODE_BID = "1kKzDDrlpOXJv";
 
-/** Seconds of X's "recorded live" intro slate to skip when auto-playing a full
- *  episode replay, so viewers land on the hosts instead of the disclaimer card
- *  (matches the 24s skip the broadcast MP4 already uses for the same episode). */
-export const EPISODE_SLATE_SKIP = 24;
+/** Seconds to skip at the start of a full-episode replay so the wall opens
+ *  directly on the SHOW (hosts on screen), past X's "recorded live" slate AND
+ *  Market Bubble's ~2-min pre-show countdown. Skipping the countdown also avoids
+ *  its baked-in MB logo doubling with our footer wordmark. Per-episode: if a new
+ *  show's intro runs longer/shorter, nudge this. */
+export const EPISODE_SLATE_SKIP = 180;
