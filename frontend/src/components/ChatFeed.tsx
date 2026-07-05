@@ -3,6 +3,7 @@ import type { ChatMessage, Platform, ModerationAction, PanelLayout } from "@shar
 import { useChatStore } from "@/store/chatStore";
 import { Message } from "./Message";
 import { SourceBadge } from "./SourceBadge";
+import { IS_EMBEDDED } from "@/lib/embedded";
 import { moderate } from "@/lib/api";
 import { useToastStore } from "@/store/toastStore";
 import { burst } from "./Particles";
@@ -119,6 +120,7 @@ export function ChatFeed({ panel }: { panel: PanelLayout }) {
             {scoped ? scoped.join(" · ") : "Unified"} Feed
           </span>
         </div>
+        {!IS_EMBEDDED && (
         <div className="flex items-center gap-1">
           <button
             onClick={() => (searchOpen ? closeSearch() : setSearchOpen(true))}
@@ -138,6 +140,7 @@ export function ChatFeed({ panel }: { panel: PanelLayout }) {
             </button>
           ))}
         </div>
+        )}
       </div>
 
       {/* search + quick filters — slim row that slides open under the header */}
@@ -203,8 +206,8 @@ export function ChatFeed({ panel }: { panel: PanelLayout }) {
         </button>
       )}
 
-      {/* composer — send a message with emojis */}
-      <ChatComposer />
+      {/* composer — send a message with emojis (hidden on embedded wall screen) */}
+      {!IS_EMBEDDED && <ChatComposer />}
     </div>
   );
 }

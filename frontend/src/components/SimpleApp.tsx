@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Zap, Plug, Palette, Pencil, Eye, Wallet, MessagesSquare } from "lucide-react";
 import type { PanelLayout, WidgetKind } from "@shared/types";
 import { useViewerStore } from "@/store/viewerStore";
+import { IS_EMBEDDED } from "@/lib/embedded";
 import { useWalletStore } from "@/store/walletStore";
 import { useModeStore } from "@/store/modeStore";
 import { useUiModeStore } from "@/store/uiModeStore";
@@ -105,6 +106,10 @@ export function SimpleApp() {
     <div className="vc-aurora vc-grid-texture relative flex h-screen flex-col bg-[var(--vc-bg)] text-ink">
       <header className="relative z-10 flex shrink-0 items-center gap-3 px-4 py-3">
         <img src="/market-bubble-logo.svg" alt="Market Bubble" className="h-24 w-auto" />
+        {/* Control cluster (DEMO/Chat Only/theme/connections/wallet/Edit/Pro) is
+            hidden when embedded — e.g. the Return to Memes venue wall screen —
+            so the wall shows a clean stream + chat. Standalone site keeps it. */}
+        {!IS_EMBEDDED && (
         <div className="ml-auto flex items-center gap-2">
           {/* DEMO sits at the far-left of the button cluster */}
           <button
@@ -138,6 +143,7 @@ export function SimpleApp() {
             <Zap size={14} /> Pro
           </button>
         </div>
+        )}
       </header>
 
       <main className="relative z-10 min-h-0 flex-1 overflow-y-auto px-3 pb-6">

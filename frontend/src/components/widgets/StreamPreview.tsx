@@ -2,6 +2,7 @@ import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence, useMotionValue, useSpring } from "framer-motion";
 import { Scissors, Radio, EyeOff, Eye, Monitor, Play, Pause } from "lucide-react";
 import { useStatsStore } from "@/store/statsStore";
+import { IS_EMBEDDED } from "@/lib/embedded";
 import { useToastStore } from "@/store/toastStore";
 import { useClipsStore } from "@/store/clipsStore";
 import { useConnectionsStore } from "@/store/connectionsStore";
@@ -210,6 +211,7 @@ export function StreamPreview() {
           <Radio size={14} className={hot ? "animate-pulse-glow text-accent" : "text-muted"} />
           <span className="hidden text-[11px] font-bold uppercase tracking-widest text-muted sm:inline">Stream Preview</span>
         </div>
+        {!IS_EMBEDDED && (
         <div className="ml-auto flex shrink-0 items-center gap-1.5">
           <AnimatePresence>
             {hot && (
@@ -226,6 +228,7 @@ export function StreamPreview() {
             <EyeOff size={15} />
           </button>
         </div>
+        )}
       </div>
 
       {/* viewer counts — editorial serif: combined hero + serif-italic streamer
@@ -359,8 +362,8 @@ export function StreamPreview() {
       </div>
       </div>
 
-      {/* transport — play/pause + seek the whole clip */}
-      {!showEpisode && !embedUrl && videoOk && (
+      {/* transport — play/pause + seek the whole clip (hidden on embedded wall screen) */}
+      {!IS_EMBEDDED && !showEpisode && !embedUrl && videoOk && (
         <div className="mt-2 flex shrink-0 items-center gap-2">
           <button onClick={togglePlay} title={playing ? "Pause" : "Play"} className="grid h-7 w-7 shrink-0 place-items-center rounded-lg border border-white/12 text-white transition hover:border-accent/60 hover:text-accent">
             {playing ? <Pause size={14} /> : <Play size={14} className="ml-0.5" />}
