@@ -161,7 +161,7 @@ export function SimpleApp() {
             video (aligned to the stream column — the left 3/4 of the grid). */}
         {IS_EMBEDDED && (
           <div className="pointer-events-none absolute left-0 flex w-3/4 justify-center" style={{ bottom: 10 }}>
-            <img src="/market-bubble-logo.svg" alt="Market Bubble" style={{ height: 110, width: "auto", opacity: 0.95 }} />
+            <img src="/market-bubble-logo.svg" alt="Market Bubble" style={{ height: 145, width: "auto", opacity: 0.95 }} />
           </div>
         )}
         <Suspense fallback={null}>
