@@ -1,0 +1,10 @@
+{
+  "name": "market-bubble-overlay-relay",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@aws-sdk/client-apigatewaymanagementapi": "^3.723.0",
+    "@aws-sdk/client-dynamodb": "^3.723.0"
+  }
+}

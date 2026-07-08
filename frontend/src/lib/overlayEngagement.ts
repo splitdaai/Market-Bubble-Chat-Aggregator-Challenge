@@ -22,6 +22,7 @@ export interface OverlayActionDef {
 export const ENGAGE_ROOM = "market-bubble-live";
 const CHANNEL = "market-bubble-overlay-engage";
 const STORAGE_KEY = "market-bubble-overlay-engage-event";
+const RAW_OVERLAY_WS_URL = import.meta.env.VITE_OVERLAY_WS_URL as string | undefined;
 type OverlaySocket = Socket<ServerToClientEvents, ClientToServerEvents>;
 let overlaySocket: OverlaySocket | null = null;
 
@@ -49,6 +50,30 @@ function overlayTransport(): OverlaySocket | null {
     overlaySocket = io(BACKEND_URL, { transports: ["websocket"] });
   }
   return overlaySocket;
+}
+
+function overlayWsUrl(): string | undefined {
+  return RAW_OVERLAY_WS_URL?.trim() || undefined;
+}
+
+function postWsRelay(event: OverlayEngagementEvent): void {
+  const url = overlayWsUrl();
+  if (!url || typeof WebSocket === "undefined") return;
+  try {
+    const ws = new WebSocket(url);
+    const payload = JSON.stringify({ type: "action", event });
+    const closeSoon = () => window.setTimeout(() => ws.close(), 180);
+    ws.addEventListener("open", () => {
+      try { ws.send(payload); } catch { /* ignore */ }
+      closeSoon();
+    }, { once: true });
+    ws.addEventListener("error", () => {
+      try { ws.close(); } catch { /* ignore */ }
+    }, { once: true });
+    window.setTimeout(() => {
+      try { ws.close(); } catch { /* ignore */ }
+    }, 4000);
+  } catch { /* raw websocket relay is best-effort. */ }
 }
 
 /** True when the overlay relay socket is live — in which case the server's
@@ -170,6 +195,8 @@ export function publishOverlayEvent(event: Omit<OverlayEngagementEvent, "id" | "
     overlayTransport()?.emit("overlay:action", full);
   } catch { /* hosted relay is best-effort; local fallback already fired. */ }
 
+  postWsRelay(full);
+
   return full;
 }
 
@@ -196,6 +223,7 @@ export function subscribeOverlayEvents(room: string, cb: (event: OverlayEngageme
   const onCustom = (ev: Event) => handle((ev as CustomEvent<OverlayEngagementEvent>).detail);
   const socket = overlayTransport();
   const onRemote = (event: OverlayEngagementEvent) => handle(event);
+  let rawWs: WebSocket | null = null;
 
   window.addEventListener("storage", onStorage);
   window.addEventListener(STORAGE_KEY, onCustom);
@@ -203,11 +231,27 @@ export function subscribeOverlayEvents(room: string, cb: (event: OverlayEngageme
     socket?.emit("overlay:join", room);
     socket?.on("overlay:action", onRemote);
   } catch { /* ignore */ }
+  const rawUrl = overlayWsUrl();
+  if (rawUrl && typeof WebSocket !== "undefined") {
+    try {
+      rawWs = new WebSocket(rawUrl);
+      rawWs.addEventListener("open", () => {
+        try { rawWs?.send(JSON.stringify({ type: "join", room })); } catch { /* ignore */ }
+      });
+      rawWs.addEventListener("message", (message) => {
+        try {
+          const data = JSON.parse(String(message.data)) as { event?: OverlayEngagementEvent };
+          if (data.event) handle(data.event);
+        } catch { /* ignore malformed relay frames */ }
+      });
+    } catch { /* raw websocket relay is best-effort. */ }
+  }
 
   return () => {
     channel?.close();
     window.removeEventListener("storage", onStorage);
     window.removeEventListener(STORAGE_KEY, onCustom);
     socket?.off("overlay:action", onRemote);
+    rawWs?.close();
   };
 }
