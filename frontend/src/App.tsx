@@ -17,6 +17,8 @@ import { useOverlayStore } from "./store/overlayStore";
 import { useToastStore } from "./store/toastStore";
 import { useUserCardStore } from "./store/userCardStore";
 import { useTrafficBeacon } from "./hooks/useTrafficBeacon";
+import { ENGAGE_ROOM } from "./lib/overlayEngagement";
+import { OverlayEngagementLayer } from "./components/OverlayEngagementLayer";
 
 const EditorCanvas = lazy(() => import("./components/EditorCanvas").then((m) => ({ default: m.EditorCanvas })));
 const MarketTab = lazy(() => import("./components/market/MarketTab").then((m) => ({ default: m.MarketTab })));
@@ -81,6 +83,7 @@ export default function App() {
   // Standalone OBS routes — accept BOTH the query form (?overlay=1) and the clean
   // path form (/overlay), so the URLs in the README/QR resolve either way.
   const params = new URLSearchParams(window.location.search);
+  const overlayRoom = params.get("room") || ENGAGE_ROOM;
   const path = window.location.pathname.replace(/\/+$/, "").toLowerCase();
   const route = (name: string) => params.has(name) || path === `/${name}`;
   if (route("overlay")) return <Suspense fallback={null}><OverlayPage /></Suspense>;
@@ -154,6 +157,7 @@ export default function App() {
       </main>
 
       <Suspense fallback={null}>
+        <OverlayEngagementLayer room={overlayRoom} />
         {overlayEnabled && <OverlayLayer />}
         {tourActive && <JudgeTour />}
       </Suspense>

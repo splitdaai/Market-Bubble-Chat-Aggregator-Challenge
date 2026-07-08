@@ -7,10 +7,12 @@ import { IS_EMBEDDED } from "@/lib/embedded";
 import { useWalletStore } from "@/store/walletStore";
 import { useModeStore } from "@/store/modeStore";
 import { useUiModeStore } from "@/store/uiModeStore";
+import { ENGAGE_ROOM } from "@/lib/overlayEngagement";
 import { renderWidget, WIDGET_META } from "./EditorCanvas";
 import { ScheduleBanner } from "./widgets/ShowSchedule";
 import { PageGrid } from "./PageGrid";
 import { AccountModal } from "./AccountModal";
+import { OverlayEngagementLayer } from "./OverlayEngagementLayer";
 
 const ConnectionsManager = lazy(() => import("./ConnectionsManager").then((m) => ({ default: m.ConnectionsManager })));
 const ThemeEditor = lazy(() => import("./ThemeEditor").then((m) => ({ default: m.ThemeEditor })));
@@ -88,6 +90,7 @@ export function SimpleApp() {
   const [connOpen, setConnOpen] = useState(false);
   const [themeOpen, setThemeOpen] = useState(false);
   const [edit, setEdit] = useState(false);
+  const room = useMemo(() => new URLSearchParams(window.location.search).get("room") || ENGAGE_ROOM, []);
 
   // Build the widget catalog once (each node is a themed glass tile).
   const items = useMemo(
@@ -177,6 +180,7 @@ export function SimpleApp() {
         {connOpen && <ConnectionsManager open={connOpen} onClose={() => setConnOpen(false)} />}
         {themeOpen && <ThemeEditor open={themeOpen} onClose={() => setThemeOpen(false)} />}
       </Suspense>
+      <OverlayEngagementLayer room={room} />
     </div>
   );
 }
