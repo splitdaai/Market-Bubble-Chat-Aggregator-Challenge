@@ -7,7 +7,7 @@ import { useClipsStore } from "@/store/clipsStore";
 import { useAnalyticsStore } from "@/store/analyticsStore";
 import { useModeStore } from "@/store/modeStore";
 import { useConnectionsStore } from "@/store/connectionsStore";
-import { DEMO_ACCOUNTS } from "@/lib/accounts";
+import { DEMO_ACCOUNTS, isDemoTrio } from "@/lib/accounts";
 import { initEmotes } from "@/lib/emotes";
 import { setViewerWallet } from "@/lib/viewerWallets";
 import { useViewerStore } from "@/store/viewerStore";
@@ -71,10 +71,15 @@ export function useChatConnection() {
     // Demo mode is EXACTLY the canonical trio (Ansem / Banks / Market Bubble) —
     // no extra channels ever (watch-any-channel is a Live-mode feature). Restore
     // the seed if a live session or stray addition changed the list.
-    if (demo) {
-      const accs = useConnectionsStore.getState().accounts;
-      const exact = accs.length === DEMO_ACCOUNTS.length && accs.every((a) => DEMO_ACCOUNTS.some((d) => d.id === a.id));
-      if (!exact) useConnectionsStore.getState().setAccounts(DEMO_ACCOUNTS);
+    // Live mode = the operator's own channels (remembered separately, so the demo
+    // reset can never wipe them; defaults to OWNER_ACCOUNTS).
+    {
+      const conn = useConnectionsStore.getState();
+      if (demo) {
+        if (!isDemoTrio(conn.accounts)) conn.setAccounts(DEMO_ACCOUNTS);
+      } else if (isDemoTrio(conn.accounts) || conn.accounts.length === 0) {
+        conn.setAccounts(conn.liveAccounts);
+      }
     }
 
     // Analytics history follows the mode: demo seeds rich mock history; live

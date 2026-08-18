@@ -1,6 +1,5 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import { LATEST_EPISODE_BID } from "@/lib/broadcastConstants";
 
 /**
  * Extra bits the LIVE readers need beyond the account list in connectionsStore:
@@ -13,6 +12,7 @@ import { LATEST_EPISODE_BID } from "@/lib/broadcastConstants";
  * param (see lib/urlOverrides.ts) since OBS has its own storage.
  */
 export const KNOWN_KICK_ROOMS: Record<string, string> = {
+  splitdawig: "328227",
   ansem: "108796898",
   banks: "86037190",
 };
@@ -28,7 +28,8 @@ interface LiveSourcesState {
 export const useLiveSourcesStore = create<LiveSourcesState>()(
   persist(
     (set) => ({
-      xBroadcastId: LATEST_EPISODE_BID,
+      // Nothing followed until the operator pastes a live link (X chat lives on a broadcast).
+      xBroadcastId: "",
       xBroadcastTitle: "",
       kickRooms: { ...KNOWN_KICK_ROOMS },
       setXBroadcast: (id, title) => set({ xBroadcastId: id.trim(), xBroadcastTitle: title ?? "" }),

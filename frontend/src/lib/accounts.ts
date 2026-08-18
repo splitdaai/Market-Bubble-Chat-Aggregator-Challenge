@@ -19,6 +19,21 @@ export const DEMO_ACCOUNTS: Account[] = [
   { id: "youtube:marketbubble", platform: "youtube", handle: "@MarketBubble", displayName: "Market Bubble", connected: true },
 ];
 
+/**
+ * The operator's OWN channels — the LIVE-mode default. Demo keeps the show trio
+ * above; Live starts from these (editable in Connections, remembered per browser).
+ */
+export const OWNER_ACCOUNTS: Account[] = [
+  { id: "twitch:splitdawig", platform: "twitch", handle: "splitdawig", displayName: "SplitDaWig", connected: true },
+  { id: "kick:splitdawig", platform: "kick", handle: "splitdawig", displayName: "SplitDaWig", connected: true },
+  { id: "youtube:splitdawig", platform: "youtube", handle: "@SplitDaWig", displayName: "SplitDaWig", connected: true },
+  { id: "x:splitdawig", platform: "x", handle: "@SplitDaWig", displayName: "SplitDaWig", connected: true },
+];
+
+/** True when `accounts` is exactly the demo trio (order-insensitive). */
+export const isDemoTrio = (accounts: Account[]) =>
+  accounts.length === DEMO_ACCOUNTS.length && accounts.every((a) => DEMO_ACCOUNTS.some((d) => d.id === a.id));
+
 /** Rough channel-size weights for splitting platform totals across accounts. */
 export const ACCOUNT_WEIGHT: Record<string, number> = { Ansem: 1, Banks: 0.7, "Market Bubble": 0.5 };
 

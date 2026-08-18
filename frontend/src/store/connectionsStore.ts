@@ -1,7 +1,8 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { Account, Platform } from "@shared/types";
-import { DEMO_ACCOUNTS } from "@/lib/accounts";
+import { DEMO_ACCOUNTS, OWNER_ACCOUNTS, isDemoTrio } from "@/lib/accounts";
+import { useModeStore } from "@/store/modeStore";
 
 /**
  * Connected accounts + OBS.
@@ -16,7 +17,10 @@ import { DEMO_ACCOUNTS } from "@/lib/accounts";
  */
 
 interface ConnectionsState {
+  /** What's shown/aggregated right now (Demo = the show trio, Live = your channels). */
   accounts: Account[];
+  /** The LIVE list, remembered across Demo↔Live flips (Demo always resets `accounts` to the trio). */
+  liveAccounts: Account[];
   obs: { host: string; port: number };
   // runtime-only (never persisted)
   obsConnected: boolean;
@@ -33,10 +37,16 @@ interface ConnectionsState {
   setObsState: (patch: Partial<Pick<ConnectionsState, "obsConnected" | "obsVersion" | "obsError" | "obsBusy">>) => void;
 }
 
+// Every write to `accounts` while in LIVE mode is mirrored into `liveAccounts`,
+// so the demo reset (useChatConnection) can never lose the operator's channels.
+const mirror = (s: ConnectionsState, accounts: Account[]) =>
+  useModeStore.getState().demo || isDemoTrio(accounts) ? { accounts } : { accounts, liveAccounts: accounts };
+
 export const useConnectionsStore = create<ConnectionsState>()(
   persist(
     (set) => ({
       accounts: DEMO_ACCOUNTS,
+      liveAccounts: OWNER_ACCOUNTS,
       obs: { host: "127.0.0.1", port: 4455 },
       obsConnected: false,
       obsVersion: undefined,
@@ -48,20 +58,22 @@ export const useConnectionsStore = create<ConnectionsState>()(
           const clean = handle.trim().replace(/^@?/, platform === "x" || platform === "youtube" ? "@" : "");
           const id = `${platform}:${clean.replace(/^@/, "").toLowerCase()}`;
           if (s.accounts.some((a) => a.id === id)) return s;
-          return {
-            accounts: [...s.accounts, { id, platform, handle: clean, displayName: displayName.trim() || clean, connected: true }],
-          };
+          return mirror(s, [...s.accounts, { id, platform, handle: clean, displayName: displayName.trim() || clean, connected: true }]);
         }),
-      removeAccount: (id) => set((s) => ({ accounts: s.accounts.filter((a) => a.id !== id) })),
+      removeAccount: (id) => set((s) => mirror(s, s.accounts.filter((a) => a.id !== id))),
       toggleAccount: (id) =>
-        set((s) => ({ accounts: s.accounts.map((a) => (a.id === id ? { ...a, connected: !a.connected } : a)) })),
-      setAccounts: (accounts) => set({ accounts }),
+        set((s) => mirror(s, s.accounts.map((a) => (a.id === id ? { ...a, connected: !a.connected } : a)))),
+      setAccounts: (accounts) => set((s) => mirror(s, accounts)),
       setObsConfig: (patch) => set((s) => ({ obs: { ...s.obs, ...patch } })),
       setObsState: (patch) => set(patch),
     }),
     {
       name: "vibechat-connections-v5",
-      partialize: (s) => ({ accounts: s.accounts, obs: s.obs }),
+      partialize: (s) => ({ accounts: s.accounts, liveAccounts: s.liveAccounts, obs: s.obs }),
+      merge: (persisted, current) => {
+        const p = (persisted ?? {}) as Partial<ConnectionsState>;
+        return { ...current, ...p, liveAccounts: p.liveAccounts?.length ? p.liveAccounts : OWNER_ACCOUNTS };
+      },
     },
   ),
 );
