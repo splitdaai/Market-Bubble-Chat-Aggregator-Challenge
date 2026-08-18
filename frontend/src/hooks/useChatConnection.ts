@@ -7,7 +7,7 @@ import { useClipsStore } from "@/store/clipsStore";
 import { useAnalyticsStore } from "@/store/analyticsStore";
 import { useModeStore } from "@/store/modeStore";
 import { useConnectionsStore } from "@/store/connectionsStore";
-import { DEMO_ACCOUNTS, isDemoTrio } from "@/lib/accounts";
+import { DEMO_ACCOUNTS, containsDemoTrio, isDemoTrio, ownAccounts, unionAccounts } from "@/lib/accounts";
 import { initEmotes } from "@/lib/emotes";
 import { setViewerWallet } from "@/lib/viewerWallets";
 import { useViewerStore } from "@/store/viewerStore";
@@ -79,6 +79,10 @@ export function useChatConnection() {
         if (!isDemoTrio(conn.accounts)) conn.setAccounts(DEMO_ACCOUNTS);
       } else if (isDemoTrio(conn.accounts) || conn.accounts.length === 0) {
         conn.setAccounts(conn.liveAccounts);
+      } else if (containsDemoTrio(conn.accounts)) {
+        // A demo list with the operator's additions appended (e.g. Connect clicked
+        // while in Demo) — keep only the operator's channels in Live.
+        conn.setAccounts(unionAccounts(conn.liveAccounts, ownAccounts(conn.accounts)));
       }
     }
 

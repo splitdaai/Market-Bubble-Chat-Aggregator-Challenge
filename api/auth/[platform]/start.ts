@@ -12,6 +12,16 @@ export default function handler(req: IncomingMessage & { query?: Record<string, 
     res.statusCode = 400; res.setHeader("Content-Type", "text/html");
     return res.end(popupHtml(`${platform} login isn't set up yet — add its CLIENT_ID / CLIENT_SECRET in Vercel`, undefined, true));
   }
+  // The state cookie must live on the host Twitch/etc. redirect back to. If the
+  // popup was opened from an alias (khaki / *-splitdaais-projects), hop to the
+  // canonical PUBLIC_URL host first.
+  const reqHost = String(req.headers["x-forwarded-host"] ?? req.headers.host ?? "").split(",")[0].trim();
+  const pubHost = new URL(publicOrigin(req)).host;
+  if (reqHost && pubHost && reqHost !== pubHost) {
+    res.statusCode = 302;
+    res.setHeader("Location", `${publicOrigin(req)}/api/auth/${platform}/start`);
+    return res.end();
+  }
   const prov = PROVIDERS[platform];
   const state = newState();
   const params = new URLSearchParams({ client_id: prov.clientId!, redirect_uri: redirectUri(req, platform), response_type: "code", scope: prov.scopes, state });

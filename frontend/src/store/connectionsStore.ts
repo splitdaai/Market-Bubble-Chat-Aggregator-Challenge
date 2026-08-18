@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { Account, Platform } from "@shared/types";
-import { DEMO_ACCOUNTS, OWNER_ACCOUNTS, isDemoTrio } from "@/lib/accounts";
+import { DEMO_ACCOUNTS, OWNER_ACCOUNTS, isDemoTrio, ownAccounts, unionAccounts } from "@/lib/accounts";
 import { useModeStore } from "@/store/modeStore";
 
 /**
@@ -37,10 +37,18 @@ interface ConnectionsState {
   setObsState: (patch: Partial<Pick<ConnectionsState, "obsConnected" | "obsVersion" | "obsError" | "obsBusy">>) => void;
 }
 
-// Every write to `accounts` while in LIVE mode is mirrored into `liveAccounts`,
-// so the demo reset (useChatConnection) can never lose the operator's channels.
-const mirror = (s: ConnectionsState, accounts: Account[]) =>
-  useModeStore.getState().demo || isDemoTrio(accounts) ? { accounts } : { accounts, liveAccounts: accounts };
+// `liveAccounts` = the operator's channels, remembered independently of the demo
+// trio: in LIVE every write mirrors straight in; in DEMO any non-trio channel the
+// operator adds (e.g. a Connect login) is unioned in, so it's there when Live
+// comes back — the demo reset in useChatConnection can never lose it.
+const mirror = (s: ConnectionsState, accounts: Account[]) => {
+  if (isDemoTrio(accounts)) return { accounts };
+  if (useModeStore.getState().demo) {
+    const own = ownAccounts(accounts);
+    return own.length ? { accounts, liveAccounts: unionAccounts(s.liveAccounts, own) } : { accounts };
+  }
+  return { accounts, liveAccounts: accounts };
+};
 
 export const useConnectionsStore = create<ConnectionsState>()(
   persist(

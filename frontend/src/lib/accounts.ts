@@ -30,6 +30,14 @@ export const OWNER_ACCOUNTS: Account[] = [
   { id: "x:splitdawig", platform: "x", handle: "@SplitDaWig", displayName: "SplitDaWig", connected: true },
 ];
 
+const DEMO_IDS = new Set(DEMO_ACCOUNTS.map((a) => a.id));
+/** Accounts that are NOT part of the demo trio — i.e. the operator's own additions. */
+export const ownAccounts = (accounts: Account[]) => accounts.filter((a) => !DEMO_IDS.has(a.id));
+/** True when every demo-trio account is present (a demo list, possibly with extras appended). */
+export const containsDemoTrio = (accounts: Account[]) => DEMO_ACCOUNTS.every((d) => accounts.some((a) => a.id === d.id));
+/** Union by id, keeping `base` order and appending new ones. */
+export const unionAccounts = (base: Account[], extra: Account[]) => [...base, ...extra.filter((e) => !base.some((b) => b.id === e.id))];
+
 /** True when `accounts` is exactly the demo trio (order-insensitive). */
 export const isDemoTrio = (accounts: Account[]) =>
   accounts.length === DEMO_ACCOUNTS.length && accounts.every((a) => DEMO_ACCOUNTS.some((d) => d.id === a.id));

@@ -10,14 +10,17 @@ export default async function handler(req: IncomingMessage & { query?: Record<st
   const secure = publicOrigin(req).startsWith("https");
   res.setHeader("Content-Type", "text/html; charset=utf-8");
   res.setHeader("Cache-Control", "no-store");
-  const fail = (msg: string) => { clearPendingCookie(res, secure); res.statusCode = 200; res.end(popupHtml(msg, undefined, true)); };
+  const fail = (msg: string) => { console.error(`[oauth:${platform}] ${msg}`); clearPendingCookie(res, secure); res.statusCode = 200; res.end(popupHtml(msg, undefined, true)); };
   if (!isPlatform(platform)) return fail("Unknown platform");
   const code = url.searchParams.get("code");
   const state = url.searchParams.get("state");
   const denied = url.searchParams.get("error");
   if (denied) return fail(`${platform} login was cancelled (${denied})`);
   const pending = readPendingCookie(req);
-  if (!code || !state || !pending || pending.state !== state || pending.platform !== platform) return fail("Login session expired — please try Connect again");
+  if (!code || !state || !pending || pending.state !== state || pending.platform !== platform) {
+    console.error(`[oauth:${platform}] state check failed: code=${Boolean(code)} state=${Boolean(state)} cookie=${Boolean(pending)} match=${pending?.state === state} host=${String(req.headers.host)}`);
+    return fail("Login session expired — please try Connect again");
+  }
   try {
     const token = await exchangeCode(platform, code, redirectUri(req, platform), pending.verifier);
     if (!token) return fail(`${platform} rejected the login (token exchange failed) — check the app's redirect URI matches ${redirectUri(req, platform)}`);

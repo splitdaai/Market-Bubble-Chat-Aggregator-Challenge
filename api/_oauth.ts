@@ -165,9 +165,34 @@ export async function exchangeCode(p: Platform, code: string, redirect: string, 
   if (prov.basicAuth) headers.Authorization = `Basic ${Buffer.from(`${prov.clientId}:${prov.clientSecret}`).toString("base64")}`;
   else body.set("client_secret", prov.clientSecret!);
   const r = await fetch(prov.tokenUrl, { method: "POST", headers, body });
-  if (!r.ok) return null;
+  if (!r.ok) {
+    const t = await r.text().catch(() => "");
+    console.error(`[oauth:${p}] token exchange ${r.status}: ${t.slice(0, 300)}`);
+    return null;
+  }
   const d = (await r.json()) as { access_token?: string };
   return d.access_token ?? null;
+}
+
+/** Does the platform accept our client id + secret? (client-credentials grant; Twitch + Kick support it.) */
+export async function checkCredentials(): Promise<Record<string, { ok: boolean; status?: number; error?: string }>> {
+  const out: Record<string, { ok: boolean; status?: number; error?: string }> = {};
+  for (const p of ["twitch", "kick"] as Platform[]) {
+    if (!configured(p)) { out[p] = { ok: false, error: "not configured" }; continue; }
+    const prov = PROVIDERS[p];
+    try {
+      const r = await fetch(prov.tokenUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({ grant_type: "client_credentials", client_id: prov.clientId!, client_secret: prov.clientSecret! }),
+      });
+      const body = (await r.json().catch(() => ({}))) as { message?: string; error?: string; error_description?: string };
+      out[p] = r.ok ? { ok: true, status: r.status } : { ok: false, status: r.status, error: body.message || body.error_description || body.error || `HTTP ${r.status}` };
+    } catch (e) {
+      out[p] = { ok: false, error: e instanceof Error ? e.message : String(e) };
+    }
+  }
+  return out;
 }
 
 function escapeHtml(v: string): string {
@@ -179,5 +204,5 @@ export function popupHtml(message: string, account?: { platform: Platform; handl
   const payload = JSON.stringify(account ? { type: "mb-auth", ...account } : { type: "mb-auth", error: message }).replace(/</g, "\\u003c");
   return `<!doctype html><meta charset=utf-8><title>Market Bubble</title><body style="background:#04100c;color:${error ? "#ffb4b4" : "#16e6a4"};font-family:system-ui;display:grid;place-items:center;height:100vh;margin:0">
 <div style="text-align:center;padding:24px"><h3 style="margin:0 0 8px">${escapeHtml(message)}</h3><p style="color:#78b6a4;margin:0">You can close this window.</p></div>
-<script>try{window.opener&&window.opener.postMessage(${payload},window.location.origin)}catch(e){}setTimeout(function(){window.close()},${error ? 4000 : 1200})</script>`;
+<script>try{window.opener&&window.opener.postMessage(${payload},"*")}catch(e){}setTimeout(function(){window.close()},${error ? 4000 : 1200})</script>`;
 }

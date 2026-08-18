@@ -183,8 +183,12 @@ export function ConnectionsManager({ open, onClose }: { open: boolean; onClose: 
   // The OAuth popup reports back who logged in → add that channel to the feed.
   useEffect(() => {
     const onMsg = (e: MessageEvent) => {
-      if (e.origin !== window.location.origin || e.data?.type !== "mb-auth") return;
+      if (e.data?.type !== "mb-auth") return;
       const d = e.data as { platform?: Platform; handle?: string; displayName?: string; error?: string };
+      // Popup may run on the canonical host while this tab is on an alias — the
+      // payload is public identity only, so validate shape rather than origin.
+      if (d.platform && !CHAT_PLATFORMS.includes(d.platform)) return;
+      if (d.handle && (typeof d.handle !== "string" || d.handle.length > 60)) return;
       if (d.error) { push({ message: d.error, tone: "error" }); return; }
       if (!d.platform || !d.handle) { push({ message: "Account connected", tone: "ok" }); return; }
       addAccount(d.platform, d.handle, d.displayName || d.handle);
