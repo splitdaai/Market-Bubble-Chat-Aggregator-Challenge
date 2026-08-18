@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { useChatStore } from "@/store/chatStore";
 import { useModeStore } from "@/store/modeStore";
-import { LATEST_EPISODE_BID } from "@/lib/broadcastConstants";
+import { useLiveSourcesStore } from "@/store/liveSourcesStore";
 
 /**
  * REAL live X broadcast chat with NO backend server. In LIVE mode:
@@ -19,12 +19,16 @@ interface Msg { username: string; displayName: string; text: string; t: number }
 const RECHECK_MS = 20_000;
 const HISTORY_POLL_MS = 4_000;
 
-export function useXLiveChat(broadcastId: string = LATEST_EPISODE_BID) {
+export function useXLiveChat(override?: string) {
   const addMessage = useChatStore((s) => s.addMessage);
   const demo = useModeStore((s) => s.demo);
+  // The broadcast to follow = whatever the operator pasted in Connections
+  // (defaults to the latest show episode).
+  const stored = useLiveSourcesStore((s) => s.xBroadcastId);
+  const broadcastId = override ?? stored;
 
   useEffect(() => {
-    if (demo) return;
+    if (demo || !broadcastId) return;
     let alive = true;
     let ws: WebSocket | null = null;
     let access: Access | null = null;

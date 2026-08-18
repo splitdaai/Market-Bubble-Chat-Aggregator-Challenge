@@ -13,6 +13,7 @@ import { moderate } from "@/lib/api";
 import { LiveTimer } from "./LiveTimer";
 import { EngagementQr, OverlayEngagementLayer } from "./OverlayEngagementLayer";
 import { ENGAGE_ROOM } from "@/lib/overlayEngagement";
+import { obsUrl } from "@/lib/urlOverrides";
 import { OnboardingChrome } from "./BroadcastOnboarding";
 import type { ChatMessage, ModerationAction, Platform } from "@shared/types";
 
@@ -427,7 +428,9 @@ function CopyObsUrlButton() {
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState<"live" | "demo" | null>(null);
   const base = typeof window !== "undefined" ? `${window.location.origin}${window.location.pathname}` : "";
-  const urlFor = (mode: "live" | "demo") => `${base}?broadcast=1&mode=${mode}`;
+  // LIVE URLs embed the operator's channels (`ch=`) so OBS — which has its own
+  // browser storage — follows the same channels as the dashboard.
+  const urlFor = (mode: "live" | "demo") => (mode === "live" ? obsUrl("broadcast") : `${base}?broadcast=1&mode=demo`);
 
   const copy = async (mode: "live" | "demo") => {
     try {

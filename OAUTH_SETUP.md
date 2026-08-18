@@ -1,26 +1,33 @@
-# Market Bubble — OAuth App Registration
+# Market Bubble — OAuth App Registration (Vercel, no server)
 
-To let the **Connect** buttons log real accounts into the live feed, register one
-OAuth app per platform and drop its Client ID + Secret into `backend/.env`.
-Secrets stay server-side — they are never sent to the browser.
+The **Connect** buttons log you into a platform and add *your* channel to the
+live feed. The login runs on same-origin Vercel functions (`/api/auth/*`) —
+there is no backend server anymore. Nothing is stored: the popup only tells the
+app which channel is yours. Reading public chat never needs a login at all
+(type the channel name in the box under each platform instead).
+
+To make **Connect** work you register one OAuth app per platform (about 5 min
+each) and paste its Client ID + Secret into **Vercel → Project → Settings →
+Environment Variables** (Production). Secrets stay server-side.
 
 ## The one redirect URI you'll paste everywhere
 
-When registering each app, set its **redirect / callback URL** to:
-
 ```
-http://localhost:4000/auth/<platform>/callback
+https://marketbubble-five.vercel.app/api/auth/<platform>/callback
 ```
 
-| Platform | Exact callback URL to register                   | Env vars                                  |
-| -------- | ------------------------------------------------- | ----------------------------------------- |
-| Twitch   | `http://localhost:4000/auth/twitch/callback`      | `TWITCH_CLIENT_ID` / `TWITCH_CLIENT_SECRET` |
-| YouTube  | `http://localhost:4000/auth/youtube/callback`     | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` |
-| X        | `http://localhost:4000/auth/x/callback`           | `X_CLIENT_ID` / `X_CLIENT_SECRET`         |
-| Kick     | `http://localhost:4000/auth/kick/callback`        | `KICK_CLIENT_ID` / `KICK_CLIENT_SECRET`   |
+| Platform | Exact callback URL to register                                        | Vercel env vars                             |
+| -------- | ---------------------------------------------------------------------- | ------------------------------------------- |
+| Twitch   | `https://marketbubble-five.vercel.app/api/auth/twitch/callback`        | `TWITCH_CLIENT_ID` / `TWITCH_CLIENT_SECRET` |
+| YouTube  | `https://marketbubble-five.vercel.app/api/auth/youtube/callback`       | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` |
+| X        | `https://marketbubble-five.vercel.app/api/auth/x/callback`             | `X_CLIENT_ID` / `X_CLIENT_SECRET`           |
+| Kick     | `https://marketbubble-five.vercel.app/api/auth/kick/callback`          | `KICK_CLIENT_ID` / `KICK_CLIENT_SECRET`     |
 
-> When you deploy the backend behind HTTPS, change `PUBLIC_URL` in `backend/.env`
-> to that origin and re-register the same paths with the new host.
+> Using a custom domain later? Register the same path on the new host and set
+> `PUBLIC_URL=https://<new-host>` in Vercel so the callback URL matches exactly.
+> For local dev (`npm run dev` on :5180) also register
+> `http://localhost:5180/api/auth/<platform>/callback` and put the same vars in
+> a root `.env` (never committed).
 
 ---
 
@@ -28,15 +35,12 @@ http://localhost:4000/auth/<platform>/callback
 
 1. Go to **https://dev.twitch.tv/console/apps** → **Register Your Application**.
 2. **Name:** `Market Bubble LIVE` (must be globally unique — add a suffix if taken).
-3. **OAuth Redirect URLs:** `http://localhost:4000/auth/twitch/callback`
+3. **OAuth Redirect URLs:** `https://marketbubble-five.vercel.app/api/auth/twitch/callback`
 4. **Category:** Chat Bot · **Client Type:** Confidential.
 5. Create → open the app → copy **Client ID**, click **New Secret** → copy it.
-6. Put them in `backend/.env`:
-   ```
-   TWITCH_CLIENT_ID=...
-   TWITCH_CLIENT_SECRET=...
-   ```
-Scopes requested by the app: `chat:read chat:edit channel:moderate moderator:manage:banned_users`.
+6. Vercel env vars: `TWITCH_CLIENT_ID`, `TWITCH_CLIENT_SECRET`.
+
+Scope requested: `chat:read` (identity only).
 
 ## 2. YouTube (Google Cloud)
 
@@ -47,15 +51,11 @@ Scopes requested by the app: `chat:read chat:edit channel:moderate moderator:man
    in "Testing").
 4. **Credentials → Create Credentials → OAuth client ID** → Application type
    **Web application**.
-5. **Authorized redirect URIs:** `http://localhost:4000/auth/youtube/callback`
-6. Copy the **Client ID** + **Client Secret**:
-   ```
-   GOOGLE_CLIENT_ID=...
-   GOOGLE_CLIENT_SECRET=...
-   ```
-Scope requested: `youtube.readonly`.
-> While the app is in "Testing", only the added test users can connect and
-> tokens expire after 7 days — fine for the demo.
+5. **Authorized redirect URIs:** `https://marketbubble-five.vercel.app/api/auth/youtube/callback`
+6. Vercel env vars: `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`.
+
+Scope requested: `youtube.readonly` (identity only — live chat itself is read
+without any key via `/api/yt-chat`).
 
 ## 3. X / Twitter
 
@@ -64,39 +64,36 @@ Scope requested: `youtube.readonly`.
 2. Open the app → **User authentication settings → Set up**.
 3. **App permissions:** Read · **Type of App:** *Web App, Automated App or Bot*
    (this makes it a confidential client with a secret).
-4. **Callback URI / Redirect URL:** `http://localhost:4000/auth/x/callback`
-   **Website URL:** anything valid (e.g. your X profile or the S3 demo URL).
-5. Save → from **Keys and tokens**, copy the **OAuth 2.0 Client ID** + **Client Secret**:
-   ```
-   X_CLIENT_ID=...
-   X_CLIENT_SECRET=...
-   ```
-Scopes requested: `tweet.read users.read offline.access` (PKCE + Basic-auth token
-exchange — already handled in the backend).
+4. **Callback URI / Redirect URL:** `https://marketbubble-five.vercel.app/api/auth/x/callback`
+   **Website URL:** `https://marketbubble-five.vercel.app`
+5. Save → from **Keys and tokens**, copy the **OAuth 2.0 Client ID** + **Client Secret**.
+6. Vercel env vars: `X_CLIENT_ID`, `X_CLIENT_SECRET`.
+
+Scopes requested: `tweet.read users.read` (PKCE + Basic-auth token exchange —
+already handled). Note: X live *chat* follows a broadcast link, not a profile —
+paste your `x.com/i/broadcasts/…` link in Connections when you go live.
 
 ## 4. Kick
 
 1. **https://kick.com/settings/developer** → create an application.
-2. **Redirect URL:** `http://localhost:4000/auth/kick/callback`
-3. **Scopes:** `user:read chat:write`
-4. Copy **Client ID** + **Client Secret**:
-   ```
-   KICK_CLIENT_ID=...
-   KICK_CLIENT_SECRET=...
-   ```
-> Kick's public OAuth is the newest of the four and may require enabling
-> developer access first; its portal UI changes often. If it misbehaves, the
-> other three are enough to prove the live path.
+2. **Redirect URL:** `https://marketbubble-five.vercel.app/api/auth/kick/callback`
+3. **Scopes:** `user:read channel:read`
+4. Vercel env vars: `KICK_CLIENT_ID`, `KICK_CLIENT_SECRET`.
+
+> Kick chat rides a numbered chat room per channel; new channels need a
+> one-time room-id lookup (Kick's lookup endpoint is bot-walled). Paste the id
+> next to the channel in Connections.
 
 ---
 
 ## After pasting creds
 
-1. Restart the backend (`npm run start` in `backend/`) so it reloads `.env`.
-2. Confirm it sees them: `curl -s localhost:4000/auth/config` should now show
-   `true` for each platform you configured.
-3. In the app: open **Connections** (Plug icon) → flip the tile to **Live** →
-   click **Connect** on a platform → log in in the popup → your account appears
-   in the feed, stats, and leaderboards.
+1. In Vercel: **Deployments → ⋯ → Redeploy** (env vars only apply to new deployments).
+2. Confirm: `https://marketbubble-five.vercel.app/api/auth/config` shows `true`
+   for each platform you configured.
+3. In the app: open **Connections** (plug icon) → click **Connect** on a platform
+   → log in in the popup → your channel appears in the list; flip to **LIVE** and
+   its chat flows into the feed.
 
-Anything left blank is simply skipped — the app degrades gracefully.
+Anything left blank is simply skipped — that platform's button reads **Set up**
+and the type-a-channel box still works.

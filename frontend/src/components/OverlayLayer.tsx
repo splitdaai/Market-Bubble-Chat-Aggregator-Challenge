@@ -9,6 +9,7 @@ import { OverlayMarket } from "./OverlayMarket";
 import { CustomOverlayEffect } from "./CustomOverlayEffect";
 import type { OverlaySource } from "@shared/types";
 import { useState } from "react";
+import { obsUrl } from "@/lib/urlOverrides";
 
 const SOURCES: OverlaySource[] = ["combined", "twitch", "kick", "x", "youtube", "chat", "custom"];
 const SOURCE_LABEL: Record<OverlaySource, string> = {
@@ -74,7 +75,7 @@ export function OverlayLayer() {
   const onPointerUp = () => { dragInfo.current = null; resizeInfo.current = null; };
 
   const copyObsLink = async () => {
-    const url = `${window.location.origin}${window.location.pathname}?overlay=1`;
+    const url = obsUrl("overlay"); // carries the operator's channels + pins LIVE (OBS has its own storage)
     try {
       await navigator.clipboard.writeText(url);
       setCopied(true);

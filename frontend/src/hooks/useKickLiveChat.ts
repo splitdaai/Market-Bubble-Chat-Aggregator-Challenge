@@ -1,6 +1,8 @@
 import { useEffect } from "react";
 import { useChatStore } from "@/store/chatStore";
 import { useModeStore } from "@/store/modeStore";
+import { useConnectionsStore } from "@/store/connectionsStore";
+import { kickRoomFor, useLiveSourcesStore } from "@/store/liveSourcesStore";
 
 /**
  * REAL live Kick chat with NO server and NO Lambda — $0.
@@ -13,25 +15,40 @@ import { useModeStore } from "@/store/modeStore";
  *
  * Adding a new Kick channel = resolve its chatroom id once
  * (`GET kick.com/api/v2/channels/<slug>` via curl_cffi / curl-impersonate) and
- * add it to KICK_CHATROOMS below. Ids never change for an existing channel.
+ * remember it in liveSourcesStore (KNOWN_KICK_ROOMS seeds the show's channels).
+ * Ids never change for an existing channel. Channels without a known room id
+ * are skipped until one is set (Connections shows a "needs room id" hint).
  *
  * LIVE mode only; demo keeps the mock firehose.
  */
-const KICK_CHATROOMS: Record<string, { channel: string; room: string }> = {
-  ansem: { channel: "Ansem", room: "108796898" },
-  banks: { channel: "Banks", room: "86037190" },
-};
+type KickRooms = Record<string, { channel: string; room: string }>;
 // Kick's public Pusher app (key + cluster). Public chatrooms need no auth token.
 const PUSHER_KEY = "32cbd69e4b950bf97679";
 const PUSHER_URL = `wss://ws-us2.pusher.com/app/${PUSHER_KEY}?protocol=7&client=js&version=8.4.0&flash=false`;
 const RECONNECT_MS = 5_000;
 
-export function useKickLiveChat(rooms: typeof KICK_CHATROOMS = KICK_CHATROOMS) {
+export function useKickLiveChat(override?: KickRooms) {
   const addMessage = useChatStore((s) => s.addMessage);
   const demo = useModeStore((s) => s.demo);
+  const accounts = useConnectionsStore((s) => s.accounts);
+  const knownRooms = useLiveSourcesStore((s) => s.kickRooms);
+  // slug|label|room per connected Kick account that has a room id — stable string.
+  const roomsKey = override
+    ? Object.entries(override).map(([slug, r]) => `${slug}|${r.channel}|${r.room}`).join(",")
+    : accounts
+        .filter((a) => a.platform === "kick" && a.connected)
+        .map((a) => ({ slug: a.handle.replace(/^[@#]/, "").toLowerCase(), label: a.displayName, room: kickRoomFor(a.handle, knownRooms) }))
+        .filter((r) => r.room)
+        .map((r) => `${r.slug}|${r.label}|${r.room}`)
+        .join(",");
 
   useEffect(() => {
-    if (demo) return;
+    if (demo || !roomsKey) return;
+    const rooms: KickRooms = {};
+    for (const spec of roomsKey.split(",")) {
+      const [slug, channel, room] = spec.split("|");
+      if (slug && room) rooms[slug] = { channel: channel || slug, room };
+    }
     let alive = true;
     let ws: WebSocket | null = null;
     let reconnectTimer: number | undefined;
@@ -94,5 +111,5 @@ export function useKickLiveChat(rooms: typeof KICK_CHATROOMS = KICK_CHATROOMS) {
       try { ws?.close(); } catch { /* ignore */ }
       if (reconnectTimer) window.clearTimeout(reconnectTimer);
     };
-  }, [rooms, addMessage, demo]);
+  }, [roomsKey, addMessage, demo]);
 }

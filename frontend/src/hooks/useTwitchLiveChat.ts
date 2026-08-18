@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { useChatStore } from "@/store/chatStore";
 import { useModeStore } from "@/store/modeStore";
+import { useConnectionsStore } from "@/store/connectionsStore";
 
 /**
  * REAL live Twitch chat with NO backend and NO Lambda — $0.
@@ -14,16 +15,23 @@ import { useModeStore } from "@/store/modeStore";
  * (Twitch chat is reachable even when a channel is offline, so the feed fills
  * as soon as anyone talks — no dependency on the stream being live.)
  */
-const TWITCH_CHANNELS = ["ansem", "banks", "marketbubble"];
 const WS_URL = "wss://irc-ws.chat.twitch.tv:443";
 const RECONNECT_MS = 5_000;
 
-export function useTwitchLiveChat(channels: string[] = TWITCH_CHANNELS) {
+export function useTwitchLiveChat(override?: string[]) {
   const addMessage = useChatStore((s) => s.addMessage);
   const demo = useModeStore((s) => s.demo);
+  // Channels = every connected Twitch account in Connections (added by hand or
+  // via "Connect" login). Joined as a stable string so the socket only
+  // reconnects when the set actually changes.
+  const fromStore = useConnectionsStore((s) =>
+    s.accounts.filter((a) => a.platform === "twitch" && a.connected).map((a) => a.handle.replace(/^[@#]/, "").toLowerCase()).join(","),
+  );
+  const channelsKey = override ? override.join(",") : fromStore;
 
   useEffect(() => {
-    if (demo) return;
+    if (demo || !channelsKey) return;
+    const channels = channelsKey.split(",").filter(Boolean);
     let alive = true;
     let ws: WebSocket | null = null;
     let reconnectTimer: number | undefined;
@@ -108,5 +116,5 @@ export function useTwitchLiveChat(channels: string[] = TWITCH_CHANNELS) {
       try { ws?.close(); } catch { /* ignore */ }
       if (reconnectTimer) window.clearTimeout(reconnectTimer);
     };
-  }, [channels, addMessage, demo]);
+  }, [channelsKey, addMessage, demo]);
 }

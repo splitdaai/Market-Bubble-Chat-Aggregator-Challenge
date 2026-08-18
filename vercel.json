@@ -9,6 +9,9 @@
     { "src": "/api/x-broadcast-chat/([^/]+)", "dest": "/api/x-broadcast-chat/[id]?id=$1" },
     { "src": "/api/x-chat-access/([^/]+)", "dest": "/api/x-chat-access/[id]?id=$1" },
     { "src": "/api/x-chat-history", "dest": "/api/x-chat-history" },
+    { "src": "/api/yt-chat.*", "dest": "/api/yt-chat" },
+    { "src": "/api/auth/config", "dest": "/api/auth/config" },
+    { "src": "/api/auth/([^/]+)/(start|callback)(\\?.*)?", "dest": "/api/auth/[platform]/$2?platform=$1" },
     { "handle": "filesystem" },
     { "src": "/.*", "dest": "/index.html" }
   ]

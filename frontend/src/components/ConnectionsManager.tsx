@@ -5,6 +5,8 @@ import type { Platform } from "@shared/types";
 import { CHAT_PLATFORMS, SourceBadge, platformLabel, platformColor } from "./SourceBadge";
 import { useConnectionsStore } from "@/store/connectionsStore";
 import { useModeStore } from "@/store/modeStore";
+import { kickRoomFor, parseXBroadcastId, useLiveSourcesStore } from "@/store/liveSourcesStore";
+import { obsUrl } from "@/lib/urlOverrides";
 import { useToastStore } from "@/store/toastStore";
 import { useWalletStore } from "@/store/walletStore";
 import { connectObs, addOverlaySource, addChatSource, type ObsClient } from "@/lib/obs";
@@ -20,7 +22,7 @@ const BACKEND = import.meta.env.VITE_BACKEND_URL as string | undefined;
 /** Max accounts a single platform can aggregate. */
 const MAX_ACCOUNTS = 5;
 
-/** The backend .env vars each platform's OAuth needs, shown when it isn't set up. */
+/** The Vercel env vars each platform's OAuth login needs, shown when it isn't set up. */
 const OAUTH_ENV: Partial<Record<Platform, string>> = {
   twitch: "TWITCH_CLIENT_ID / TWITCH_CLIENT_SECRET",
   youtube: "GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET",
@@ -54,11 +56,13 @@ export function ConnectionsManager({ open, onClose }: { open: boolean; onClose: 
   // null = not yet known (demo / no backend) → treat as "Connect".
   const [oauthConfig, setOauthConfig] = useState<Record<string, boolean> | null>(null);
 
+  // OAuth "Connect" runs on same-origin Vercel functions (/api/auth/*) — ask
+  // which platforms have their app keys set so the button reads Connect vs Set up.
   useEffect(() => {
-    if (!open || !BACKEND) return;
+    if (!open) return;
     let alive = true;
-    fetch(`${BACKEND}/auth/config`)
-      .then((r) => r.json())
+    fetch(`/api/auth/config`)
+      .then((r) => (r.ok ? r.json() : null))
       .then((d) => { if (alive) setOauthConfig(d?.configured ?? {}); })
       .catch(() => { if (alive) setOauthConfig({}); });
     return () => { alive = false; };
@@ -70,20 +74,34 @@ export function ConnectionsManager({ open, onClose }: { open: boolean; onClose: 
     if (BACKEND) fetch(`${BACKEND}/auth/account/${encodeURIComponent(id)}`, { method: "DELETE" }).catch(() => {});
   };
 
-  // Watch an arbitrary public channel (Twitch/Kick read no-auth by channel name).
-  // Demo: added to the local store (mock chat picks it up). Live: registered on
-  // the backend, which spins up a real anonymous chat connector.
+  // Watch any public channel by name — no login needed. Twitch (anonymous IRC),
+  // Kick (public Pusher room) and YouTube (public live chat) are all readable
+  // straight from the browser / a stateless function; the account list drives
+  // the LIVE readers directly (useTwitchLiveChat / useKickLiveChat / useYouTubeLiveChat).
   const addAccount = useConnectionsStore((s) => s.addAccount);
   const demo = useModeStore((s) => s.demo);
+  const kickRooms = useLiveSourcesStore((s) => s.kickRooms);
+  const setKickRoom = useLiveSourcesStore((s) => s.setKickRoom);
+  const xBroadcastId = useLiveSourcesStore((s) => s.xBroadcastId);
+  const xBroadcastTitle = useLiveSourcesStore((s) => s.xBroadcastTitle);
+  const setXBroadcast = useLiveSourcesStore((s) => s.setXBroadcast);
   const [watchInput, setWatchInput] = useState<Record<string, string>>({});
   const watchChannel = async (p: Platform) => {
-    const ch = (watchInput[p] ?? "").trim().replace(/^[@#]/, "").toLowerCase();
-    if (!/^[a-z0-9_]{2,30}$/.test(ch)) { push({ message: "Enter a valid channel name (letters, numbers, _)", tone: "error" }); return; }
-    // Demo always shows the canonical trio — watching extra channels is live-only.
-    if (demo) { push({ message: "Demo shows the Market Bubble trio — switch to LIVE to watch any channel", tone: "info" }); return; }
-    addAccount(p, ch, ch);
+    const raw = (watchInput[p] ?? "").trim();
+    // Accept a pasted channel URL too (twitch.tv/name, kick.com/name, youtube.com/@name).
+    const fromUrl = raw.match(/(?:twitch\.tv|kick\.com|youtube\.com)\/(@?[A-Za-z0-9._-]+)/i)?.[1];
+    const ch = (fromUrl ?? raw).replace(/^[@#]/, "");
+    const ok = p === "youtube" ? /^[A-Za-z0-9._-]{3,30}$/.test(ch) : /^[A-Za-z0-9_]{2,30}$/.test(ch);
+    if (!ok) { push({ message: p === "youtube" ? "Enter a YouTube handle like @yourname" : "Enter a valid channel name (letters, numbers, _)", tone: "error" }); return; }
+    const handle = p === "youtube" ? `@${ch}` : ch.toLowerCase();
+    addAccount(p, handle, ch);
     setWatchInput((s) => ({ ...s, [p]: "" }));
-    if (!demo && BACKEND) {
+    if (p === "kick" && !kickRoomFor(handle, kickRooms)) {
+      push({ message: `${ch} added — Kick needs a one-time chat-room lookup for new channels. Paste its room id next to the channel (ask Claude to look it up).`, tone: "info" });
+      return;
+    }
+    if (demo) { push({ message: `Added ${ch} (${platformLabel(p)}) — switch to LIVE to see its real chat`, tone: "ok" }); return; }
+    if (BACKEND) {
       try {
         const r = await fetch(`${BACKEND}/auth/watch`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ platform: p, channel: ch }) });
         const j = await r.json().catch(() => ({}));
@@ -102,21 +120,19 @@ export function ConnectionsManager({ open, onClose }: { open: boolean; onClose: 
   const watchXBroadcast = async (key = "x") => {
     const url = (watchInput[key] ?? "").trim();
     if (!url) { push({ message: "Paste an X broadcast URL or ID", tone: "error" }); return; }
-    if (demo) { push({ message: "Switch to LIVE to watch an X broadcast chat", tone: "info" }); return; }
-    if (!BACKEND) { push({ message: "X broadcast chat needs the backend — set VITE_BACKEND_URL and run the server", tone: "info" }); return; }
+    const id = parseXBroadcastId(url);
+    if (!id) { push({ message: "That doesn't look like an X live link — expected x.com/i/broadcasts/…", tone: "error" }); return; }
 
+    // Serverless: /api/x-chat-access checks the broadcast + tells us its title,
+    // then the LIVE reader (useXLiveChat) follows it straight from the browser.
     try {
-      const r = await fetch(`${BACKEND}/api/x-broadcast-chat/watch`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url }),
-      });
-      const j = await r.json().catch(() => ({}));
-      if (!r.ok) throw new Error(j.error || `HTTP ${r.status}`);
+      const r = await fetch(`/api/x-chat-access/${id}`);
+      const j = (await r.json().catch(() => ({}))) as { title?: string; replay?: boolean; state?: string; error?: string };
+      if (!r.ok) throw new Error(j.error === "unavailable" ? "broadcast not found or not public" : j.error || `HTTP ${r.status}`);
       const title = String(j.title || "X Broadcast");
-      if (key === "x") addAccount("x", String(j.id), title); // platform-level: register the broadcast as a source
+      setXBroadcast(id, title);
       setWatchInput((s) => ({ ...s, [key]: "" }));
-      push({ message: `Watching ${title} — ${Number(j.messages ?? 0)} X messages backfilled`, tone: "ok" });
+      push({ message: j.replay ? `Following ${title} — it's not live right now; chat starts when it is` : `Following ${title} — X chat is flowing in LIVE mode`, tone: "ok" });
     } catch (e) {
       push({ message: `Couldn't watch X broadcast: ${e instanceof Error ? e.message : e}`, tone: "error" });
     }
@@ -127,8 +143,9 @@ export function ConnectionsManager({ open, onClose }: { open: boolean; onClose: 
   //     sit center-screen between the hosts. Add it in OBS as a Browser Source.
   //   dockUrl       — the slim sidebar dock (`?dock=1`) for OBS Custom Browser
   //     Docks (in-OBS chat monitor while you stream).
-  const chatSourceUrl = typeof window !== "undefined" ? `${window.location.origin}${window.location.pathname}?broadcast=1` : "";
-  const dockUrl = typeof window !== "undefined" ? `${window.location.origin}${window.location.pathname}?dock=1` : "";
+  // Both URLs embed the operator's channels + pin LIVE (OBS has its own storage).
+  const chatSourceUrl = obsUrl("broadcast");
+  const dockUrl = obsUrl("dock");
   const copyChatSource = async () => {
     try {
       await navigator.clipboard.writeText(chatSourceUrl);
@@ -148,32 +165,40 @@ export function ConnectionsManager({ open, onClose }: { open: boolean; onClose: 
     }
   };
 
-  // Launch the real OAuth flow in a popup (live mode + configured backend).
+  // Launch the real OAuth login in a popup — same-origin Vercel functions, no server.
   const connectOAuth = (p: Platform) => {
-    if (!BACKEND) {
-      push({ message: "OAuth needs the backend — set VITE_BACKEND_URL and run the server (see README)", tone: "info" });
-      return;
-    }
-    // Don't pop a window onto a raw "not configured" backend error — tell the
-    // operator exactly which keys to set instead.
+    // Don't pop a window onto a "not configured" page — tell the operator
+    // exactly which keys to add in Vercel instead.
     if (oauthConfig && oauthConfig[p] === false) {
+      const cb = typeof window !== "undefined" ? `${window.location.origin}/api/auth/${p}/callback` : `/api/auth/${p}/callback`;
       push({
-        message: `${platformLabel(p)} OAuth isn't set up — add ${OAUTH_ENV[p] ?? "its CLIENT_ID/SECRET"} to backend/.env and restart the server (see OAUTH_SETUP.md).`,
+        message: `${platformLabel(p)} login isn't set up yet — in Vercel add ${OAUTH_ENV[p] ?? "its CLIENT_ID/SECRET"} (redirect URL for the app: ${cb}), redeploy, then Connect. Or just type the channel name below — no login needed to read chat.`,
         tone: "info",
       });
       return;
     }
-    window.open(`${BACKEND}/auth/${p}/start`, "mb-oauth", "width=620,height=780");
+    window.open(`/api/auth/${p}/start`, "mb-oauth", "width=620,height=780");
   };
 
-  // Toast when an OAuth popup reports success (the account list updates via socket).
+  // The OAuth popup reports back who logged in → add that channel to the feed.
   useEffect(() => {
     const onMsg = (e: MessageEvent) => {
-      if (e.data?.type === "mb-auth") push({ message: e.data.handle ? `Connected ${e.data.handle}` : "Account connected", tone: "ok" });
+      if (e.origin !== window.location.origin || e.data?.type !== "mb-auth") return;
+      const d = e.data as { platform?: Platform; handle?: string; displayName?: string; error?: string };
+      if (d.error) { push({ message: d.error, tone: "error" }); return; }
+      if (!d.platform || !d.handle) { push({ message: "Account connected", tone: "ok" }); return; }
+      addAccount(d.platform, d.handle, d.displayName || d.handle);
+      const needsRoom = d.platform === "kick" && !kickRoomFor(d.handle, useLiveSourcesStore.getState().kickRooms);
+      push({
+        message: needsRoom
+          ? `Connected ${d.displayName || d.handle} — Kick also needs a one-time chat-room id (paste it next to the channel)`
+          : `Connected ${d.displayName || d.handle} — its ${platformLabel(d.platform)} chat flows into the feed in LIVE mode`,
+        tone: "ok",
+      });
     };
     window.addEventListener("message", onMsg);
     return () => window.removeEventListener("message", onMsg);
-  }, [push]);
+  }, [push, addAccount]);
 
   const connectObsNow = async () => {
     setObsState({ obsBusy: true, obsError: undefined });
@@ -199,7 +224,7 @@ export function ConnectionsManager({ open, onClose }: { open: boolean; onClose: 
   };
   const addOverlay = async () => {
     if (!obsClient) return;
-    const url = `${window.location.origin}${window.location.pathname}?overlay=1`;
+    const url = obsUrl("overlay");
     try {
       await addOverlaySource(obsClient, url);
       track("obs", "Added viewer overlay to OBS", { url });
@@ -245,10 +270,10 @@ export function ConnectionsManager({ open, onClose }: { open: boolean; onClose: 
             <div className="mb-4 flex items-start gap-2 rounded-lg border border-amber-400/20 bg-amber-400/[0.06] p-2.5 text-[10px] leading-relaxed text-amber-200/80">
               <LogIn size={13} className="mt-0.5 shrink-0 text-amber-300" />
               <span>
-                <span className="font-semibold text-amber-200">Adding a different channel?</span> Google/YouTube shows
-                an account picker automatically. Twitch, X &amp; Kick reuse your current browser login — so to link a{" "}
-                <span className="font-semibold text-amber-200">separate</span> account, log into that account first (or
-                open this in a private window), then click Add account.
+                <span className="font-semibold text-amber-200">Two ways to add a channel:</span> type its name in the
+                box under a platform (no login — reads public chat), or click <span className="font-semibold text-amber-200">Connect</span> to
+                log in on that platform (needs the app keys set up in Vercel once). X chat follows a live broadcast link
+                (paste it when you go live).
               </span>
             </div>
 
@@ -297,9 +322,9 @@ export function ConnectionsManager({ open, onClose }: { open: boolean; onClose: 
                       <div className="mb-2 flex items-start gap-1.5 rounded-lg border border-[#d9a547]/30 bg-[#d9a547]/10 px-2 py-1.5 text-[10.5px] leading-snug text-[#e8c987]">
                         <Info size={12} className="mt-0.5 shrink-0" />
                         <span>
-                          <b>For X live chat to show:</b> when you go live, let X&apos;s &ldquo;Go Live&rdquo; post publish
-                          (it&apos;s auto-detected) — <b>or</b> paste your broadcast link in the box under your account below.
-                          Without one of those, X can&apos;t be pulled in.
+                          <b>For X live chat to show:</b> paste your live broadcast link (x.com/i/broadcasts/…) in the box
+                          under your account below each time you go live. Currently following:{" "}
+                          <b>{xBroadcastTitle || xBroadcastId || "nothing"}</b>.
                         </span>
                       </div>
                     )}
@@ -314,6 +339,21 @@ export function ConnectionsManager({ open, onClose }: { open: boolean; onClose: 
                               <span className={`h-1.5 w-1.5 rounded-full ${a.connected ? "bg-emerald-400" : "bg-white/25"}`} />
                               <span className="text-sm font-semibold text-ink">{a.displayName}</span>
                               <span className="text-[10px] text-muted">{a.handle}</span>
+                              {p === "kick" && !kickRoomFor(a.handle, kickRooms) && (
+                                <form
+                                  onSubmit={(e) => { e.preventDefault(); const v = (watchInput[`room:${a.id}`] ?? "").trim(); if (/^\d{2,12}$/.test(v)) { setKickRoom(a.handle, v); push({ message: `Kick room saved for ${a.displayName}`, tone: "ok" }); } else push({ message: "Room id is a number (ask Claude to look it up)", tone: "error" }); }}
+                                  className="flex items-center gap-1"
+                                  title="Kick chat rides a numbered chat room per channel — needs a one-time lookup"
+                                >
+                                  <span className="rounded-full bg-amber-400/15 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-amber-300">needs room id</span>
+                                  <input
+                                    value={watchInput[`room:${a.id}`] ?? ""}
+                                    onChange={(e) => setWatchInput((s) => ({ ...s, [`room:${a.id}`]: e.target.value }))}
+                                    placeholder="room id"
+                                    className="vc-input w-20 px-1.5 py-0.5 text-[10px]"
+                                  />
+                                </form>
+                              )}
                               {a.connected ? (
                                 <span className="flex items-center gap-0.5 rounded-full bg-emerald-400/15 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-emerald-300">
                                   <Check size={9} /> Connected
@@ -362,7 +402,7 @@ export function ConnectionsManager({ open, onClose }: { open: boolean; onClose: 
 
                     {/* Watch any public channel — Twitch & Kick chat is readable
                         by name (no login), so the team can pull any channel in. */}
-                    {(p === "twitch" || p === "kick") && (
+                    {(p === "twitch" || p === "kick" || p === "youtube") && (
                       <form
                         onSubmit={(e) => { e.preventDefault(); void watchChannel(p); }}
                         className="mt-1.5 flex items-center gap-1.5"
@@ -370,7 +410,7 @@ export function ConnectionsManager({ open, onClose }: { open: boolean; onClose: 
                         <input
                           value={watchInput[p] ?? ""}
                           onChange={(e) => setWatchInput((s) => ({ ...s, [p]: e.target.value }))}
-                          placeholder={`Watch any ${platformLabel(p)} channel — e.g. xqc`}
+                          placeholder={p === "youtube" ? "Add a YouTube channel — e.g. @LofiGirl (no login needed)" : `Add any ${platformLabel(p)} channel — e.g. xqc (no login needed)`}
                           className="vc-input flex-1 text-xs"
                         />
                         <button

@@ -23,6 +23,7 @@ import "./mobile.css";
 import { applyTheme } from "./lib/theme";
 import { useThemeStore } from "./store/themeStore";
 import { LoadingScreen } from "./components/LoadingScreen";
+import { applyUrlOverrides } from "./lib/urlOverrides";
 
 // A new deploy changes chunk hashes, so a tab opened before the deploy requests
 // an old chunk that no longer exists → blank screen when it lazy-loads a view
@@ -40,6 +41,10 @@ window.addEventListener("vite:preloadError", (e) => {
 // Apply the active theme (default or persisted) on first paint — guarantees the
 // theme + style templates are set on the root before anything renders.
 applyTheme(useThemeStore.getState().theme);
+
+// OBS pop-outs (own storage) get the operator's channels + Demo/Live pin from
+// the URL (`?ch=…&mode=live`) — apply before the first render.
+applyUrlOverrides();
 
 const queryClient = new QueryClient();
 
