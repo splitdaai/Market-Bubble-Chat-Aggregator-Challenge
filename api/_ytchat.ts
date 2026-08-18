@@ -123,6 +123,25 @@ function findLiveChatContinuation(data: unknown): string | undefined {
   return undefined;
 }
 
+/** Diagnostics for `?debug=1` — what did YouTube actually serve us? */
+export interface YtDebug { status: number; finalUrl: string; length: number; title: string; canonical?: string; isLive: boolean; hasInitialData: boolean; contSample?: number[] }
+export async function debugFetch(input: string): Promise<YtDebug | null> {
+  const url = targetUrl(input);
+  if (!url) return null;
+  const r = await fetch(url, { headers: HEADERS, redirect: "follow" });
+  const html = await r.text();
+  return {
+    status: r.status,
+    finalUrl: r.url,
+    length: html.length,
+    title: pick(/<title>([^<]*)<\/title>/, html) ?? "",
+    canonical: pick(/<link rel="canonical" href="([^"]+)"/, html),
+    isLive: /"isLiveNow"\s*:\s*true/.test(html) || /"isLive"\s*:\s*true/.test(html),
+    hasInitialData: /ytInitialData\s*=/.test(html),
+    contSample: [...html.matchAll(/"continuation":"([^"]+)"/g)].slice(0, 4).map((m) => m[1].length),
+  };
+}
+
 /** Resolve a handle / channel / video to the live video + first chat cursor. */
 export async function resolveLive(input: string): Promise<YtResolve | null> {
   const url = targetUrl(input);
@@ -131,22 +150,34 @@ export async function resolveLive(input: string): Promise<YtResolve | null> {
   if (!r.ok) return { live: false, retryMs: 60_000 };
   const html = await r.text();
 
-  // The /live URL 302s to /watch?v=… only while the channel is live (or has a
-  // scheduled premiere). Off-air it lands back on the channel page.
-  const canonical = pick(/<link rel="canonical" href="https:\/\/www\.youtube\.com\/watch\?v=([A-Za-z0-9_-]{11})"/, html);
+  // While the channel is live, /live serves the live watch page — sometimes via
+  // a 302 to /watch?v=…, sometimes rendered in place (datacenter clients see the
+  // latter, WITHOUT a canonical tag). So the video id is best-effort from several
+  // spots and never a hard requirement: what we truly need is `isLive` + the
+  // chat cursor. Off-air it lands on the channel page (no live chat cursor).
+  const videoId =
+    pick(/"videoDetails"\s*:\s*\{\s*"videoId"\s*:\s*"([A-Za-z0-9_-]{11})"/, html) ??
+    pick(/<meta property="og:url" content="https:\/\/www\.youtube\.com\/watch\?v=([A-Za-z0-9_-]{11})"/, html) ??
+    pick(/<link rel="shortlinkUrl" href="https:\/\/youtu\.be\/([A-Za-z0-9_-]{11})"/, html) ??
+    pick(/<link rel="canonical" href="https:\/\/www\.youtube\.com\/watch\?v=([A-Za-z0-9_-]{11})"/, html);
   const isLive = /"isLiveNow"\s*:\s*true/.test(html) || /"isLive"\s*:\s*true/.test(html);
-  const title = pick(/<meta name="title" content="([^"]*)"/, html)?.replace(/&amp;/g, "&").replace(/&quot;/g, '"').replace(/&#39;/g, "'");
-  const channelName = pick(/"ownerChannelName"\s*:\s*"((?:[^"\\]|\\.)*)"/, html)?.replace(/\\"/g, '"');
+  const unescape = (s?: string) => s?.replace(/&amp;/g, "&").replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/\\"/g, '"').replace(/\\u0026/g, "&");
+  const title =
+    unescape(pick(/<meta name="title" content="([^"]*)"/, html)) ??
+    unescape(pick(/"videoDetails"\s*:\s*\{\s*"videoId"\s*:\s*"[^"]+"\s*,\s*"title"\s*:\s*"((?:[^"\\]|\\.)*)"/, html)) ??
+    (unescape(pick(/<title>([^<]*?)(?: - YouTube)?<\/title>/, html))?.trim() || undefined);
+  const channelName = unescape(pick(/"ownerChannelName"\s*:\s*"((?:[^"\\]|\\.)*)"/, html)) ?? unescape(pick(/"author"\s*:\s*"((?:[^"\\]|\\.)*)"/, html));
   const apiKey = pick(/"INNERTUBE_API_KEY"\s*:\s*"([^"]+)"/, html) ?? FALLBACK_KEY;
   const clientVersion = pick(/"INNERTUBE_CLIENT_VERSION"\s*:\s*"([^"]+)"/, html) ?? FALLBACK_CLIENT_VERSION;
 
-  if (!canonical || !isLive) return { live: false, retryMs: 60_000, title, channelName };
+  if (!isLive) return { live: false, retryMs: 60_000, title, channelName };
   // Fallback = the first "continuation" in the page, which is the chat cursor
-  // on a live watch page; guard against short non-chat stubs.
-  const first = pick(/"continuation"\s*:\s*"([^"]{60,})"/, html);
+  // on a live WATCH page (never on a channel page, whose long tokens are browse
+  // cursors — hence the videoId guard); short non-chat stubs are skipped.
+  const first = videoId ? pick(/"continuation"\s*:\s*"([^"]{60,})"/, html) : undefined;
   const continuation = findLiveChatContinuation(initialData(html)) ?? first;
-  if (!continuation) return { live: false, retryMs: 30_000, videoId: canonical, title, channelName };
-  return { live: true, videoId: canonical, title, channelName, continuation, apiKey, clientVersion };
+  if (!continuation) return { live: false, retryMs: 30_000, videoId, title, channelName };
+  return { live: true, videoId, title, channelName, continuation, apiKey, clientVersion };
 }
 
 type Runs = { runs?: { text?: string; emoji?: { emojiId?: string; shortcuts?: string[]; isCustomEmoji?: boolean; image?: { accessibility?: { accessibilityData?: { label?: string } } } } }[]; simpleText?: string };

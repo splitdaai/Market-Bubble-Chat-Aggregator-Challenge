@@ -4,7 +4,7 @@
 // Stateless: the browser round-trips `continuation`. The resolve step is edge-
 // cached briefly so several open tabs (dashboard, pop-out, OBS dock) share it.
 import type { IncomingMessage, ServerResponse } from "node:http";
-import { pollChat, resolveLive, targetUrl } from "./_ytchat.js";
+import { debugFetch, pollChat, resolveLive, targetUrl } from "./_ytchat.js";
 
 export default async function handler(req: IncomingMessage, res: ServerResponse) {
   res.setHeader("Content-Type", "application/json");
@@ -23,6 +23,11 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
     }
     const target = url.searchParams.get("target") ?? "";
     if (!targetUrl(target)) { res.statusCode = 400; return res.end(JSON.stringify({ error: "bad target" })); }
+    if (url.searchParams.get("debug") === "1") {
+      res.setHeader("Cache-Control", "no-store");
+      res.statusCode = 200;
+      return res.end(JSON.stringify(await debugFetch(target)));
+    }
     const out = await resolveLive(target);
     if (!out) { res.statusCode = 400; return res.end(JSON.stringify({ error: "bad target" })); }
     // Live: short cache so tabs share one resolve. Off-air: cache a bit longer.
