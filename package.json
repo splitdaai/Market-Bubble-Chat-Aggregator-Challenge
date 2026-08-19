@@ -1,0 +1,8 @@
+{
+  "name": "market-bubble-root",
+  "private": true,
+  "description": "Root deps for the Vercel serverless functions in api/ (the frontend has its own package.json)",
+  "dependencies": {
+    "ws": "^8.18.0"
+  }
+}

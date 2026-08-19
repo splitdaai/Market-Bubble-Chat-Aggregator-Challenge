@@ -4,12 +4,17 @@ import { useModeStore } from "@/store/modeStore";
 import { useLiveSourcesStore } from "@/store/liveSourcesStore";
 
 /**
- * REAL live X broadcast chat with NO backend server. In LIVE mode:
- *  1. /api/x-chat-access/:id (Vercel fn) hands us the guest chat credentials.
- *  2. If the broadcast is RUNNING we open the pscp chat WebSocket DIRECTLY from
- *     the browser (WS has no CORS) and stream messages into the unified feed.
- *  3. A slow history poll through /api/x-chat-history (CORS-safe proxy) backfills
- *     anything the socket drops. Everything dedups on username:text:t.
+ * REAL live X broadcast chat — $0/mo, via a stateless Vercel long-poll relay.
+ *
+ * Chatman (X's chat backend) refuses WebSocket upgrades from third-party
+ * browser Origins, and its /history endpoint only exists for REPLAYS — so the
+ * browser can't read a live room directly (the old browser-WS path died when
+ * X tightened Origin checks). Instead:
+ *  1. /api/x-chat-access/:id (Vercel fn) resolves guest chat credentials.
+ *  2. If the broadcast is RUNNING, the browser long-polls /api/x-chat-live —
+ *     the function holds the chatman WS server-side (Origin: x.com) for up to
+ *     ~10s and returns the moment messages arrive, so latency stays sub-second
+ *     while a quiet chat costs one cheap call every ~10s.
  * If the broadcast is a replay/ended (show not on air), the feed stays quiet —
  * live mode never drips replayed chat.
  */
@@ -17,23 +22,20 @@ interface Access { endpoint: string; accessToken: string; roomId: string; replay
 interface Msg { username: string; displayName: string; text: string; t: number }
 
 const RECHECK_MS = 20_000;
-const HISTORY_POLL_MS = 4_000;
+const ERROR_BACKOFF_MS = 4_000;
 
 export function useXLiveChat(override?: string) {
   const addMessage = useChatStore((s) => s.addMessage);
   const demo = useModeStore((s) => s.demo);
-  // The broadcast to follow = whatever the operator pasted in Connections
-  // (defaults to the latest show episode).
+  // The broadcast to follow = whatever the operator pasted in Connections.
   const stored = useLiveSourcesStore((s) => s.xBroadcastId);
   const broadcastId = override ?? stored;
 
   useEffect(() => {
     if (demo || !broadcastId) return;
     let alive = true;
-    let ws: WebSocket | null = null;
     let access: Access | null = null;
-    let cursor = "";
-    let historyTimer: number | undefined;
+    let polling = false;
     let recheckTimer: number | undefined;
     const seen = new Set<string>();
 
@@ -46,7 +48,7 @@ export function useXLiveChat(override?: string) {
         nativeId: `live-${m.t}`,
         platform: "x",
         username: m.displayName || m.username,
-        channel: access?.title || "Market Bubble",
+        channel: access?.title || "X Broadcast",
         message: m.text,
         timestamp: Date.now(),
         badges: [],
@@ -54,58 +56,36 @@ export function useXLiveChat(override?: string) {
       });
     };
 
-    const parse = (raw: string): Msg | null => {
-      try {
-        const env = JSON.parse(raw) as { payload?: string };
-        const p = JSON.parse(env.payload ?? "{}") as { body?: string };
-        const b = JSON.parse(p.body ?? "{}") as { type?: number; body?: string; username?: string; displayName?: string; timestamp?: number };
-        if (b.type !== 1 || !b.body || !b.username) return null;
-        return { username: b.username, displayName: b.displayName ?? b.username, text: b.body, t: b.timestamp ?? Date.now() };
-      } catch {
-        return null;
+    // One long-poll after another: each call rides the chatman WS server-side
+    // and returns as soon as chat arrives (or after ~10s of quiet).
+    const pollLive = async () => {
+      if (polling) return;
+      polling = true;
+      while (alive && access && !access.replay) {
+        try {
+          const r = await fetch("/api/x-chat-live", {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ endpoint: access.endpoint, accessToken: access.accessToken, roomId: access.roomId }),
+          });
+          if (!r.ok) throw new Error(`HTTP ${r.status}`);
+          const d = (await r.json()) as { messages?: Msg[]; open?: boolean };
+          (d.messages ?? []).forEach(emit);
+          // A relay that couldn't keep the socket open = stale creds → re-resolve.
+          if (d.open === false) break;
+        } catch {
+          await new Promise((x) => setTimeout(x, ERROR_BACKOFF_MS));
+        }
       }
-    };
-
-    const connectWs = () => {
-      if (!alive || !access || access.replay) return;
-      try { ws?.close(); } catch { /* ignore */ }
-      const sock = new WebSocket(`${access.endpoint.replace(/^http/, "ws")}/chatapi/v1/chatnow`);
-      ws = sock;
-      sock.onopen = () => sock.send(JSON.stringify({ payload: JSON.stringify({ access_token: access?.accessToken, room_id: access?.roomId }), kind: 1 }));
-      sock.onmessage = (e) => {
-        const m = parse(String(e.data));
-        if (m) emit(m);
-      };
-      // On close we do nothing — the recheck loop re-attaches with fresh creds,
-      // and the history poll keeps messages flowing meanwhile.
-    };
-
-    const pollHistory = async () => {
-      if (!alive || !access || access.replay) return;
-      try {
-        const r = await fetch("/api/x-chat-history", {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ endpoint: access.endpoint, accessToken: access.accessToken, cursor }),
-        });
-        const d = (await r.json()) as { messages?: Msg[]; cursor?: string };
-        (d.messages ?? []).forEach(emit);
-        if (d.cursor) cursor = d.cursor;
-      } catch { /* transient */ }
-      if (alive) historyTimer = window.setTimeout(() => void pollHistory(), HISTORY_POLL_MS);
+      polling = false;
     };
 
     const check = async () => {
       try {
         const r = await fetch(`/api/x-chat-access/${broadcastId}`);
         if (r.ok) {
-          const fresh = (await r.json()) as Access;
-          const stale = !access || access.endpoint !== fresh.endpoint || access.accessToken !== fresh.accessToken;
-          access = fresh;
-          if (!fresh.replay && alive) {
-            if (stale || !ws || ws.readyState !== WebSocket.OPEN) connectWs();
-            if (historyTimer === undefined) void pollHistory();
-          }
+          access = (await r.json()) as Access;
+          if (!access.replay && alive) void pollLive();
         }
       } catch { /* transient */ }
       if (alive) recheckTimer = window.setTimeout(() => void check(), RECHECK_MS);
@@ -114,8 +94,7 @@ export function useXLiveChat(override?: string) {
 
     return () => {
       alive = false;
-      try { ws?.close(); } catch { /* ignore */ }
-      if (historyTimer) window.clearTimeout(historyTimer);
+      access = null;
       if (recheckTimer) window.clearTimeout(recheckTimer);
     };
   }, [broadcastId, addMessage, demo]);

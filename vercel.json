@@ -1,18 +1,56 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "installCommand": "cd frontend && npm ci",
+  "installCommand": "npm install && cd frontend && npm ci",
   "buildCommand": "cd frontend && npm run build",
   "outputDirectory": "frontend/dist",
   "routes": [
-    { "src": "/api/x-vod/([^/]+)", "dest": "/api/x-vod/[id]?id=$1" },
-    { "src": "/api/x-hls.*", "dest": "/api/x-hls" },
-    { "src": "/api/x-broadcast-chat/([^/]+)", "dest": "/api/x-broadcast-chat/[id]?id=$1" },
-    { "src": "/api/x-chat-access/([^/]+)", "dest": "/api/x-chat-access/[id]?id=$1" },
-    { "src": "/api/x-chat-history", "dest": "/api/x-chat-history" },
-    { "src": "/api/yt-chat.*", "dest": "/api/yt-chat" },
-    { "src": "/api/auth/config", "dest": "/api/auth/config" },
-    { "src": "/api/auth/([^/]+)/(start|callback)(\\?.*)?", "dest": "/api/auth/[platform]/$2?platform=$1" },
-    { "handle": "filesystem" },
-    { "src": "/.*", "dest": "/index.html" }
-  ]
+    {
+      "src": "/api/x-vod/([^/]+)",
+      "dest": "/api/x-vod/[id]?id=$1"
+    },
+    {
+      "src": "/api/x-hls.*",
+      "dest": "/api/x-hls"
+    },
+    {
+      "src": "/api/x-broadcast-chat/([^/]+)",
+      "dest": "/api/x-broadcast-chat/[id]?id=$1"
+    },
+    {
+      "src": "/api/x-chat-access/([^/]+)",
+      "dest": "/api/x-chat-access/[id]?id=$1"
+    },
+    {
+      "src": "/api/x-chat-history",
+      "dest": "/api/x-chat-history"
+    },
+    {
+      "src": "/api/x-chat-live",
+      "dest": "/api/x-chat-live"
+    },
+    {
+      "src": "/api/yt-chat.*",
+      "dest": "/api/yt-chat"
+    },
+    {
+      "src": "/api/auth/config",
+      "dest": "/api/auth/config"
+    },
+    {
+      "src": "/api/auth/([^/]+)/(start|callback)(\\?.*)?",
+      "dest": "/api/auth/[platform]/$2?platform=$1"
+    },
+    {
+      "handle": "filesystem"
+    },
+    {
+      "src": "/.*",
+      "dest": "/index.html"
+    }
+  ],
+  "functions": {
+    "api/x-chat-live.ts": {
+      "maxDuration": 30
+    }
+  }
 }
