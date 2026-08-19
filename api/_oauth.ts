@@ -177,6 +177,27 @@ export async function exchangeCode(p: Platform, code: string, redirect: string, 
 /** Does the platform accept our client id + secret? (client-credentials grant; Twitch + Kick support it.) */
 export async function checkCredentials(): Promise<Record<string, { ok: boolean; status?: number; error?: string }>> {
   const out: Record<string, { ok: boolean; status?: number; error?: string }> = {};
+  // Google + X don't offer client-credentials; instead exchange a bogus code:
+  // a WRONG secret → `invalid_client`, a RIGHT secret → `invalid_grant` (bad code).
+  for (const p of ["youtube", "x"] as Platform[]) {
+    if (!configured(p)) { out[p] = { ok: false, error: "not configured" }; continue; }
+    const prov = PROVIDERS[p];
+    try {
+      const body = new URLSearchParams({ grant_type: "authorization_code", code: "probe", redirect_uri: `${env.PUBLIC_URL ?? "https://marketbubble-five.vercel.app"}/api/auth/${p}/callback`, client_id: prov.clientId! });
+      const headers: Record<string, string> = { "Content-Type": "application/x-www-form-urlencoded" };
+      if (prov.basicAuth) headers.Authorization = `Basic ${Buffer.from(`${prov.clientId}:${prov.clientSecret}`).toString("base64")}`;
+      else body.set("client_secret", prov.clientSecret!);
+      if (prov.pkce) body.set("code_verifier", "probe-verifier-probe-verifier-probe-verifier-1234");
+      const r = await fetch(prov.tokenUrl, { method: "POST", headers, body });
+      const d = (await r.json().catch(() => ({}))) as { error?: string; error_description?: string };
+      const err = d.error ?? `HTTP ${r.status}`;
+      out[p] = err === "invalid_client" || err === "unauthorized_client"
+        ? { ok: false, status: r.status, error: `${err}: ${d.error_description ?? "client id/secret rejected"}` }
+        : { ok: true, status: r.status, error: `secret accepted (${err} on probe code, expected)` };
+    } catch (e) {
+      out[p] = { ok: false, error: e instanceof Error ? e.message : String(e) };
+    }
+  }
   for (const p of ["twitch", "kick"] as Platform[]) {
     if (!configured(p)) { out[p] = { ok: false, error: "not configured" }; continue; }
     const prov = PROVIDERS[p];
