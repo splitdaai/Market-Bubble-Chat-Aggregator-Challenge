@@ -1,5 +1,6 @@
 import type { Account, Platform } from "@shared/types";
 import { useConnectionsStore } from "@/store/connectionsStore";
+import { useOverlayStore } from "@/store/overlayStore";
 import { useLiveSourcesStore } from "@/store/liveSourcesStore";
 import { useModeStore } from "@/store/modeStore";
 
@@ -38,7 +39,7 @@ export function obsUrl(route: "dock" | "broadcast" | "overlay", extra: Record<st
   if (typeof window === "undefined") return "";
   const { accounts } = useConnectionsStore.getState();
   const { xBroadcastId, kickRooms } = useLiveSourcesStore.getState();
-  const p = new URLSearchParams({ [route]: "1", mode: "live", ...extra });
+  const p = new URLSearchParams({ [route]: "1", mode: "live", ...(route === "overlay" ? { show: "chat", qr: "0" } : {}), ...extra });
   const ch = channelsParam(accounts, xBroadcastId, kickRooms);
   if (ch) p.set("ch", ch);
   return `${window.location.origin}${window.location.pathname}?${p.toString()}`;
@@ -68,12 +69,26 @@ export function parseChannelsParam(raw: string): { accounts: Account[]; xBroadca
   return { accounts, xBroadcastId, kickRooms };
 }
 
-/** Boot-time: apply `mode=` and `ch=` from the current URL to the stores. */
+/** `show=chat` on an overlay URL → EXACTLY those overlay elements are visible
+ *  and everything else is hidden (an OBS browser has fresh storage, where the
+ *  combined viewer badge is on by default — a chat-only overlay must drop it). */
+function applyShowParam(raw: string): void {
+  const want = new Set(raw.split(",").map((s) => s.trim().toLowerCase()).filter(Boolean));
+  if (!want.size) return;
+  useOverlayStore.setState((s) => ({
+    enabled: true,
+    elements: s.elements.map((e) => ({ ...e, visible: want.has(e.source as string) })),
+  }));
+}
+
+/** Boot-time: apply `mode=`, `ch=` and `show=` from the current URL to the stores. */
 export function applyUrlOverrides(search = typeof window !== "undefined" ? window.location.search : ""): void {
   const params = new URLSearchParams(search);
   const mode = params.get("mode");
   if (mode === "live") useModeStore.getState().setDemo(false);
   else if (mode === "demo") useModeStore.getState().setDemo(true);
+  const show = params.get("show");
+  if (show) applyShowParam(show);
   const ch = params.get("ch");
   if (!ch) return;
   const parsed = parseChannelsParam(ch);
