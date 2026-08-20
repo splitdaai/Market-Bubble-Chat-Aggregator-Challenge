@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from "react";
+import { useMemo, useRef } from "react";
 import { useChatStore } from "@/store/chatStore";
 import { SourceBadge } from "./SourceBadge";
 import { EmoteText } from "./Message";
@@ -19,13 +19,6 @@ export function OverlayChat({ el }: { el: OverlayElement }) {
     [messages, enabled],
   );
 
-  // Keyed on the NEWEST MESSAGE ID, not the count — once the buffer hits its
-  // cap the length stops changing and a length-keyed effect stops scrolling
-  // (same bug the main feed had). Every new message = new id = fresh scroll.
-  const newestId = visible.length ? visible[visible.length - 1].id : "";
-  useEffect(() => {
-    if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-  }, [newestId]);
 
   const w = el.w ?? 320;
   const h = el.h ?? 380;
@@ -41,7 +34,12 @@ export function OverlayChat({ el }: { el: OverlayElement }) {
             <span className="text-[10px] font-black uppercase tracking-widest text-accent" style={{ textShadow: shadow }}>Live Chat</span>
           </div>
         )}
-        <div ref={scrollRef} className="flex flex-1 flex-col gap-1 overflow-y-auto px-1 py-0.5 [&::-webkit-scrollbar]:hidden" style={{ scrollbarWidth: "none" }}>
+        {/* No scrolling at all — the column is ANCHORED TO THE BOTTOM
+            (justify-end + overflow-hidden), so the newest message always sits
+            at the bottom edge and older ones slide up and off the top. Scroll
+            positioning in an OBS browser source proved fragile (it froze once
+            the buffer filled); a bottom-anchored clip can't get stuck. */}
+        <div ref={scrollRef} className="flex flex-1 flex-col justify-end gap-1 overflow-hidden px-1 py-0.5">
           {visible.map((m) => (
             <div key={m.id} className="flex items-start gap-1.5 text-[13px] font-semibold leading-snug" style={{ textShadow: shadow }}>
               <span className="mt-0.5 shrink-0">
