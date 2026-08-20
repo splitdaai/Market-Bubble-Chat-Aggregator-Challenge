@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef } from "react";
 import { useChatStore } from "@/store/chatStore";
 import { SourceBadge } from "./SourceBadge";
+import { EmoteText } from "./Message";
 import type { OverlayElement } from "@shared/types";
 
 /**
@@ -47,7 +48,7 @@ export function OverlayChat({ el }: { el: OverlayElement }) {
                   {m.username}
                 </span>
                 <span className="mx-1 text-white/60">·</span>
-                <span className="break-words text-white">{m.message}</span>
+                <span className="break-words text-white"><EmoteText message={m.message} emotes={m.emotes} /></span>
               </span>
             </div>
           ))}

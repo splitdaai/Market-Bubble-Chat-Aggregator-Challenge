@@ -190,6 +190,38 @@ function MessageInner({ msg, deleted, onModerate }: Props) {
   );
 }
 
+/** Message text with platform + 7TV/BTTV/FFZ emotes rendered as inline images.
+ *  Shared by the unified feed (via MessageInner) and the OBS chat overlay. */
+export function EmoteText({ message, emotes }: { message: string; emotes?: ChatMessage["emotes"] }) {
+  const emoteVersion = useEmoteStore((s) => s.version);
+  const parts = useMemo(() => {
+    void emoteVersion;
+    const messageEmotes = new Map((emotes ?? []).map((emote) => [stripColons(emote.code), emote.url]));
+    const resolve = (token: string) => messageEmotes.get(token) ?? messageEmotes.get(stripColons(token)) ?? getEmoteUrl(token);
+    const inlineCodes = [...messageEmotes.keys()].filter((code) => code.length >= 3).sort((a, b) => b.length - a.length);
+    const tokens = message.split(/(\s+)/);
+    const rendered: React.ReactNode[] = [];
+    let found = false;
+    for (const [i, token] of tokens.entries()) {
+      const url = resolve(token);
+      if (url) { found = true; rendered.push(emoteImage(`e-${i}`, url, token)); continue; }
+      const split = splitKnownEmoteRun(token, inlineCodes);
+      if (split) {
+        found = true;
+        rendered.push(...split.map((part, j) => {
+          if (part.kind === "text") return part.text;
+          const partUrl = resolve(part.code);
+          return partUrl ? emoteImage(`e-${i}-${j}`, partUrl, part.code) : part.code;
+        }));
+        continue;
+      }
+      rendered.push(token);
+    }
+    return found ? rendered : null;
+  }, [emotes, message, emoteVersion]);
+  return <>{parts ?? message}</>;
+}
+
 function stripColons(token: string): string {
   return token.length > 2 && token.startsWith(":") && token.endsWith(":") ? token.slice(1, -1) : token;
 }
