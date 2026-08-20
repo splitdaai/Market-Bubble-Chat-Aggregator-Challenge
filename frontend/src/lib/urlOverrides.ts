@@ -72,12 +72,14 @@ export function parseChannelsParam(raw: string): { accounts: Account[]; xBroadca
 /** `show=chat` on an overlay URL → EXACTLY those overlay elements are visible
  *  and everything else is hidden (an OBS browser has fresh storage, where the
  *  combined viewer badge is on by default — a chat-only overlay must drop it). */
-function applyShowParam(raw: string): void {
+function applyShowParam(raw: string, label: boolean): void {
   const want = new Set(raw.split(",").map((s) => s.trim().toLowerCase()).filter(Boolean));
   if (!want.size) return;
   useOverlayStore.setState((s) => ({
     enabled: true,
-    elements: s.elements.map((e) => ({ ...e, visible: want.has(e.source as string) })),
+    // URL-driven overlays are for compositing on a stream — no "Live Chat"
+    // header chrome unless the URL opts back in with `label=1`.
+    elements: s.elements.map((e) => ({ ...e, visible: want.has(e.source as string), showLabel: label })),
   }));
 }
 
@@ -88,7 +90,7 @@ export function applyUrlOverrides(search = typeof window !== "undefined" ? windo
   if (mode === "live") useModeStore.getState().setDemo(false);
   else if (mode === "demo") useModeStore.getState().setDemo(true);
   const show = params.get("show");
-  if (show) applyShowParam(show);
+  if (show) applyShowParam(show, params.get("label") === "1");
   const ch = params.get("ch");
   if (!ch) return;
   const parsed = parseChannelsParam(ch);
