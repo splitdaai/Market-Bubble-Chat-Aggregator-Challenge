@@ -19,9 +19,13 @@ export function OverlayChat({ el }: { el: OverlayElement }) {
     [messages, enabled],
   );
 
+  // Keyed on the NEWEST MESSAGE ID, not the count — once the buffer hits its
+  // cap the length stops changing and a length-keyed effect stops scrolling
+  // (same bug the main feed had). Every new message = new id = fresh scroll.
+  const newestId = visible.length ? visible[visible.length - 1].id : "";
   useEffect(() => {
     if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-  }, [visible.length]);
+  }, [newestId]);
 
   const w = el.w ?? 320;
   const h = el.h ?? 380;
