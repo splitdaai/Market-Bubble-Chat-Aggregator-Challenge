@@ -47,40 +47,6 @@ function MessageInner({ msg, deleted, onModerate }: Props) {
   const color = msg.color ?? platformColor(msg.platform);
   const hasWallet = !!viewerWallet(msg.username, demo);
 
-  // Render resolved platform emotes plus 7TV/BTTV/FFZ/Twitch emotes as inline
-  // images. Tokenized once per message (re-runs when new emote sets land).
-  const emoteVersion = useEmoteStore((s) => s.version);
-  const parts = useMemo(() => {
-    void emoteVersion;
-    const messageEmotes = new Map((msg.emotes ?? []).map((emote) => [stripColons(emote.code), emote.url]));
-    const resolve = (token: string) => messageEmotes.get(token) ?? messageEmotes.get(stripColons(token)) ?? getEmoteUrl(token);
-    const inlineCodes = [...messageEmotes.keys()]
-      .filter((code) => code.length >= 3)
-      .sort((a, b) => b.length - a.length);
-    const tokens = msg.message.split(/(\s+)/);
-    const rendered: React.ReactNode[] = [];
-    let found = false;
-    for (const [i, token] of tokens.entries()) {
-      const url = resolve(token);
-      if (url) {
-        found = true;
-        rendered.push(emoteImage(`e-${i}`, url, token));
-        continue;
-      }
-      const split = splitKnownEmoteRun(token, inlineCodes);
-      if (split) {
-        found = true;
-        rendered.push(...split.map((part, j) => {
-          if (part.kind === "text") return part.text;
-          const partUrl = resolve(part.code);
-          return partUrl ? emoteImage(`e-${i}-${j}`, partUrl, part.code) : part.code;
-        }));
-        continue;
-      }
-      rendered.push(token);
-    }
-    return found ? rendered : null;
-  }, [msg.emotes, msg.message, emoteVersion]);
 
   return (
     <>
@@ -159,7 +125,7 @@ function MessageInner({ msg, deleted, onModerate }: Props) {
             <span className="rounded bg-red-500/15 px-1 py-px text-[9px] font-bold uppercase tracking-wide text-red-300">modded</span>
           )}
           <span className={`ml-0.5 break-words text-ink/90 ${struck ? "line-through opacity-60" : ""}`}>
-            {parts ?? msg.message}
+            <EmoteText message={msg.message} emotes={msg.emotes} />
           </span>
         </div>
 
@@ -196,10 +162,19 @@ export function EmoteText({ message, emotes }: { message: string; emotes?: ChatM
   const emoteVersion = useEmoteStore((s) => s.version);
   const parts = useMemo(() => {
     void emoteVersion;
-    const messageEmotes = new Map((emotes ?? []).map((emote) => [stripColons(emote.code), emote.url]));
+    // Kick embeds its native emotes inline as [emote:<id>:<name>] — swap them
+    // for the CDN image before tokenizing (files.kick.com serves by id).
+    const kickEmotes: { code: string; url: string }[] = [];
+    const text = message.replace(/\[emote:(\d+):([^\]]*)\]/g, (_full, id: string, name: string) => {
+      const code = `kickemote-${id}`;
+      kickEmotes.push({ code, url: `https://files.kick.com/emotes/${id}/fullsize` });
+      void name;
+      return ` ${code} `;
+    });
+    const messageEmotes = new Map([...(emotes ?? []), ...kickEmotes].map((emote) => [stripColons(emote.code), emote.url]));
     const resolve = (token: string) => messageEmotes.get(token) ?? messageEmotes.get(stripColons(token)) ?? getEmoteUrl(token);
     const inlineCodes = [...messageEmotes.keys()].filter((code) => code.length >= 3).sort((a, b) => b.length - a.length);
-    const tokens = message.split(/(\s+)/);
+    const tokens = text.split(/(\s+)/);
     const rendered: React.ReactNode[] = [];
     let found = false;
     for (const [i, token] of tokens.entries()) {
